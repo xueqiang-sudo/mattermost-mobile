@@ -29,27 +29,46 @@ export type MyPreferencesRequest = {
     error?: unknown;
 };
 
-export const fetchMyPreferences = async (serverUrl: string, fetchOnly = false, groupLabel?: RequestGroupLabel): Promise<MyPreferencesRequest> => {
-    try {
-        const client = NetworkManager.getClient(serverUrl);
-        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+export const fetchMyPreferences = async (
+    serverUrl: string,
+    fetchOnly = false,
+    groupLabel?: RequestGroupLabel,
+    maxRetries = 0,
+): Promise<MyPreferencesRequest> => {
+    let lastError: unknown;
+    const totalAttempts = maxRetries + 1;
 
-        const preferences = await client.getMyPreferences(groupLabel);
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-        if (!fetchOnly) {
-            await operator.handlePreferences({
-                prepareRecordsOnly: false,
-                preferences,
-                sync: true,
-            });
+            const preferences = await client.getMyPreferences(groupLabel);
+
+            if (!fetchOnly) {
+                await operator.handlePreferences({
+                    prepareRecordsOnly: false,
+                    preferences,
+                    sync: true,
+                });
+            }
+
+            return {preferences};
+        } catch (error) {
+            lastError = error;
+            logDebug(`fetchMyPreferences attempt ${attempt} failed: ${getFullErrorMessage(error)}`);
+
+            // If we have retries left, wait and try again
+            if (attempt < totalAttempts) {
+                const delay = 1000 * attempt; // 1s, 2s, 3s...
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
         }
-
-        return {preferences};
-    } catch (error) {
-        logDebug('error on fetchMyPreferences', getFullErrorMessage(error));
-        forceLogoutIfNecessary(serverUrl, error);
-        return {error};
     }
+
+    // All attempts failed
+    forceLogoutIfNecessary(serverUrl, lastError);
+    return {error: lastError};
 };
 
 export const saveFavoriteChannel = async (serverUrl: string, channelId: string, isFavorite: boolean) => {

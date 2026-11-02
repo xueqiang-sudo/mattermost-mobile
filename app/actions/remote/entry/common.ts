@@ -84,9 +84,10 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         let lastDisconnectedAt = since || await getLastFullSync(database);
 
+        // Use maxRetries=2 for initial load to handle occasional network issues on Android
         const [confResp, prefData] = await Promise.all([
-            fetchConfigAndLicense(serverUrl, false, groupLabel),
-            fetchMyPreferences(serverUrl, true, groupLabel),
+            fetchConfigAndLicense(serverUrl, false, groupLabel, 2),
+            fetchMyPreferences(serverUrl, true, groupLabel, 2),
         ]);
 
         const isCRTEnabled = Boolean(prefData.preferences && processIsCRTEnabled(prefData.preferences, confResp.config?.CollapsedThreads, confResp.config?.FeatureFlagCollapsedThreads, confResp.config?.Version));
@@ -185,7 +186,8 @@ const entryRest = async (serverUrl: string, teamId?: string, channelId?: string,
             categories: [],
         };
         if (initialTeamId) {
-            chData = await fetchMyChannelsForTeam(serverUrl, initialTeamId, false, lastDisconnectedAt, true, false, isCRTEnabled, groupLabel);
+            // Use maxRetries=2 for initial load to handle occasional network issues on Android
+            chData = await fetchMyChannelsForTeam(serverUrl, initialTeamId, false, lastDisconnectedAt, true, false, isCRTEnabled, groupLabel, 2);
 
             // Debug: log channel fetch results
             const allChannels = chData?.channels || [];

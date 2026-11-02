@@ -496,53 +496,68 @@ export async function fetchMyChannelsForTeam(
     serverUrl: string, teamId: string, includeDeleted = true,
     since = 0, fetchOnly = false, excludeDirect = false,
     isCRTEnabled?: boolean, groupLabel?: RequestGroupLabel,
+    maxRetries = 0,
 ): Promise<MyChannelsRequest> {
-    try {
-        if (!fetchOnly) {
-            setTeamLoading(serverUrl, true);
-        }
-        const client = NetworkManager.getClient(serverUrl);
-        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const [allChannels, channelMemberships, categoriesWithOrder] = await Promise.all([
-            client.getMyChannels(teamId, includeDeleted, since, groupLabel),
-            client.getMyChannelMembers(teamId, groupLabel),
-            client.getCategories('me', teamId, groupLabel),
-        ]);
+    let lastError: unknown;
+    const totalAttempts = maxRetries + 1;
 
-        let channels = allChannels;
-        let memberships = channelMemberships;
-        if (excludeDirect) {
-            channels = channels.filter((c) => !isDMorGM(c));
-        }
-
-        const channelIds = new Set<string>(channels.map((c) => c.id));
-        const {categories} = categoriesWithOrder;
-        memberships = memberships.reduce((result: ChannelMembership[], m: ChannelMembership) => {
-            if (channelIds.has(m.channel_id)) {
-                result.push(m);
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+        try {
+            if (!fetchOnly) {
+                setTeamLoading(serverUrl, true);
             }
-            return result;
-        }, []);
+            const client = NetworkManager.getClient(serverUrl);
+            const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const [allChannels, channelMemberships, categoriesWithOrder] = await Promise.all([
+                client.getMyChannels(teamId, includeDeleted, since, groupLabel),
+                client.getMyChannelMembers(teamId, groupLabel),
+                client.getCategories('me', teamId, groupLabel),
+            ]);
 
-        if (!fetchOnly) {
-            const {models: chModels} = await storeMyChannelsForTeam(serverUrl, teamId, channels, memberships, true, isCRTEnabled);
-            const {models: catModels} = await storeCategories(serverUrl, categories, true, true); // Re-sync
-            const models = (chModels || []).concat(catModels || []);
-            if (models.length) {
-                await operator.batchRecords(models, 'fetchMyChannelsForTeam');
+            let channels = allChannels;
+            let memberships = channelMemberships;
+            if (excludeDirect) {
+                channels = channels.filter((c) => !isDMorGM(c));
             }
-            setTeamLoading(serverUrl, false);
-        }
 
-        return {channels, memberships, categories, teamId};
-    } catch (error) {
-        logDebug('error on fetchMyChannelsForTeam', getFullErrorMessage(error));
-        if (!fetchOnly) {
-            setTeamLoading(serverUrl, false);
+            const channelIds = new Set<string>(channels.map((c) => c.id));
+            const {categories} = categoriesWithOrder;
+            memberships = memberships.reduce((result: ChannelMembership[], m: ChannelMembership) => {
+                if (channelIds.has(m.channel_id)) {
+                    result.push(m);
+                }
+                return result;
+            }, []);
+
+            if (!fetchOnly) {
+                const {models: chModels} = await storeMyChannelsForTeam(serverUrl, teamId, channels, memberships, true, isCRTEnabled);
+                const {models: catModels} = await storeCategories(serverUrl, categories, true, true); // Re-sync
+                const models = (chModels || []).concat(catModels || []);
+                if (models.length) {
+                    await operator.batchRecords(models, 'fetchMyChannelsForTeam');
+                }
+                setTeamLoading(serverUrl, false);
+            }
+
+            return {channels, memberships, categories, teamId};
+        } catch (error) {
+            lastError = error;
+            logDebug(`fetchMyChannelsForTeam attempt ${attempt} failed: ${getFullErrorMessage(error)}`);
+
+            // If we have retries left, wait and try again
+            if (attempt < totalAttempts) {
+                const delay = 1000 * attempt; // 1s, 2s, 3s...
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
         }
-        forceLogoutIfNecessary(serverUrl, error);
-        return {error};
     }
+
+    // All attempts failed
+    if (!fetchOnly) {
+        setTeamLoading(serverUrl, false);
+    }
+    forceLogoutIfNecessary(serverUrl, lastError);
+    return {error: lastError};
 }
 
 export async function fetchMyChannel(serverUrl: string, teamId: string, channelId: string, fetchOnly = false, groupLabel?: RequestGroupLabel): Promise<MyChannelsRequest> {
