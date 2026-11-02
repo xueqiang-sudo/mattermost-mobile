@@ -414,7 +414,7 @@ export default function DraftHandler(props: Props) {
                 // Phase 3: 为每条 pending post 各自调服务端 createPost。
                 // 【优化】并行调用 createPost，限制并发数为 3，避免串行 API 调用
                 // 9 个 post：串行 9×200ms=1800ms → 并行 3×200ms=600ms（3x 提升）
-                const POST_CREATE_CONCURRENCY = 3;
+                const POST_CREATE_CONCURRENCY = 9;  // 最多9个文件，一次性创建所有帖子
                 debugLog('DRAFT', `addFiles: Phase 3 - calling server API for ${batchData.length} posts (parallel)`);
 
                 const createdPostIds: string[] = new Array(batchData.length);
@@ -463,7 +463,7 @@ export default function DraftHandler(props: Props) {
 
                 // 【优化】并行上传文件，限制并发数为 3，避免串行上传导致用户等待过久
                 // 9 个文件：串行 90秒 → 并行 30秒（3x 提升）
-                const UPLOAD_CONCURRENCY = 3;
+                const UPLOAD_CONCURRENCY = 9;  // 最多9个文件，一次性并行上传
                 const uploadQueue = filesWithPostData.map((item, index) => ({
                     ...item,
                     postId: createdPostIds[index],
