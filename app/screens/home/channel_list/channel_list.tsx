@@ -213,7 +213,6 @@ const ChannelListScreen = (props: ChannelProps) => {
     }, [teamCount, teamsLoading]);
 
     // 团队加载超时后，用户点击「重新加载」的处理函数
-    const intl = useIntl();
     const handleRetryLoadTeams = useCallback(async () => {
         setShowLoadTimeout(false);
         setTeamLoading(serverUrl, true);
