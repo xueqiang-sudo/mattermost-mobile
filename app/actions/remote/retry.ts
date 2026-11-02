@@ -49,8 +49,8 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
 
         // Fetch in parallel server config & license / user preferences / teams / team membership
         const promises: [Promise<ConfigAndLicenseRequest>, Promise<MyPreferencesRequest>, Promise<MyTeamsRequest>] = [
-            fetchConfigAndLicense(serverUrl, true, undefined, 2), // Use maxRetries=2 for reliability
-            fetchMyPreferences(serverUrl, true),
+            fetchConfigAndLicense(serverUrl, true, undefined, 5), // Use maxRetries=5 for reliability
+            fetchMyPreferences(serverUrl, true, undefined, 5),
             fetchMyTeams(serverUrl, true),
         ];
 
@@ -75,7 +75,7 @@ export async function retryInitialTeamAndChannel(serverUrl: string) {
                 const rolesToFetch = new Set<string>([...user.roles.split(' '), ...teamRoles]);
 
                 // fetch channels / channel membership for initial team
-                chData = await fetchMyChannelsForTeam(serverUrl, initialTeam.id, true, 0, true);
+                chData = await fetchMyChannelsForTeam(serverUrl, initialTeam.id, true, 0, true, false, undefined, undefined, 5);
                 if (chData.channels?.length && chData.memberships?.length) {
                     const {channels, memberships} = chData;
                     const channelIds = new Set(channels?.map((c) => c.id));
@@ -180,7 +180,7 @@ export async function retryInitialChannel(serverUrl: string, teamId: string) {
         const config = await getConfig(database);
 
         // fetch channels / channel membership for initial team
-        const chData = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true);
+        const chData = await fetchMyChannelsForTeam(serverUrl, teamId, true, 0, true, false, undefined, undefined, 5);
         if (chData.channels?.length && chData.memberships?.length) {
             const {channels, memberships} = chData;
             const channelIds = new Set(channels?.map((c) => c.id));
