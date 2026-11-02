@@ -5,10 +5,11 @@
 import {useFocusEffect, useIsFocused, useNavigation, useRoute} from '@react-navigation/native';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
+import {BackHandler, DeviceEventEmitter, StyleSheet, Text, TouchableOpacity, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
+import {retryInitialTeamAndChannel} from '@actions/remote/retry';
 import {refetchCurrentUser} from '@actions/remote/user';
 import FloatingCallContainer from '@calls/components/floating_call_container';
 import AnnouncementBanner from '@components/announcement_banner';
@@ -22,8 +23,9 @@ import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {queryMyTeams} from '@queries/servers/team';
 import DatabaseManager from '@database/manager';
-import {resetToDebug, openToS} from '@screens/navigation';
+import {openToS} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
+import {setTeamLoading} from '@store/team_load_store';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
@@ -57,6 +59,32 @@ const styles = StyleSheet.create({
     },
     flex: {
         flex: 1,
+    },
+    loadTimeoutContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 32,
+        zIndex: 10,
+    },
+    loadTimeoutText: {
+        fontSize: 15,
+        textAlign: 'center',
+        marginBottom: 16,
+        opacity: 0.7,
+    },
+    loadTimeoutButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    loadTimeoutButtonText: {
+        fontSize: 15,
+        fontWeight: '600',
     },
 });
 
@@ -153,17 +181,21 @@ const ChannelListScreen = (props: ChannelProps) => {
         return () => subscription.unsubscribe();
     }, [database]);
 
-    // 仅在团队数量持续为 0 且不在加载中时，才跳转调试页面
+    // 团队加载超时：teamCount=0 持续 30 秒后显示「加载超时，点击重试」UI
+    // 替代原来的 resetToDebug() 跳转，对用户更友好。
     const noTeamsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [showLoadTimeout, setShowLoadTimeout] = useState(false);
 
     useEffect(() => {
 
         if (teamCount > 0 || teamsLoading) {
-            // 团队已加载或正在加载，清除超时
+            // 团队已加载或正在加载，清除超时和超时提示
             if (noTeamsTimeoutRef.current) {
                 clearTimeout(noTeamsTimeoutRef.current);
                 noTeamsTimeoutRef.current = null;
             }
+            // 清除超时提示（幂等操作，已经是 false 时调用无副作用）
+            setShowLoadTimeout(false);
             return undefined;
         }
 
@@ -172,13 +204,27 @@ const ChannelListScreen = (props: ChannelProps) => {
             noTeamsTimeoutRef.current = setTimeout(() => {
                 noTeamsTimeoutRef.current = null;
                 if (!teamsLoadingRef.current) {
-                    resetToDebug();
+                    setShowLoadTimeout(true);
                 }
-            }, 15000);
+            }, 30000);
         }
 
         return () => {};
     }, [teamCount, teamsLoading]);
+
+    // 团队加载超时后，用户点击「重新加载」的处理函数
+    const intl = useIntl();
+    const handleRetryLoadTeams = useCallback(async () => {
+        setShowLoadTimeout(false);
+        setTeamLoading(serverUrl, true);
+        try {
+            await retryInitialTeamAndChannel(serverUrl);
+        } catch (error) {
+            // 重试失败不阻塞 UI，超时提示会再次出现
+        } finally {
+            setTeamLoading(serverUrl, false);
+        }
+    }, [serverUrl]);
 
     // 组件卸载时清除超时
     useEffect(() => {
@@ -252,6 +298,27 @@ const ChannelListScreen = (props: ChannelProps) => {
                 <Animated.View
                     style={[styles.content, animated]}
                 >
+                    {showLoadTimeout && (
+                        <View style={styles.loadTimeoutContainer}>
+                            <Text style={[styles.loadTimeoutText, {color: theme.centerChannelColor}]}>
+                                {intl.formatMessage({
+                                    id: 'channel_list.load_timeout',
+                                    defaultMessage: '加载团队信息超时，请检查网络后重试',
+                                })}
+                            </Text>
+                            <TouchableOpacity
+                                onPress={handleRetryLoadTeams}
+                                style={[styles.loadTimeoutButton, {backgroundColor: theme.buttonBg}]}
+                            >
+                                <Text style={[styles.loadTimeoutButtonText, {color: theme.buttonColor}]}>
+                                    {intl.formatMessage({
+                                        id: 'channel_list.retry',
+                                        defaultMessage: '重新加载',
+                                    })}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                     <CategoriesList
                         iconPad={false}
                         moreThanOneTeam={props.hasMoreThanOneTeam}

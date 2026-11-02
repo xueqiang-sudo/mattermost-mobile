@@ -387,6 +387,8 @@
   "channel_list.tag.group_chat": "羣聊",
   "channel_list.tag.public_group_chat": "公開羣聊",
   "channel_list.town_square.display_name": "企業總羣",
+  "channel_list.load_timeout": "載入團隊資訊逾時，請檢查網路後重試",
+  "channel_list.retry": "重新載入",
   "channel_loader.someone": "某人",
   "channel_modal.announcement": "公告",
   "channel_modal.announcementEx": "支援 Markdown，如連結與備註",

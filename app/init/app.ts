@@ -64,15 +64,28 @@ export async function initialize() {
 }
 
 export async function start() {
-    // Clean relevant information on ephemeral stores
-    NavigationStore.reset();
-    EphemeralStore.setCurrentThreadId('');
-    EphemeralStore.setProcessingNotification('');
-    JPushManager.setLoggedIn(false);
-    JPushManager.onAppStart();
+    // 关键：resetToStartupLoading 之前的任何异常都会导致原生 splash 永远卡住。
+    // 用 try/catch 隔离非关键初始化，确保 Navigation.setRoot 一定能执行。
+    try {
+        // Clean relevant information on ephemeral stores
+        NavigationStore.reset();
+        EphemeralStore.setCurrentThreadId('');
+        EphemeralStore.setProcessingNotification('');
+        JPushManager.setLoggedIn(false);
+        JPushManager.onAppStart();
 
-    registerNavigationListeners();
-    registerScreens();
+        registerNavigationListeners();
+        registerScreens();
+    } catch (error) {
+        // 即使 JPush 或 screen 注册崩溃，也要继续设置导航根，否则用户永远卡在启动页。
+        logError('[app.start] Pre-navigation init failed (splash would be stuck without recovery)', error);
+        // 兜底：确保 screens 至少注册过，否则 setRoot 后找不到组件
+        try {
+            registerScreens();
+        } catch (e) {
+            logError('[app.start] registerScreens fallback also failed', e);
+        }
+    }
 
     // Initialize debug panel console interceptor as early as possible so logs during
     // app startup are captured. The overlay is shown after RNN is ready (see below).

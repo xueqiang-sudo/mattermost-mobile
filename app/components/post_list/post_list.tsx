@@ -596,10 +596,6 @@ const PostList = ({
                 onRefresh={onRefresh}
                 estimatedItemSize={80}
                 drawDistance={500}
-                // 【性能优化】批处理配置，提升滚动帧率
-                maxToRenderPerBatch={10}          // 每批最多渲染10条
-                updateCellsBatchingPeriod={50}    // 批处理周期50ms
-                windowSize={21}                   // 保留21个窗口大小（内存优化）
             />
             {location !== Screens.PERMALINK &&
             <ScrollToEndView

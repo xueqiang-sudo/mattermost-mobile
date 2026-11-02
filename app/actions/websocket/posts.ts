@@ -227,6 +227,41 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
         post = outOfOrderWebsocketEvent.post;
     }
 
+    // 【关键修复】在写 Post 之前确保 File 记录已就绪。
+    //
+    // 问题：原实现在 Post 写入后才兜底拉取 File 记录。Post 先写入 → FlashList
+    // 渲染 → hasFiles=false（File 还没写入）→ 再异步拉取 File → 写入 File →
+    // observer 触发 → 但 FlashList 不重新测量已渲染的条目。导致 webapp 发送的
+    // 文件/图片在 mobile 实时看不到，必须退出再进聊天窗口才行。
+    //
+    // 方案：若 post 有 file_ids 但 metadata.files 缺失（某些 WebSocket 版本/场景），
+    // 在写 Post 之前先从服务端拉取 FileInfo 并注入到 metadata.files，
+    // 让 handlePosts 内部统一提取 File 记录，和 Post 一起写入同一个 batch。
+    const postFileIds = post.file_ids as string[] | undefined;
+    if (postFileIds && postFileIds.length > 0) {
+        const metaFiles = post.metadata?.files;
+        if (!metaFiles || metaFiles.length < postFileIds.length) {
+            try {
+                const existingFiles = await database.get(FILE).query(
+                    Q.where('post_id', post.id),
+                ).fetch();
+                if (existingFiles.length < postFileIds.length) {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const fileInfos = await client.getFileInfosForPost(post.id);
+                    if (fileInfos && fileInfos.length > 0) {
+                        // 注入到 metadata.files，handlePosts 内部会统一提取并创建 File 记录
+                        if (!post.metadata) {
+                            post.metadata = {} as any;
+                        }
+                        post.metadata.files = fileInfos;
+                    }
+                }
+            } catch (fileErr) {
+                logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
+            }
+        }
+    }
+
     const postModels = await operator.handlePosts({
         actionType,
         order: [post.id],
@@ -237,39 +272,6 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     models.push(...postModels);
 
     await operator.batchRecords(models, 'handleNewPostEvent');
-
-    // 服务端 WebSocket posted 事件在某些版本/场景下只给 file_ids 而不带
-    // metadata.files（FileInfo 详情）。Files 组件按 post_id 查 File 表渲染
-    // 附件，若 File 记录不存在则附件不显示，导致「webapp 发的文件在
-    // mobile 实时看不到，必须退出聊天窗口再进（走 HTTP 全量拉取）才行」。
-    // 这里兜底：若 post 含 file_ids 但 DB 里没对应 File 记录，主动拉一次
-    // 详情并写入，让 Files 组件的响应式查询能正常触发。
-    try {
-        const postFileIds = post.file_ids as string[] | undefined;
-        if (postFileIds && postFileIds.length > 0) {
-            const existingFiles = await database.get(FILE).query(
-                Q.where('post_id', post.id),
-            ).fetch();
-            if (existingFiles.length < postFileIds.length) {
-                const client = NetworkManager.getClient(serverUrl);
-                const fileInfos = await client.getFileInfosForPost(post.id);
-                if (fileInfos && fileInfos.length > 0) {
-                    const fileModels = await operator.handleFiles({
-                        files: fileInfos,
-                        prepareRecordsOnly: true,
-                    });
-                    if (fileModels.length > 0) {
-                        await operator.batchRecords(
-                            fileModels,
-                            'handleNewPostEvent_missingFiles',
-                        );
-                    }
-                }
-            }
-        }
-    } catch (fileErr) {
-        logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
-    }
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {

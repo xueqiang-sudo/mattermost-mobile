@@ -356,42 +356,56 @@ export async function createBatchPendingPosts(
             }
         }
 
-        // 【两阶段写入】先批量写所有 File，再批量写所有 Post。
+        // 【三阶段写入】先全量 File → 帧让渡 → 逐条 Post（帧间测量）。
         //
-        // 问题：原实现在同一次 batchRecords 里同时写 File+Post。WatermelonDB 对
-        // Post 表的插入会立刻触发 PostList 的 withObservables 重新渲染 Post 行；
-        // 而行内 Files 子组件的 queryFilesForPost().observeWithColumns() 在 Post
-        // 观察器触发时还没走完自己的 observe 管道，瞬间返回 0 条 → hasFiles=false，
-        // 所以「头像/时间戳先出现，文件信息延迟出现」。
+        // 阶段 1：全量写 File。此时 Post 不存在，PostList 不会渲染。
+        // 阶段 2：帧让渡（requestAnimationFrame），让 WatermelonDB observer 消化 File 事件。
+        // 阶段 3：逐条写 Post，每条之间用 requestAnimationFrame 让 FlashList
+        //         完成上一条的布局测量后再插入下一条。
+        //         这样 FlashList 能正确计算每条实际高度（带文件的 post 可能 200-300px），
+        //         避免批量插入时 estimatedItemSize=80 导致的位置重叠。
         //
-        // 方案：把所有 perPostModels 的 File 与 Post 分开写。
-        //   1) 先 batchRecords(所有 File)：此时 Post 行不存在，不会触发 PostList 渲染。
-        //   2) 等微任务队列让 WatermelonDB 消化 File 表的 change 事件。
-        //   3) 再 batchRecords(所有 Post)：Post 行插入，触发 PostList → Post 行渲染；
-        //      此时 Files 子组件的 query 已经能看到先写入的 File 行，hasFiles=true，
-        //      头像与文件信息同时出现，对齐微信体验。
+        // post_list.tsx 的 batchedPosts 逻辑对 lengthDiff === 1 的新消息会立刻应用，
+        // 所以逐条写入不会引入额外延迟，用户仍然看到消息快速冒出。
+        const waitForFrame = () => new Promise<void>((r) => {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => r());
+            } else {
+                setTimeout(r, 16);
+            }
+        });
+
         const allFiles: Model[] = [];
-        const allOtherModels: Model[] = [];
+        const perPostNonFiles: Model[][] = [];
         for (const models of perPostModels) {
             if (!models || models.length === 0) continue;
+            const nonFiles: Model[] = [];
             for (const m of models) {
-                // WatermelonDB 模型通过 static table 属性暴露表名，JS 实例上可访问。
                 if ((m as {table?: string})?.table === 'File') {
                     allFiles.push(m);
                 } else {
-                    allOtherModels.push(m);
+                    nonFiles.push(m);
                 }
+            }
+            if (nonFiles.length > 0) {
+                perPostNonFiles.push(nonFiles);
             }
         }
 
+        // 阶段 1：全量写 File
         if (allFiles.length > 0) {
             await operator.batchRecords(allFiles, 'createBatchPendingPosts_files');
-            // 让 WatermelonDB 内部通知队列走完，再写 Post 触发 UI 渲染。
-            await new Promise<void>((r) => setTimeout(r, 0));
+            await waitForFrame();
         }
 
-        if (allOtherModels.length > 0) {
-            await operator.batchRecords(allOtherModels, 'createBatchPendingPosts_posts');
+        // 阶段 2+3：逐条写 Post（含 reaction 等非 File 模型）
+        for (let i = 0; i < perPostNonFiles.length; i++) {
+            /* eslint-disable-next-line no-await-in-loop */
+            await operator.batchRecords(perPostNonFiles[i], `createBatchPendingPosts_post_${i}`);
+            if (i < perPostNonFiles.length - 1) {
+                /* eslint-disable-next-line no-await-in-loop */
+                await waitForFrame();
+            }
         }
 
         return {data: results};

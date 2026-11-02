@@ -262,6 +262,8 @@
   "channel_list.favorites_category": "Favorites",
   "channel_list.search_placeholder": "Search conversations, channels and contacts...",
   "channel_list.town_square.display_name": "Enterprise main channel",
+  "channel_list.load_timeout": "Loading team info timed out. Please check your network and try again.",
+  "channel_list.retry": "Reload",
   "channel_list.tag.enterprise_group": "All staff",
   "channel_list.tag.group_chat": "Group chat",
   "channel_list.tag.discussion_group": "Discussion group",

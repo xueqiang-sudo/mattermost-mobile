@@ -42,6 +42,7 @@ class MainApplication : NavigationApplication() {
                         add(QRCodeScannerPackage())
                         add(ApkInstallerPackage())
                         add(LogcatBridgePackage())
+                        add(BatteryOptimizationPackage())
                     }
 
                 override fun getJSMainModuleName(): String = "index"

@@ -23,6 +23,7 @@ import {queryMyTeams} from '@queries/servers/team';
 import {resetToHome} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
+import {requestBatteryOptimizationExemption} from '@utils/battery_optimization';
 import {getFullErrorMessage} from '@utils/errors';
 import {checkPhoneRule, emailFormatUsername, formatPhone, isPhoneNumber, splitPhone} from '@utils/form-rule';
 import {isEmail} from '@utils/helpers';
@@ -220,6 +221,12 @@ const PhoneLoginForm = ({
         await prepareJPushAfterLogin(serverUrl);
         // 先同步服务器数据（打开 WebSocket、获取配置等），再进入 Home
         await appEntry(serverUrl);
+
+        // 登录成功后请求电池优化白名单（仅首次弹出，已加入则跳过）。
+        // 小米 MIUI 等 ROM 的激进省电策略会导致 WebSocket 断连和
+        // WatermelonDB observer 延迟，加入白名单可显著改善稳定性。
+        requestBatteryOptimizationExemption().catch(() => {});
+
         resetToHome({extra, launchError: hasError, launchType, serverUrl});
     }, [extra, launchError, launchType, serverUrl]);
 
@@ -425,13 +432,15 @@ const PhoneLoginForm = ({
                 } else {
                     // Wait for database observable to propagate team data
                     // before clearing loading state. On Android, WatermelonDB
-                    // writes can take longer to propagate to observers.
+                    // writes can take longer to propagate to observers,
+                    // especially on Xiaomi MIUI where I/O scheduling is aggressive.
+                    // 15 × 500ms = 7.5s max wait.
                     const database = DatabaseManager.serverDatabases[serverUrl]?.database;
                     if (database) {
-                        for (let i = 0; i < 10; i++) {
+                        for (let i = 0; i < 15; i++) {
                             const count = await queryMyTeams(database).fetchCount();
                             if (count > 0) break;
-                            await new Promise((r) => setTimeout(r, 200));
+                            await new Promise((r) => setTimeout(r, 500));
                         }
                     }
                     setTeamLoading(serverUrl, false);

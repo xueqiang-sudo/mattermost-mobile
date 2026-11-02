@@ -386,6 +386,8 @@
   "channel_list.tag.group_chat": "内部群",
   "channel_list.tag.public_group_chat": "公开内部群",
   "channel_list.town_square.display_name": "企业总群",
+  "channel_list.load_timeout": "加载团队信息超时，请检查网络后重试",
+  "channel_list.retry": "重新加载",
   "channel_loader.someone": "某人",
   "channel_modal.announcement": "公告",
   "channel_modal.announcementEx": "支持 Markdown，如链接与备注",
