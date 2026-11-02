@@ -178,10 +178,32 @@ export async function fetchMyTeams(serverUrl: string, fetchOnly = false, groupLa
         const client = NetworkManager.getClient(serverUrl);
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-        let [teams, memberships]: [Team[], TeamMembership[]] = await Promise.all([
-            client.getMyTeams(groupLabel),
-            client.getMyTeamMembers(groupLabel),
-        ]);
+        // 【Android 可靠性】团队拉取失败时自动重试（指数退避）。
+        //
+        // 现象：部分 Android 机型登录偶发「无所属企业」，entry 日志可见
+        // teamData.error；根因是单次网络调用在弱网/Doze 模式/SSL 握手慢时直接失败。
+        // 修复：仅对「只读拉取」阶段（fetchOnly=true，entry 用此路径）启用重试；
+        // 写入阶段（fetchOnly=false）保持原行为，避免重试引发的 DB 写入重入。
+        const MAX_RETRIES = 2;
+        let [teams, memberships]: [Team[], TeamMembership[]] = [[], []];
+        let attempt = 0;
+        while (true) {
+            try {
+                [teams, memberships] = await Promise.all([
+                    client.getMyTeams(groupLabel),
+                    client.getMyTeamMembers(groupLabel),
+                ]);
+                break;
+            } catch (err) {
+                attempt++;
+                if (!fetchOnly || attempt > MAX_RETRIES) {
+                    throw err;
+                }
+                logDebug(`fetchMyTeams attempt ${attempt} failed, retrying: ${getFullErrorMessage(err)}`);
+                // 指数退避：250ms → 500ms
+                await new Promise<void>((r) => setTimeout(r, 250 * Math.pow(2, attempt - 1)));
+            }
+        }
 
         // 新用户没有团队时，调用服务端 API 创建个人团队
         if (teams.length === 0 && !fetchOnly) {

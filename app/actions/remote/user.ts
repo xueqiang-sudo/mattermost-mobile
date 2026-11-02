@@ -49,7 +49,29 @@ export const fetchMe = async (serverUrl: string, fetchOnly = false, groupLabel?:
         const client = NetworkManager.getClient(serverUrl);
         const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-        const resultSettled = await Promise.allSettled([client.getMe(groupLabel), client.getStatus('me', groupLabel)]);
+        // 【Android 可靠性】me/status 拉取失败时自动重试（指数退避），
+        // 与 fetchMyTeams 对齐：entry 阶段 fetchOnly=true 启用重试，写入阶段保持原行为。
+        const MAX_RETRIES = 2;
+        let resultSettled: Array<PromiseSettledResult<UserProfile | UserStatus>> = [];
+        let attempt = 0;
+        while (true) {
+            try {
+                resultSettled = await Promise.allSettled([client.getMe(groupLabel), client.getStatus('me', groupLabel)]);
+                // 两个接口中至少有一个成功就视为本次拉取成功；全失败则按抛错走重试。
+                if (resultSettled.some((r) => r.status === 'fulfilled')) {
+                    break;
+                }
+                throw new Error('All me/status requests rejected');
+            } catch (err) {
+                attempt++;
+                if (!fetchOnly || attempt > MAX_RETRIES) {
+                    throw err;
+                }
+                logDebug(`fetchMe attempt ${attempt} failed, retrying: ${getFullErrorMessage(err)}`);
+                await new Promise<void>((r) => setTimeout(r, 250 * Math.pow(2, attempt - 1)));
+            }
+        }
+
         let user: UserProfile|undefined;
         let userStatus: UserStatus|undefined;
         for (const result of resultSettled) {
