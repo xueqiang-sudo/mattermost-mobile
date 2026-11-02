@@ -4,11 +4,14 @@
 import {
     SecurePdfViewer,
     type OnLoadErrorEvent,
+    type OnPasswordRequiredEvent,
+    type OnPasswordFailedEvent,
+    type OnPasswordLimitReachedEvent,
 } from '@mattermost/secure-pdf-viewer';
 import {cacheDirectory, copyAsync, deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, View, StyleSheet} from 'react-native';
+import {Alert, View, StyleSheet, TextInput, Modal, TouchableOpacity, Text} from 'react-native';
 import FileViewer from 'react-native-file-viewer';
 import Share from 'react-native-share';
 
@@ -57,6 +60,64 @@ const styles = StyleSheet.create({
     pdfView: {
         flex: 1,
     },
+    passwordModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+    },
+    passwordModalBox: {
+        width: '100%',
+        maxWidth: 340,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        paddingHorizontal: 20,
+        paddingVertical: 18,
+    },
+    passwordModalTitle: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#111',
+        marginBottom: 6,
+    },
+    passwordModalMessage: {
+        fontSize: 14,
+        color: '#555',
+        marginBottom: 14,
+        lineHeight: 19,
+    },
+    passwordModalInput: {
+        borderWidth: 1,
+        borderColor: '#D9D9D9',
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        fontSize: 15,
+        color: '#111',
+        marginBottom: 14,
+    },
+    passwordModalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+    },
+    passwordModalButton: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        marginLeft: 8,
+        borderRadius: 6,
+    },
+    passwordModalButtonPrimary: {
+        backgroundColor: '#07C160',
+    },
+    passwordModalButtonText: {
+        fontSize: 15,
+        color: '#666',
+        fontWeight: '500',
+    },
+    passwordModalButtonTextPrimary: {
+        color: '#fff',
+    },
 });
 
 const isOfficeFile = (file: FileInfo): boolean => {
@@ -80,6 +141,16 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const [currentFileInfo, setCurrentFileInfo] = useState<FileInfo>(fileInfo);
     const [pdfError, setPdfError] = useState<string | undefined>(undefined);
     const [pdfCachePath, setPdfCachePath] = useState<string>('');
+    // PDF 解密密码：AES 加密的 PDF 需要密码（许多企业 PDF 用空密码做 DRM，限制打印/复制但允许直接打开）。
+    // 初值用 ''：原生 PDFKit 在拿到空串时会执行 unlock(withPassword: "")，能直接解锁 DRM 类 PDF
+    // （对齐微信、Chrome、Adobe Reader 的「无感打开」体验）。
+    // 若 PDF 真有用户密码，原生会再发 onPasswordRequired → 弹 Modal 让用户输入。
+    const [pdfPassword, setPdfPassword] = useState<string>('');
+    // 密码输入弹窗：visible=true 时弹出 Modal，用户输入确认后 setPdfPassword 触发原生解密。
+    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+    const [passwordDraft, setPasswordDraft] = useState('');
+    const passwordPromptCountRef = useRef(0);
+    const MAX_PASSWORD_PROMPTS = 3;
 
     // Copy PDF to cache directory when filePath changes (for SecurePdfViewer)
     useEffect(() => {
@@ -136,6 +207,50 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const onPdfLoadError = useCallback((event: OnLoadErrorEvent) => {
         logError('Error loading PDF', event.nativeEvent.message);
         setPdfError(event.nativeEvent.message);
+        setFileState('unsupported');
+    }, []);
+
+    // 弹出密码输入 Modal。用户输入确认后 setPdfPassword，触发 SecurePdfViewer 重渲染、
+    // 原生用新密码再次尝试 unlock。
+    const promptForPassword = useCallback((_remainingAttempts: number) => {
+        passwordPromptCountRef.current += 1;
+        if (passwordPromptCountRef.current > MAX_PASSWORD_PROMPTS) {
+            setPdfError('Too many password attempts');
+            setFileState('unsupported');
+            return;
+        }
+        setPasswordDraft('');
+        setShowPasswordPrompt(true);
+    }, []);
+
+    const handlePasswordConfirm = useCallback(() => {
+        setShowPasswordPrompt(false);
+        // 强制触发 React 重渲染：即使输入和上次相同的密码也要让原生重试
+        setPdfPassword((prev) => (prev === passwordDraft ? passwordDraft + '\u0000' : passwordDraft));
+    }, [passwordDraft]);
+
+    const handlePasswordCancel = useCallback(() => {
+        setShowPasswordPrompt(false);
+        setPdfError('Password required');
+        setFileState('unsupported');
+    }, []);
+
+    // 原生提示「PDF 需要密码」：空密码已试（初值 ''），到这里说明 PDF 真有用户密码，弹 Modal 让用户输入。
+    const onPasswordRequired = useCallback((event: OnPasswordRequiredEvent) => {
+        debugLog('[Viewer] onPasswordRequired', event.nativeEvent);
+        promptForPassword(event.nativeEvent.remainingAttempts);
+    }, [promptForPassword]);
+
+    // 上次输入的密码不正确：再次弹输入框让用户重试。
+    const onPasswordFailed = useCallback((event: OnPasswordFailedEvent) => {
+        debugLog('[Viewer] onPasswordFailed', event.nativeEvent);
+        promptForPassword(event.nativeEvent.remainingAttempts);
+    }, [promptForPassword]);
+
+    // 原生侧连续错误次数超限（10 次）：降级为「无法预览」。
+    const onPasswordFailureLimitReached = useCallback((_event: OnPasswordLimitReachedEvent) => {
+        debugLog('[Viewer] onPasswordFailureLimitReached');
+        setPdfError('Password attempt limit reached');
         setFileState('unsupported');
     }, []);
 
@@ -530,6 +645,10 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
                 <SecurePdfViewer
                     allowLinks={false}
                     onLoadError={onPdfLoadError}
+                    onPasswordRequired={onPasswordRequired}
+                    onPasswordFailed={onPasswordFailed}
+                    onPasswordFailureLimitReached={onPasswordFailureLimitReached}
+                    password={pdfPassword}
                     source={pdfSource}
                     style={styles.pdfView}
                 />
@@ -623,6 +742,59 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
             <View style={styles.content}>
                 {renderContent()}
             </View>
+            <Modal
+                visible={showPasswordPrompt}
+                transparent={true}
+                animationType='fade'
+                onRequestClose={handlePasswordCancel}
+            >
+                <View style={styles.passwordModalOverlay}>
+                    <View style={styles.passwordModalBox}>
+                        <Text style={styles.passwordModalTitle}>
+                            {intl.formatMessage({id: 'file_viewer.pdf_password_title', defaultMessage: 'Password Required'})}
+                        </Text>
+                        <Text style={styles.passwordModalMessage}>
+                            {intl.formatMessage({
+                                id: 'file_viewer.pdf_password_message',
+                                defaultMessage: 'This PDF is password-protected. Please enter the password to open it.',
+                            })}
+                        </Text>
+                        <TextInput
+                            autoFocus={true}
+                            secureTextEntry={true}
+                            autoCorrect={false}
+                            autoCapitalize='none'
+                            value={passwordDraft}
+                            onChangeText={setPasswordDraft}
+                            onSubmitEditing={handlePasswordConfirm}
+                            placeholder={intl.formatMessage({
+                                id: 'file_viewer.pdf_password_placeholder',
+                                defaultMessage: 'Enter password',
+                            })}
+                            placeholderTextColor='#999'
+                            style={styles.passwordModalInput}
+                        />
+                        <View style={styles.passwordModalButtons}>
+                            <TouchableOpacity
+                                onPress={handlePasswordCancel}
+                                style={styles.passwordModalButton}
+                            >
+                                <Text style={styles.passwordModalButtonText}>
+                                    {intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={handlePasswordConfirm}
+                                style={[styles.passwordModalButton, styles.passwordModalButtonPrimary]}
+                            >
+                                <Text style={[styles.passwordModalButtonText, styles.passwordModalButtonTextPrimary]}>
+                                    {intl.formatMessage({id: 'common.ok', defaultMessage: 'OK'})}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
