@@ -121,6 +121,8 @@ export async function start() {
     // 检查是否已同意过隐私条款
     const agreed = await hasAcceptedAgreement();
     if (agreed) {
+        // 隐私合规：已同意过，初始化 JPush SDK（用户同意后才能初始化）
+        JPushManager.init();
         // 已同意过，直接进入正常启动流程
         initialLaunch();
     } else {

@@ -17,11 +17,14 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 import type PostModel from '@typings/database/models/servers/post';
 
 // Pending 文件元数据（存储在 post.props.pending_files 中）
+// 对齐 webapp：使用 snake_case 字段名（client_id, mime_type）
 type PendingFileMeta = {
-    clientId: string;
+    client_id: string;      // snake_case
     name: string;
     size: number;
-    type: string;
+    mime_type: string;      // snake_case
+    file_id?: string;       // 可选：上传完成后的真实 file_id
+    previewUrl?: string;    // 可选：预览 URL
 };
 
 // 上传进度信息（存储在 post.props.upload_progress 中）
@@ -62,7 +65,8 @@ const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceP
             // 为每个 pending file 合成 FileInfo（让 Files 组件能渲染文件卡片）
             const pendingFileInfos: FileInfo[] = [];
             for (const pf of pendingFiles) {
-                const progressInfo = uploadProgress[pf.clientId];
+                // 对齐 webapp：使用 client_id（snake_case）
+                const progressInfo = uploadProgress[pf.client_id];
 
                 // 如果 DB 中已有对应的真实文件记录（上传完成），跳过合成
                 const realFileId = progressInfo?.status === 'done' ? undefined : undefined;
@@ -72,7 +76,7 @@ const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceP
 
                 const extension = pf.name.includes('.') ? pf.name.split('.').pop() || '' : '';
                 const syntheticFileInfo: FileInfo = {
-                    id: `pending_${pf.clientId}`,
+                    id: `pending_${pf.client_id}`,  // 使用 client_id
                     user_id: post.userId,
                     post_id: post.id,
                     create_at: post.createAt,
@@ -81,7 +85,7 @@ const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceP
                     name: pf.name,
                     extension,
                     size: pf.size,
-                    mime_type: pf.type,
+                    mime_type: pf.mime_type,  // 使用 mime_type（snake_case）
                     has_preview_image: false,
                     mini_preview: '',
                     link: '',

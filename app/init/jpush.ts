@@ -8,6 +8,7 @@ import {AppState, DeviceEventEmitter, NativeModules, Platform, type AppStateStat
 
 import {openNotification} from '@actions/remote/notifications';
 import {Events, Screens} from '@constants';
+import {hasAcceptedAgreement} from '@init/agreement';
 import {
     buildNotificationFromJPushExtras,
     hasRequiredJPushExtras,
@@ -61,10 +62,18 @@ class JPushManager {
 
     /**
      * 初始化极光推送 SDK
+     * 隐私合规：必须在用户同意隐私协议后才能调用
      */
-    init() {
+    async init() {
         if (this.initialized) {
             logDebug(`${TAG} 已初始化，跳过重复 init`);
+            return;
+        }
+
+        // 隐私合规检查：用户必须已同意隐私协议
+        const agreed = await hasAcceptedAgreement();
+        if (!agreed) {
+            logWarning(`${TAG} 用户尚未同意隐私协议，跳过 JPush 初始化`);
             return;
         }
 

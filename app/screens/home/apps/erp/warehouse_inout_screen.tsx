@@ -67,8 +67,9 @@ function formatDisplayBarcode(item: ScanRecord): string {
         const boxStr = String(item.boxNo || '0').padStart(2, '0');
         return `9${item.codeSheetNo}${boxStr}${weightStr}`;
     }
-    // 箱单: 11位码单号 + "01"(永远是1箱) + 6位净重
-    return `${item.codeSheetNo}01${weightStr}`;
+    // 箱单: 11位码单号 + 2位箱号 + 6位净重
+    const boxStr = String(item.boxNo || '1').padStart(2, '0');
+    return `${item.codeSheetNo}${boxStr}${weightStr}`;
 }
 
 const WarehouseInoutScreen = () => {

@@ -15,6 +15,7 @@ import Button from '@components/button';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {setAcceptedAgreement} from '@init/agreement';
+import JPushManager from '@init/jpush';
 import {initialLaunch} from '@init/launch';
 import {dismissModal, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -111,6 +112,8 @@ const LaunchAgreement = ({componentId}: Props) => {
     const handleAgree = useCallback(async () => {
         await setAcceptedAgreement();
         await dismissModal({componentId});
+        // 隐私合规：用户同意后才初始化 JPush SDK
+        JPushManager.init();
         initialLaunch();
     }, [componentId]);
 

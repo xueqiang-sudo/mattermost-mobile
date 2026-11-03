@@ -346,6 +346,78 @@ export default function DraftHandler(props: Props) {
 
                 debugLog('DRAFT', `addFiles: Phase 1 COMPLETE, prepared ${filesWithPostData.length} files`);
 
+                // ─── Phase 1.5: 对齐 webapp 双流程 ───
+                // 图片文件（有 localPath/uri）：先上传，再 createPost（接收端立即看到图片）
+                // 普通文件：先 createPost，再上传，再 patchPost
+                const IMAGE_UPLOAD_CONCURRENCY = 2;  // 图片压缩并发限制（防内存爆炸）
+                const uploadedImageFileIds: Record<number, string> = {};  // index -> real file_id
+
+                const imageFilesToUpload = filesWithPostData
+                    .map((item, index) => ({...item, index}))
+                    .filter(({localFile, isExistingServerFile}) => {
+                        // 只上传有本地路径的新图片文件（已有服务器的文件跳过）
+                        if (isExistingServerFile) return false;
+                        const hasLocalPath = Boolean(localFile.localPath || localFile.uri);
+                        const isImage = localFile.mime_type?.startsWith('image/') ||
+                                       localFile.extension?.match(/^(jpg|jpeg|png|gif|webp|heic|heif)$/i);
+                        return hasLocalPath && isImage;
+                    });
+
+                if (imageFilesToUpload.length > 0) {
+                    debugLog('DRAFT', `addFiles: Phase 1.5 - uploading ${imageFilesToUpload.length} images FIRST (blocking)`);
+
+                    // 分批并行上传图片（限制并发数防内存爆炸）
+                    const imageQueue = [...imageFilesToUpload];
+                    while (imageQueue.length > 0) {
+                        const batch = imageQueue.splice(0, IMAGE_UPLOAD_CONCURRENCY);
+                        debugLog('DRAFT', `addFiles: Phase 1.5 - uploading batch of ${batch.length} images`);
+
+                        await Promise.all(batch.map(async ({localFile, index}) => {
+                            const progressKey = localFile.id!;
+                            startProgress(progressKey);
+
+                            try {
+                                debugLog('DRAFT', `addFiles: Phase 1.5 - uploading image ${index + 1}: ${localFile.name}`);
+
+                                const uploadedFile = await new Promise<FileInfo>((resolve, reject) => {
+                                    uploadFile(
+                                        serverUrl,
+                                        localFile,
+                                        channelId,
+                                        (progress) => emitProgress(progressKey, progress),
+                                        (response) => {
+                                            if (response.code !== 201 || !response.data?.file_infos?.length) {
+                                                const errorMsg = (response.data?.message as string) || 'Upload failed';
+                                                reject(new Error(errorMsg));
+                                                return;
+                                            }
+                                            const fi = response.data.file_infos[0] as FileInfo;
+                                            fi.clientId = localFile.clientId;
+                                            fi.localPath = localFile.localPath;
+                                            resolve(fi);
+                                        },
+                                        (err) => reject(err),
+                                        0,
+                                        false,
+                                    );
+                                });
+
+                                completeProgress(progressKey);
+                                uploadedImageFileIds[index] = uploadedFile.id!;
+
+                                debugLog('DRAFT', `addFiles: Phase 1.5 - image ${index + 1} uploaded, real file_id=${uploadedFile.id}`);
+                            } catch (uploadErr) {
+                                failProgress(progressKey);
+                                logError('[addFiles image upload]', uploadErr);
+                                debugLog('DRAFT', `addFiles: Phase 1.5 ERROR - image ${index + 1}: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
+                                // 上传失败不影响后续 createPost，只是接收端需要等待 patchPost
+                            }
+                        }));
+                    }
+
+                    debugLog('DRAFT', `addFiles: Phase 1.5 COMPLETE, uploaded ${Object.keys(uploadedImageFileIds).length} images`);
+                }
+
                 // Phase 2: 每个文件一条 pending post（各自头像/时间戳），多文件时共享 batch_id。
                 // 单文件时不挂 batch_id/batch_order/batch_total，作为普通单条 post 处理；
                 // 多文件时 batch_order/batch_total 便于 UI 判断批次与排序。
@@ -363,23 +435,44 @@ export default function DraftHandler(props: Props) {
                         ? `${batchId}#${orderIdx}`
                         : `pending_${generateId()}`;
 
-                    const props: Record<string, unknown> = {
-                        upload_status: isExistingServerFile ? 'complete' : 'uploading',
-                    };
+                    // ─── 对齐 webapp 双流程：图片 vs 普通文件 ───
+                    const realImageFileId = uploadedImageFileIds[orderIdx];  // Phase 1.5 上传的真实图片 file_id
+                    const isImageAlreadyUploaded = Boolean(realImageFileId);
+
+                    const props: Record<string, unknown> = {};
                     if (isMultiFile) {
                         props.batch_id = batchId;
                         props.batch_order = orderIdx;
                         props.batch_total = batchTotal;
                     }
 
-                    // 微信风格：非已有服务器文件时，在 props 中携带文件元信息
-                    // 这样接收端（webapp/mobile）收到 post 后能立刻渲染文件信息+上传中状态
-                    if (!isExistingServerFile) {
+                    // ─── 微信风格 + webapp 对齐 ───
+                    // 图片文件（已上传）：message 包含 !{file:real_id}，file_ids 包含真实 ID，无 pending 标记
+                    // 普通文件（待上传）：message 为空，file_ids 为空（或 pending ID），带 pending_files/upload_progress
+                    let message = '';
+                    let fileIds: string[] = [];
+
+                    if (isImageAlreadyUploaded) {
+                        // 图片文件：已上传，使用真实 file_id
+                        message = `!{file:${realImageFileId}}`;
+                        fileIds = [realImageFileId!];
+                        debugLog('DRAFT', `addFiles: Phase 2 - image ${orderIdx + 1} using real file_id=${realImageFileId}`);
+                    } else if (isExistingServerFile) {
+                        // 已有服务器文件：使用真实 file_id
+                        message = `!{file:${localFile.id}}`;
+                        fileIds = [localFile.id!];
+                    } else {
+                        // 普通文件（待上传）：空 message，pending file_id，带 pending 标记
+                        message = '';
+                        fileIds = [localFile.id!];  // pending ID for local tracking
+
+                        // 对齐 webapp：使用 snake_case 字段名（client_id, mime_type）
                         props.pending_files = [{
-                            clientId: localFile.clientId || localFile.id,
+                            client_id: localFile.clientId || localFile.id,  // snake_case
                             name: localFile.name,
                             size: localFile.size || 0,
-                            type: localFile.mime_type || 'application/octet-stream',
+                            mime_type: localFile.mime_type || 'application/octet-stream',  // snake_case
+                            previewUrl: null,  // 普通文件无预览
                         }];
                         props.upload_progress = {
                             [localFile.clientId || localFile.id!]: {
@@ -389,17 +482,23 @@ export default function DraftHandler(props: Props) {
                         };
                     }
 
+                    // ─── 对齐 webapp：图片文件使用真实 file_id 创建 File 记录 ───
+                    // 这样 createPost 函数会用真实 ID 创建本地 File 记录，无需后续 updatePostFileIds
+                    const fileForRecord = isImageAlreadyUploaded
+                        ? {...localFile, id: realImageFileId!}  // 使用真实 file_id
+                        : localFile;  // 保持 pending file_id（后续上传后替换）
+
                     return {
                         post: {
                             pending_post_id: pendingPostId,
                             user_id: currentUserId,
                             channel_id: channelId,
                             root_id: rootId,
-                            message: '',
-                            file_ids: [localFile.id!],
+                            message,
+                            file_ids: fileIds,
                             props,
                         } as Post,
-                        files: [localFile],
+                        files: [fileForRecord],
                     };
                 });
 
@@ -490,6 +589,16 @@ export default function DraftHandler(props: Props) {
                         } catch (updateErr) {
                             logError('[addFiles updatePostFileIds]', updateErr);
                         }
+                        return;
+                    }
+
+                    // ─── 对齐 webapp：图片文件已在 Phase 1.5 上传完成，跳过 ───
+                    const realImageFileId = uploadedImageFileIds[index];
+                    if (realImageFileId) {
+                        debugLog('DRAFT', `addFiles: image ${file.name} already uploaded in Phase 1.5, file_id=${realImageFileId}, skipping upload`);
+                        completeProgress(progressKey);
+                        // 图片已在 Phase 2 的 createPost 中带了真实 file_id，无需再调 updatePostFileIds
+                        // （服务器已经知道 file_id，本地 DB 也已在 Phase 3 的 createPost 中更新）
                         return;
                     }
 

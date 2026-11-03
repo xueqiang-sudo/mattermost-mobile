@@ -3,10 +3,12 @@
 
 /**
  * 二维码解析工具
- * 支持两种格式：
+ * 支持三种格式：
  *   格式1: Tab分隔 (11字段): code_sheet_no, box_no, net_weight, item_code, batch, fixed, type, model, spec, color, grade
  *   格式2: €分隔 (i前缀): i€concat_field€item_code€batch€fixed€type€spec€color€grade
  *     concat_field 以 "9" 开头时按固定长度拆分: 9 + 11位码单号 + 3位箱号 + 6位净重
+ *   格式3: 空格分隔: 11位码单号 箱号 其他信息...
+ *     例: "26110201004 6 000086000069KH002002YJ0001 POY中弹单丝轻网 50D/36F 顶顶顶顶 AA"
  */
 
 
@@ -37,6 +39,12 @@ export function parseQrCode(raw: string): ParsedQrCode | null {
     const trimmed = raw.trim();
     if (/^\d+$/.test(trimmed) && (trimmed.length === 19 || trimmed.length === 20)) {
         return parsePlainNumericFormat(trimmed);
+    }
+
+    // 空格分隔格式：11位码单号 箱号 其他信息...
+    const spaceParts = splitAndFilter(raw, ' ');
+    if (spaceParts.length >= 2 && /^\d{11}$/.test(spaceParts[0])) {
+        return parseSpaceFormat(spaceParts);
     }
 
     // 无法解析，返回基本信息
@@ -136,5 +144,36 @@ function parsePlainNumericFormat(raw: string): ParsedQrCode {
         netWeight,
         isMasterSheet: isMaster,
         rawFields: [raw],
+    };
+}
+
+function parseSpaceFormat(parts: string[]): ParsedQrCode {
+    // 空格分隔格式：11位码单号 箱号 其他信息...
+    // 例: "26110201004 6 000086000069KH002002YJ0001 POY中弹单丝轻网 50D/36F 顶顶顶顶 AA"
+    //   parts[0] = "26110201004" (11位码单号)
+    //   parts[1] = "6" (箱号)
+    //   parts[2+] = 其他信息（净重等）
+
+    const codeSheetNo = parts[0]; // 11位码单号
+    const boxNo = parts[1] || ''; // 箱号
+
+    // 尝试从后面的字段中提取净重（如果有）
+    // 通常净重在 parts[2] 或更后面，格式可能是 "000086" (6位数字，单位：0.01kg)
+    let netWeight = 0;
+    for (let i = 2; i < parts.length; i++) {
+        const part = parts[i];
+        // 查找6位纯数字（可能是净重）
+        if (/^\d{6}$/.test(part)) {
+            netWeight = parseInt(part, 10) / 100; // 除以100转换为kg
+            break;
+        }
+    }
+
+    return {
+        codeSheetNo,
+        boxNo,
+        netWeight,
+        isMasterSheet: false, // 空格分隔格式默认是箱单
+        rawFields: parts,
     };
 }

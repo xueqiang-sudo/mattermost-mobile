@@ -3,7 +3,6 @@ package com.optibot.cn
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
-import cn.jpush.android.api.JPushInterface
 import com.mattermost.helpers.CustomPushNotificationHelper
 import com.facebook.react.PackageList
 import com.facebook.react.ReactHost
@@ -86,15 +85,14 @@ class MainApplication : NavigationApplication() {
         ApplicationLifecycleDispatcher.onConfigurationChanged(this, newConfig)
     }
 
-    /** 初始化通知渠道：创建基本的 HIGH 和 MIN 渠道，设置 JPush 默认通知构建器 */
+    /** 初始化通知渠道：创建基本的 HIGH 和 MIN 渠道（JPush 初始化已移至 JS 层用户同意后执行） */
     private fun setupNotificationChannels() {
         TurboLog.i("ReactNative", "setupNotificationChannels start")
+        // 仅创建通知渠道，不初始化 JPush SDK（隐私合规：用户同意前不初始化 SDK）
         CustomPushNotificationHelper.createNotificationChannels(this)
-        JPushInterface.setDefaultPushNotificationBuilder(OptibotJPushNotificationBuilder(this))
         TurboLog.i(
             "ReactNative",
-            "setupNotificationChannels done jpushBuilder=${OptibotJPushNotificationBuilder::class.java.simpleName} " +
-                "channelId=${CustomPushNotificationHelper.CHANNEL_JPUSH_NEW_MESSAGE_ID}",
+            "setupNotificationChannels done (JPush builder deferred to JS layer)",
         )
     }
 

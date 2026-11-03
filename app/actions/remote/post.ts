@@ -506,9 +506,9 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
 
         // 更新 post 的 file_ids（保留未完成的 pending ID + 已完成的 server ID）
         // 清除 pending_files 和 upload_progress（上传完成，接收端不再需要显示"上传中"）
+        // 对齐 webapp：不添加 upload_status 字段（webapp 通过 pending_files 是否存在判断状态）
         const newProps = {
             ...existingPost.props,
-            upload_status: 'completed',
             pending_files: null,
             upload_progress: null,
         };
@@ -528,9 +528,33 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
 
         // Update on server using patchPost（只发 server IDs，不发 pending IDs）
         // 清除 pending_files 和 upload_progress，让接收端切换到"未下载"状态
+        // 对齐 webapp：同时更新 message（替换 pending 标记为真实 file_id）
+        const realFileIds = newFileIds.filter((id) => !id.startsWith('pending_'));
+        let updatedMessage = existingPost.message || '';
+
+        // Replace !{file:pending_xxx} markers with real file IDs
+        for (const file of files) {
+            const oldId = file.clientId || file.id;
+            const realId = file.id;
+            if (oldId && realId && oldId !== realId) {
+                // Replace !{file:pending_xxx} or !{file:oldId} with !{file:realId}
+                updatedMessage = updatedMessage.replace(
+                    new RegExp(`!\\{file:${oldId}\\}`, 'g'),
+                    `!{file:${realId}}`,
+                );
+            }
+        }
+
+        // If message was empty and we have real file IDs, add them as markers
+        // (webapp style: message contains !{file:xxx} for each file)
+        if (!updatedMessage && realFileIds.length > 0) {
+            updatedMessage = realFileIds.map(id => `!{file:${id}}`).join('\n');
+        }
+
         await client.patchPost({
             id: postId,
-            file_ids: newFileIds.filter((id) => !id.startsWith('pending_')),
+            message: updatedMessage,
+            file_ids: realFileIds,
             props: newProps,
         });
 
@@ -562,7 +586,6 @@ export async function markPostUploadFailed(serverUrl: string, postId: string, fi
             props: {
                 ...existingPost.props,
                 failed: true,
-                upload_status: 'failed',
                 failed_file: fileName,
             },
             update_at: Date.now(),
