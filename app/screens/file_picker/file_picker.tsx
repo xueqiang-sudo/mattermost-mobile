@@ -10,7 +10,7 @@ import {getInfoAsync} from 'expo-file-system';
 import CompassIcon from '@components/compass_icon';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
-import {changeOpacity} from '@utils/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {useTheme} from '@context/theme';
 import {compressChatImageAsset} from '@utils/file/compress_chat_image';
 
@@ -22,18 +22,19 @@ import FilesTab from './tabs/files_tab';
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {FileInfo} from '@mattermost/types/files';
 import type {Asset} from 'react-native-image-picker';
+import type {Theme} from '@mattermost/types/themes';
 
 type TabKey = 'chat' | 'photo_album' | 'files';
 
-const styles = StyleSheet.create({
+const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: theme.centerChannelBg,
     },
     tabBar: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E5E5',
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
     tabItem: {
         flex: 1,
@@ -57,8 +58,8 @@ const styles = StyleSheet.create({
     },
     actionBar: {
         borderTopWidth: 1,
-        borderTopColor: '#E5E5E5',
-        backgroundColor: '#fff',
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: theme.centerChannelBg,
     },
     actionBarRow: {
         flexDirection: 'row',
@@ -72,28 +73,28 @@ const styles = StyleSheet.create({
     },
     selectedCount: {
         fontSize: 14,
-        color: '#666',
+        color: changeOpacity(theme.centerChannelColor, 0.6),
         flex: 1,
         textAlign: 'center',
     },
     sendButton: {
-        backgroundColor: '#07C160',
+        backgroundColor: theme.buttonBg,
         borderRadius: 8,
         paddingVertical: 8,
         paddingHorizontal: 20,
     },
     sendButtonDisabled: {
-        backgroundColor: '#C7C7C7',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.3),
     },
     sendButtonText: {
-        color: '#fff',
+        color: theme.buttonColor,
         fontSize: 14,
         fontWeight: '600',
     },
     fileList: {
         maxHeight: 200,
         borderTopWidth: 1,
-        borderTopColor: '#F0F0F0',
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
     fileListEmpty: {
         paddingVertical: 8,
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
     fileItemIcon: {
         marginRight: 10,
@@ -112,14 +113,14 @@ const styles = StyleSheet.create({
     fileItemName: {
         flex: 1,
         fontSize: 14,
-        color: '#333',
+        color: theme.centerChannelColor,
     },
     removeButton: {
         padding: 4,
     },
     removeText: {
         fontSize: 13,
-        color: '#FF4D4F',
+        color: theme.errorTextColor,
     },
     keepOriginalRow: {
         flexDirection: 'row',
@@ -133,28 +134,28 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 4,
         borderWidth: 2,
-        borderColor: '#07C160',
+        borderColor: theme.buttonBg,
         marginRight: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
     keepOriginalCheckboxChecked: {
-        backgroundColor: '#07C160',
+        backgroundColor: theme.buttonBg,
     },
     keepOriginalCheckboxDisabled: {
-        borderColor: '#C7C7C7',
+        borderColor: changeOpacity(theme.centerChannelColor, 0.3),
     },
     keepOriginalCheckboxDisabledChecked: {
-        backgroundColor: '#C7C7C7',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.3),
     },
     keepOriginalLabel: {
         fontSize: 14,
-        color: '#333',
+        color: theme.centerChannelColor,
     },
     keepOriginalLabelDisabled: {
-        color: '#999',
+        color: changeOpacity(theme.centerChannelColor, 0.5),
     },
-});
+}));
 
 type FilePickerContentProps = {
     componentId: AvailableScreens;
@@ -189,8 +190,9 @@ function getFileIcon(name: string): string {
     return 'file-generic-outline';
 }
 
-function SelectedCountDisplay() {
+function SelectedCountDisplay({theme}: {theme: Theme}) {
     const intl = useIntl();
+    const styles = getStyleSheet(theme);
     const {state} = useFilePicker();
     const selectedCount = state.selectedFiles.size;
 
@@ -207,8 +209,9 @@ function SelectedCountDisplay() {
     );
 }
 
-function KeepOriginalToggle({photoMode, hasSelection}: {photoMode?: boolean; hasSelection: boolean}) {
+function KeepOriginalToggle({photoMode, hasSelection, theme}: {photoMode?: boolean; hasSelection: boolean; theme: Theme}) {
     const intl = useIntl();
+    const styles = getStyleSheet(theme);
     const {state, dispatch} = useFilePicker();
 
     // 只有「照片」入口（photoMode）才显示原图开关。
@@ -260,6 +263,7 @@ function KeepOriginalToggle({photoMode, hasSelection}: {photoMode?: boolean; has
 function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
+    const styles = getStyleSheet(theme);
     const {getSelectedFiles, getSelectedCount, state, dispatch} = useFilePicker();
     const [activeTab, setActiveTab] = useState<TabKey>(photoMode ? 'photo_album' : 'chat');
     const [expanded, setExpanded] = useState(false);
@@ -442,7 +446,7 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
             <CompassIcon
                 name={getFileIcon(item.name)}
                 size={24}
-                color={changeOpacity('#000', 0.4)}
+                color={changeOpacity(theme.centerChannelColor, 0.5)}
                 style={styles.fileItemIcon}
             />
             <Text style={styles.fileItemName} numberOfLines={1}>
@@ -476,7 +480,7 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
                         >
                             <Text style={[
                                 styles.tabLabel,
-                                {color: isActive ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.6)},
+                                {color: isActive ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.75)},
                             ]}>
                                 {tab.label}
                             </Text>
@@ -498,7 +502,7 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
                     {photoMode ? (
                         <>
                             {/* 照片模式：[复选框 原图] 左对齐 + 发送(N) 右对齐，单行居中 */}
-                            <KeepOriginalToggle photoMode={photoMode} hasSelection={selectedCount > 0}/>
+                            <KeepOriginalToggle photoMode={photoMode} hasSelection={selectedCount > 0} theme={theme}/>
                             <TouchableOpacity
                                 onPress={handleSend}
                                 style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
@@ -527,7 +531,7 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
                                     color={selectedCount > 0 ? theme.centerChannelColor : changeOpacity(theme.centerChannelColor, 0.3)}
                                 />
                             </TouchableOpacity>
-                            <SelectedCountDisplay/>
+                            <SelectedCountDisplay theme={theme}/>
                             <TouchableOpacity
                                 onPress={handleSend}
                                 style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}

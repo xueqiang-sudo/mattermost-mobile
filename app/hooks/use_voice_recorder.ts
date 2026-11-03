@@ -75,7 +75,7 @@ export function useVoiceRecorder(
     const startingTsRef = useRef<number | null>(null);
     const recordStartTimeRef = useRef<number>(0);
 
-    const requestPermission = useCallback(async (): Promise<'granted' | 'denied' | 'blocked'> => {
+    const requestPermission = useCallback(async (): Promise<{status: 'granted' | 'denied' | 'blocked'; wasFreshlyGranted: boolean}> => {
 
         // First check current permission status
         const checkPermissions = [
@@ -86,14 +86,14 @@ export function useVoiceRecorder(
 
         const currentStatus = checkResult[Permissions.PERMISSIONS.IOS.MICROPHONE] ?? checkResult[Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO];
 
-        // If already granted, return immediately
+        // If already granted, return immediately (not freshly granted)
         if (currentStatus === Permissions.RESULTS.GRANTED) {
-            return 'granted';
+            return {status: 'granted', wasFreshlyGranted: false};
         }
 
         // If blocked (permanently denied), return blocked without asking again
         if (currentStatus === Permissions.RESULTS.BLOCKED) {
-            return 'blocked';
+            return {status: 'blocked', wasFreshlyGranted: false};
         }
 
         // If denied or unavailable, request permission
@@ -102,11 +102,12 @@ export function useVoiceRecorder(
         const microphoneStatus = result[Permissions.PERMISSIONS.IOS.MICROPHONE] ?? result[Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO];
 
         if (microphoneStatus === Permissions.RESULTS.GRANTED) {
-            return 'granted';
+            // Permission was just granted by user action
+            return {status: 'granted', wasFreshlyGranted: true};
         } else if (microphoneStatus === Permissions.RESULTS.BLOCKED) {
-            return 'blocked';
+            return {status: 'blocked', wasFreshlyGranted: false};
         } else {
-            return 'denied';
+            return {status: 'denied', wasFreshlyGranted: false};
         }
     }, []);
 
@@ -124,7 +125,7 @@ export function useVoiceRecorder(
         isGlobalRecorderBusy = true;
 
         try {
-            const permissionResult = await requestPermission();
+            const {status: permissionResult, wasFreshlyGranted} = await requestPermission();
 
             if (permissionResult === 'blocked') {
                 // Permission permanently denied - show alert to guide user to settings
@@ -177,8 +178,16 @@ export function useVoiceRecorder(
                 return;
             }
 
-            // 权限刚授予后，给原生模块一点时间初始化（避免首次录音失败）
-            await new Promise((resolve) => setTimeout(resolve, 150));
+            // 【关键修复】权限刚授予后，iOS 需要更多时间初始化 AVAudioSession（首次录音容易卡死）
+            // 给系统足够的时间完成音频服务初始化，避免阻塞主线程
+            if (wasFreshlyGranted) {
+                // 新授权：iOS 需要激活 AVAudioSession，Android 需要获取 AudioFocus
+                // 至少等待 800ms 让系统完成初始化
+                await new Promise((resolve) => setTimeout(resolve, 800));
+            } else {
+                // 已授权：短暂延迟即可
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
 
             const replaceBeforeTs = startingTsRef.current;
             startingTs = Date.now();
@@ -188,27 +197,41 @@ export function useVoiceRecorder(
                 ios: IOS_RECORDING_EXTENSION,
                 android: ANDROID_RECORDING_EXTENSION,
             });
-            let success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
 
-            // 如果首次失败，重试一次（处理权限刚授予后的初始化延迟）
-            if (!success) {
-                await new Promise((resolve) => setTimeout(resolve, 150));
+            let success = false;
+            let retryCount = 0;
+            const MAX_RETRIES = 3;
 
-                // 再次检查用户是否还按着
-                const stillProceed = optionsRef.current?.shouldProceedAfterPermission?.() ?? true;
-                if (!stillProceed) {
-                    startingTsRef.current = null;
-                    setState('idle');  // Trigger cleanup in parent component
-                    await safeResetRecordingState();
-                    return;
+            // 【增强重试】最多重试 3 次，每次间隔递增（处理音频服务初始化延迟）
+            while (!success && retryCount < MAX_RETRIES) {
+                try {
+                    success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
+                } catch (startErr) {
+                    logError(`[useVoiceRecorder.startRecording] 尝试 ${retryCount + 1} 失败`, startErr);
                 }
 
-                success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
+                if (!success) {
+                    retryCount++;
+                    if (retryCount < MAX_RETRIES) {
+                        // 指数退避：300ms, 600ms, 1200ms
+                        const delay = 300 * Math.pow(2, retryCount - 1);
+                        await new Promise((resolve) => setTimeout(resolve, delay));
+
+                        // 再次检查用户是否还按着
+                        const stillProceed = optionsRef.current?.shouldProceedAfterPermission?.() ?? true;
+                        if (!stillProceed) {
+                            startingTsRef.current = null;
+                            setState('idle');
+                            await safeResetRecordingState();
+                            return;
+                        }
+                    }
+                }
             }
 
             if (!success) {
                 startingTsRef.current = null;
-                setState('idle');  // Trigger cleanup in parent component
+                setState('idle');
                 await safeResetRecordingState();
 
                 // 权限弹窗可能中断了触摸事件，如果用户已松开则静默取消（类似微信行为）
