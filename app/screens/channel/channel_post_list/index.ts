@@ -7,7 +7,7 @@ import React from 'react';
 import {combineLatest, of as of$} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
-import {Preferences} from '@constants';
+import {MM_TABLES, Preferences} from '@constants';
 import {getAdvanceSettingPreferenceAsBool} from '@helpers/api/preference';
 import {observeMyChannel, observeChannelSettings} from '@queries/servers/channel';
 import {queryPostsBetween, queryPostsInChannel} from '@queries/servers/post';
@@ -17,6 +17,9 @@ import {observeIsCRTEnabled} from '@queries/servers/thread';
 import ChannelPostList from './channel_post_list';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
+import type PostModel from '@typings/database/models/servers/post';
+
+const {POST} = MM_TABLES.SERVER;
 
 const enhanced = withObservables(['channelId'], ({database, channelId}: {channelId: string} & WithDatabaseArgs) => {
     const isCRTEnabledObserver = observeIsCRTEnabled(database);
@@ -33,6 +36,13 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
         distinctUntilChanged(),
     );
 
+    // 【关键修复】直接观察 Post 表的变化（按 channel_id 过滤）
+    // 当新 Post 被创建时，即使 PostsInChannel 的 earliest/latest 没变化，
+    // 也能触发重新渲染。解决了多文件发送时不渲染的问题。
+    const postsTableObserver = database.get<PostModel>(POST).query(
+        Q.where('channel_id', channelId),
+    ).observeWithColumns(['update_at']);
+
     return {
         isCRTEnabled: isCRTEnabledObserver,
         lastViewedAt: myChannelObserver.pipe(
@@ -48,8 +58,8 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
             }),
             distinctUntilChanged(),
         ),
-        posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver, clearedAt$]).pipe(
-            switchMap(([isCRTEnabled, postsInChannel, clearedAt]) => {
+        posts: combineLatest([isCRTEnabledObserver, postsInChannelObserver, clearedAt$, postsTableObserver]).pipe(
+            switchMap(([isCRTEnabled, postsInChannel, clearedAt, _postsTrigger]) => {
                 if (!postsInChannel.length) {
                     return of$([]);
                 }

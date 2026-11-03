@@ -14,12 +14,23 @@ type Props = {
     files: UploadFileItem[];
     onClose: () => void;
     onRetry?: (fileId: string) => void;
+    onDelete?: (fileId: string) => void;  // 新增：删除回调
+    showDeleteButton?: boolean;  // 新增：是否显示删除按钮
 };
 
 const {width: SCREEN_WIDTH} = Dimensions.get('window');
 
-const UploadProgressPanel = ({visible, files, onClose, onRetry}: Props) => {
+const UploadProgressPanel = ({visible, files, onClose, onRetry, onDelete, showDeleteButton = false}: Props) => {
     const intl = useIntl();
+
+    // 按上传时间从新到旧排序
+    const sortedFiles = useMemo(() => {
+        return [...files].sort((a, b) => {
+            const timeA = (a as any).uploadTime || 0;
+            const timeB = (b as any).uploadTime || 0;
+            return timeB - timeA; // 降序（新的在前）
+        });
+    }, [files]);
 
     const stats = useMemo(() => {
         const total = files.length;
@@ -32,19 +43,6 @@ const UploadProgressPanel = ({visible, files, onClose, onRetry}: Props) => {
     }, [files]);
 
     const renderFileItem = ({item}: {item: UploadFileItem}) => {
-        const getStatusIcon = () => {
-            switch (item.status) {
-                case 'completed':
-                    return <CompassIcon name='check-circle' size={20} color='#4CAF50'/>;
-                case 'failed':
-                    return <CompassIcon name='alert-circle' size={20} color='#F44336'/>;
-                case 'uploading':
-                    return <CompassIcon name='cloud-upload' size={20} color='#2196F3'/>;
-                default:
-                    return <CompassIcon name='clock-outline' size={20} color='#9E9E9E'/>;
-            }
-        };
-
         const getStatusText = () => {
             switch (item.status) {
                 case 'completed':
@@ -52,7 +50,7 @@ const UploadProgressPanel = ({visible, files, onClose, onRetry}: Props) => {
                 case 'failed':
                     return intl.formatMessage({id: 'upload_progress.status.failed', defaultMessage: 'Failed'});
                 case 'uploading':
-                    return `${Math.round(item.progress * 100)}%`;
+                    return intl.formatMessage({id: 'upload_progress.status.uploading', defaultMessage: 'Uploading...'});
                 default:
                     return intl.formatMessage({id: 'upload_progress.status.pending', defaultMessage: 'Pending'});
             }
@@ -100,7 +98,6 @@ const UploadProgressPanel = ({visible, files, onClose, onRetry}: Props) => {
                     <View style={styles.statusRow}>
                         <Text style={styles.fileSize}>{formatFileSize(item.size)}</Text>
                         <View style={styles.statusContainer}>
-                            {getStatusIcon()}
                             <Text style={styles.statusText}>{getStatusText()}</Text>
                             {item.status === 'failed' && onRetry && (
                                 <TouchableOpacity
@@ -115,6 +112,14 @@ const UploadProgressPanel = ({visible, files, onClose, onRetry}: Props) => {
                         </View>
                     </View>
                 </View>
+                {showDeleteButton && (
+                    <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => onDelete?.(item.id)}
+                    >
+                        <CompassIcon name='trash-can-outline' size={24} color='#F44336'/>
+                    </TouchableOpacity>
+                )}
             </View>
         );
     };
@@ -176,7 +181,7 @@ const UploadProgressPanel = ({visible, files, onClose, onRetry}: Props) => {
                     </View>
 
                     <FlatList
-                        data={files}
+                        data={sortedFiles}
                         renderItem={renderFileItem}
                         keyExtractor={(item) => item.id}
                         style={styles.fileList}
@@ -340,6 +345,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#fff',
         fontWeight: '500',
+    },
+    deleteButton: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 12,
     },
     footer: {
         paddingHorizontal: 16,

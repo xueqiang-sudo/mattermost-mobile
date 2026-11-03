@@ -42,12 +42,14 @@ type EnhanceProps = WithDatabaseArgs & {
 const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceProps) => {
     const publicLinkEnabled = observeConfigBooleanValue(database, 'EnablePublicLink');
 
-    // 观察 post 的 props 变化，确保 upload_status / pending_files 更新时 UI 能响应
-    const postProps = post.observe().pipe(
-        switchMap((p) => of$(p.props)),
+    // 观察 post 的所有字段变化（包括 props），确保 pending_files/upload_progress 更新时 UI 能响应
+    // 【关键修复】使用 observe() 追踪 post 完整对象变化，而非仅追踪引用
+    const postObserver = post.observe();
+    const postProps = postObserver.pipe(
+        map((p) => p.props),
     );
 
-    // DB 文件流
+    // DB 文件流 - 追踪 File 表的变化
     const dbFilesInfo = queryFilesForPost(database, post.id).observeWithColumns(['local_path']).pipe(
         switchMap((fs) => from$(filesLocalPathValidation(fs, post.userId, serverUrl))),
     );

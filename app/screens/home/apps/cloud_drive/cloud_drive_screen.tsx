@@ -798,12 +798,14 @@ const CloudDriveScreen = () => {
         }
 
         // Initialize upload progress
-        const progressFiles: UploadFileItem[] = files.map((f, idx) => ({
-            id: f.id || `upload_${idx}_${Date.now()}`,
+        const now = Date.now();
+        const progressFiles: (UploadFileItem & {uploadTime: number})[] = files.map((f, idx) => ({
+            id: f.id || `upload_${idx}_${now}`,
             name: f.name || 'unknown',
             size: f.size || 0,
             progress: 0,
             status: 'pending' as const,
+            uploadTime: now + idx, // 每个文件有略微不同的时间戳，用于排序
         }));
         setUploadProgressFiles(progressFiles);
         setShowUploadProgress(true);
@@ -1523,6 +1525,12 @@ const CloudDriveScreen = () => {
                     debugLog('[Drive] Retry upload for file:', fileId);
                     updateFileStatus(fileId, 'failed', 'Retry not yet implemented');
                 }}
+                onDelete={(fileId: string) => {
+                    // Remove file from upload list
+                    setUploadProgressFiles((prev) => prev.filter((f) => f.id !== fileId));
+                    debugLog('[Drive] Delete upload file:', fileId);
+                }}
+                showDeleteButton={true}
             />
         </SafeAreaView>
     );

@@ -1032,6 +1032,7 @@ const KnowledgeBaseScreen = () => {
                 size: f.size || 0,
                 progress: 0,
                 status: 'pending' as const,
+                uploadTime: Date.now() + idx, // 每个文件有略微不同的时间戳，用于排序
             }));
             setUploadProgressFiles(progressFiles);
             setShowUploadProgress(true);
@@ -1800,6 +1801,12 @@ const KnowledgeBaseScreen = () => {
                         prev.map((f, idx) => (idx === fileIndex ? {...f, status: 'failed' as const, error: 'Please re-select and upload the file'} : f)),
                     );
                 }}
+                onDelete={(fileId: string) => {
+                    // Remove file from upload list
+                    setUploadProgressFiles((prev) => prev.filter((f) => f.id !== fileId));
+                    debugLog('[KB] Delete upload file:', fileId);
+                }}
+                showDeleteButton={true}
             />
         </SafeAreaView>
     );
