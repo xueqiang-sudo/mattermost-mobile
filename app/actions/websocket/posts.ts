@@ -277,19 +277,24 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     // observer 触发 → 但 FlashList 不重新测量已渲染的条目。导致 webapp 发送的
     // 文件/图片在 mobile 实时看不到，必须退出再进聊天窗口才行。
     //
-    // 方案：若 post 有 file_ids，在写 Post 之前先从服务端拉取完整 FileInfo，
+    // 方案：若 post 有 file_ids 或 pending_files，在写 Post 之前先从服务端拉取完整 FileInfo，
     // 并注入到 metadata.files，让 handlePosts 内部统一提取 File 记录，
     // 和 Post 一起写入同一个 batch。
     //
     // 注意：某些 WebSocket 版本可能发送不完整的 metadata.files（字段缺失），
     // 因此始终拉取以确保数据完整性。
     const postFileIds = post.file_ids as string[] | undefined;
+    const pendingFiles = (post.props?.pending_files as Array<{client_id: string; name: string; size: number; mime_type: string}> | undefined);
+
     debugLog('[WS:handleNewPostEvent] 📎 检查文件信息:', {
         has_file_ids: !!(postFileIds && postFileIds.length > 0),
         file_ids_count: postFileIds?.length || 0,
         file_ids: postFileIds,
+        has_pending_files: !!(pendingFiles && pendingFiles.length > 0),
+        pending_files_count: pendingFiles?.length || 0,
     });
 
+    // 处理已上传完成的文件（file_ids）
     if (postFileIds && postFileIds.length > 0) {
         try {
             const existingFiles = await database.get(FILE).query(
@@ -327,6 +332,67 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
         } catch (fileErr) {
             debugLog('[WS:handleNewPostEvent] ❌ 拉取 FileInfo 失败:', fileErr);
             logWarning('handleNewPostEvent: failed to fetch missing files', fileErr);
+        }
+    }
+
+    // 处理 pending 文件（上传中状态，file_ids 为空但有 pending_files）
+    if (pendingFiles && pendingFiles.length > 0 && (!postFileIds || postFileIds.length === 0)) {
+        try {
+            debugLog('[WS:handleNewPostEvent] 📤 处理 pending 文件:', {
+                count: pendingFiles.length,
+                files: pendingFiles.map(pf => ({client_id: pf.client_id, name: pf.name})),
+            });
+
+            // 检查本地是否已有 pending File 记录
+            const existingFiles = await database.get(FILE).query(
+                Q.where('post_id', post.id),
+            ).fetch();
+
+            // 为每个 pending file 创建临时的 File 记录
+            const pendingFileInfos: FileInfo[] = [];
+            for (const pf of pendingFiles) {
+                const pendingId = `pending_${pf.client_id}`;
+
+                // 检查是否已存在
+                if (existingFiles.some(f => f.id === pendingId)) {
+                    debugLog('[WS:handleNewPostEvent] ⏭️ pending file 已存在，跳过:', {pendingId});
+                    continue;
+                }
+
+                const extension = pf.name.includes('.') ? pf.name.split('.').pop() || '' : '';
+                pendingFileInfos.push({
+                    id: pendingId,
+                    user_id: post.user_id,
+                    post_id: post.id,
+                    create_at: post.create_at || Date.now(),
+                    update_at: post.update_at || Date.now(),
+                    delete_at: 0,
+                    name: pf.name,
+                    extension,
+                    size: pf.size,
+                    mime_type: pf.mime_type,
+                    has_preview_image: pf.mime_type?.startsWith('image/') || false,
+                    mini_preview: '',
+                    link: '',
+                    localPath: '',
+                    pdfPreviewId: '',
+                    imageThumbnail: '',
+                } as FileInfo);
+            }
+
+            if (pendingFileInfos.length > 0) {
+                // 注入到 metadata.files，handlePosts 会创建 File 记录
+                if (!post.metadata) {
+                    post.metadata = {} as any;
+                }
+                post.metadata.files = [...(post.metadata.files || []), ...pendingFileInfos];
+                debugLog('[WS:handleNewPostEvent] 💉 已注入 pending files 到 metadata.files:', {
+                    count: pendingFileInfos.length,
+                });
+            }
+        } catch (pendingErr) {
+            debugLog('[WS:handleNewPostEvent] ❌ 处理 pending files 失败:', pendingErr);
+            logWarning('handleNewPostEvent: failed to handle pending files', pendingErr);
         }
     }
 

@@ -68,15 +68,16 @@ const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceP
                 // 对齐 webapp：使用 client_id（snake_case）
                 const progressInfo = uploadProgress[pf.client_id];
 
-                // 如果 DB 中已有对应的真实文件记录（上传完成），跳过合成
-                const realFileId = progressInfo?.status === 'done' ? undefined : undefined;
-                if (dbFiles.some((f) => f.id === realFileId)) {
+                // 检查 DB 中是否已有对应的文件记录（通过 pending ID 或真实 ID）
+                const pendingId = `pending_${pf.client_id}`;
+                if (dbFiles.some((f) => f.id === pendingId)) {
+                    // DB 中已有 pending 记录，跳过合成（避免重复渲染）
                     continue;
                 }
 
                 const extension = pf.name.includes('.') ? pf.name.split('.').pop() || '' : '';
                 const syntheticFileInfo: FileInfo = {
-                    id: `pending_${pf.client_id}`,  // 使用 client_id
+                    id: pendingId,  // 使用 pending ID
                     user_id: post.userId,
                     post_id: post.id,
                     create_at: post.createAt,
