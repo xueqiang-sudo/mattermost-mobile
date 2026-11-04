@@ -16,7 +16,7 @@ import {
 import {CustomStatusDurationEnum} from '@constants/custom_status';
 import SecurityManager from '@managers/security_manager';
 import {observeCurrentUser} from '@queries/servers/user';
-import {dismissModal, popTopScreen} from '@screens/navigation';
+import {popTopScreen, popTopScreen} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -116,7 +116,7 @@ class ClearAfterModal extends NavigationComponent<Props, State> {
         const {componentId} = this.props;
         if (NavigationStore.getVisibleScreen() === componentId) {
             if (this.props.isModal) {
-                dismissModal({componentId});
+                popTopScreen(componentId);
             } else {
                 popTopScreen(componentId);
             }
@@ -130,7 +130,7 @@ class ClearAfterModal extends NavigationComponent<Props, State> {
         const {componentId, handleClearAfterClick, isModal} = this.props;
         handleClearAfterClick(this.state.duration, this.state.expiresAt);
         if (isModal) {
-            dismissModal({componentId});
+            popTopScreen(componentId);
             return;
         }
 

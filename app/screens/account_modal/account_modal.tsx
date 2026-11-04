@@ -43,7 +43,7 @@ const AccountModal = ({componentId, currentUser, enableCustomUserStatuses, showF
     const styles = getStyleSheet(theme);
 
     const close = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useEffect(() => {

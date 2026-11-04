@@ -113,7 +113,7 @@ export default function CreateCategory({componentId, teamId}: Props) {
     }, []);
 
     const handleCancel = useCallback(async () => {
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
     }, [componentId]);
 
     const handleCreate = usePreventDoubleTap(useCallback(async () => {
@@ -137,7 +137,7 @@ export default function CreateCategory({componentId, teamId}: Props) {
             return;
         }
 
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
     }, [categoryName, componentId, intl, serverUrl, teamId]));
 
     const isDisabled = !categoryName.trim() || creating;

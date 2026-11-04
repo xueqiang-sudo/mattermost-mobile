@@ -11,7 +11,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {logDebug} from '@utils/log';
@@ -352,7 +352,7 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
             } as unknown as FileInfo));
 
             // Dismiss the picker first so the user sees the chat immediately.
-            await dismissModal({componentId});
+            await popTopScreen(componentId);
 
             if (fileInfos.length > 0 && onSend) {
                 await onSend(fileInfos);

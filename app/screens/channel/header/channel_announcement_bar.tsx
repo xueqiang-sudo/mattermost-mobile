@@ -86,7 +86,7 @@ const ChannelAnnouncementBar = ({
         const title = isDM 
             ? intl.formatMessage({id: 'screens.edit_conversation_note', defaultMessage: 'Edit note'})
             : intl.formatMessage({id: 'screens.edit_channel_announcement', defaultMessage: 'Edit announcement'});
-        showModal(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
+        goToScreen(Screens.EDIT_CHANNEL_ANNOUNCEMENT, title, {channelId});
     }, [channelId, intl, isDM]);
 
     const onPressBar = useCallback(() => {

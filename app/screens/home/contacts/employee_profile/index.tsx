@@ -25,7 +25,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
-import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {popTopScreen, goToScreen} from '@screens/navigation';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {buildClipboardTextFromLines} from '@utils/contact_profile_clipboard';
@@ -425,7 +425,7 @@ const ContactsEmployeeProfile = ({
                 // 如果原来没有部门（departmentId为undefined），则只记录变更但不移动（需要用户手动添加到部门）
             }
 
-            dismissModal({componentId});
+            popTopScreen(componentId);
         } catch (e) {
             Alert.alert(
                 intl.formatMessage({id: 'mobile.edit_profile.error', defaultMessage: 'Failed to save profile'}),
@@ -598,7 +598,7 @@ const ContactsEmployeeProfile = ({
     }, [companyIdProp, employee.id, serverUrl, businessRoles, selectedRoleKeys, intl]);
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId ?? CLOSE_BUTTON_ID, componentId, handleClose, [handleClose]);
@@ -636,7 +636,7 @@ const ContactsEmployeeProfile = ({
         if (!canEditRelationFields) {
             return;
         }
-        const nextValue = await remarkEditInput.showModal({
+        const nextValue = await remarkEditInput.goToScreen({
             title: intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'}),
             placeholder: intl.formatMessage({id: 'supplier_customer.add_remark_placeholder', defaultMessage: 'e.g. ACME purchasing contact'}),
             defaultValue: relationRemark,
@@ -651,7 +651,7 @@ const ContactsEmployeeProfile = ({
         if (!canEditRelationFields) {
             return;
         }
-        const nextValue = await relationDescriptionEditInput.showModal({
+        const nextValue = await relationDescriptionEditInput.goToScreen({
             title: intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'}),
             placeholder: intl.formatMessage({id: 'supplier_customer.field_description_edit_placeholder', defaultMessage: 'How do you work together? Add context—for example projects, roles, or reminders—for yourself and your enterprise. (optional)'}),
             defaultValue: relationDescription,
@@ -666,7 +666,7 @@ const ContactsEmployeeProfile = ({
         if (!canEditRelationFields) {
             return;
         }
-        const nextValue = await companyEditInput.showModal({
+        const nextValue = await companyEditInput.goToScreen({
             title: intl.formatMessage({id: 'contacts.enterprise_name', defaultMessage: '企业名称'}),
             placeholder: intl.formatMessage({id: 'contacts.external.company_placeholder', defaultMessage: 'e.g. ACME Corporation'}),
             defaultValue: editingCompany,
@@ -753,10 +753,9 @@ const ContactsEmployeeProfile = ({
         }
         const sourceName = departmentName ??
             intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'});
-        showModalWithBackButton(
+        goToScreen(
             Screens.CONTACTS_BATCH_MOVE_MEMBERS,
             intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
-            'close-contacts-batch-move-single',
             {
                 companyId: companyIdProp,
                 sourceDepartmentId: departmentId ?? null,
@@ -765,7 +764,6 @@ const ContactsEmployeeProfile = ({
                 singleEmployeeName: getContactListDisplayName(employee),
                 onSuccess: handleClose,
             },
-            {useBackIcon: true, topBar: {visible: false}},
         );
     }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
 

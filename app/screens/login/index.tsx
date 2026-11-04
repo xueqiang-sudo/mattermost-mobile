@@ -111,7 +111,7 @@ const LoginOptions = ({
     );
 
     const dismiss = () => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     };
 
     const pop = useCallback(() => {
@@ -121,7 +121,7 @@ const LoginOptions = ({
     useEffect(() => {
         const navigationEvents = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
             if (closeButtonId && buttonId === closeButtonId) {
-                dismissModal({componentId});
+                popTopScreen(componentId);
             } else if (buttonId === 'login-about') {
                 const title = intl.formatMessage({id: 'settings.about', defaultMessage: 'About'});
                 goToScreen(Screens.LOGIN_ABOUT, title);

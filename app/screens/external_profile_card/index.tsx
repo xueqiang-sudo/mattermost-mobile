@@ -23,7 +23,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {observeCurrentUser} from '@queries/servers/user';
-import {dismissModal, setButtons} from '@screens/navigation';
+import {popTopScreen, setButtons} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {formatDate} from '@utils/datetime';
 import {formatFullName} from '@utils/display_name';
@@ -188,7 +188,7 @@ const ExternalProfileCardScreen = ({
     const displayName = currentUser? (hasName ? (nickname ? `${fullName} (${nickname})` : fullName) : (nickname || currentUser.username)): '';
 
     const onClosePressed = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);

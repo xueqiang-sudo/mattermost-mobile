@@ -14,7 +14,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -92,7 +92,7 @@ const TextViewer = ({componentId, closeButtonId, filePath, fileName, mimeType, o
 
     const onClose = useCallback(() => {
         onDismiss?.();
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId, onDismiss]);
 
     useNavButtonPressed(closeButtonId, componentId, onClose, [onClose]);

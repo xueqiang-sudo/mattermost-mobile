@@ -141,7 +141,7 @@ const ForwardMessage = ({
     }, [channels, channelId, searchQuery]);
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const handleSelectChannel = useCallback((channel: ChannelModel) => {

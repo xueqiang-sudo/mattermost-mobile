@@ -432,7 +432,7 @@ const ConsultationPanel = ({componentId, channelId, teamId, prefillText}: Props)
 
             closeConsultation(serverUrl, selectedConsultation.id).catch(() => {});
         }
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId, selectedConsultation, serverUrl, responses]);
 
     useNavButtonPressed('close-consultation-panel', componentId, handleClose, [handleClose]);

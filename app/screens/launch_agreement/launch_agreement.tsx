@@ -101,17 +101,17 @@ const LaunchAgreement = ({componentId}: Props) => {
     const openWebView = useCallback((url: string, titleKey: string, defaultTitle: string) => {
         const title = intl.formatMessage({id: titleKey, defaultMessage: defaultTitle});
         const closeId = `close-webview-${titleKey}`;
-        showModalWithBackButton(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
+        goToScreen(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
     }, [intl]);
 
     const handleDisagree = useCallback(async () => {
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
         BackHandler.exitApp();
     }, [componentId]);
 
     const handleAgree = useCallback(async () => {
         await setAcceptedAgreement();
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
         // 隐私合规：用户同意后才初始化 JPush SDK
         JPushManager.init();
         initialLaunch();

@@ -39,7 +39,7 @@ type QrScannerOptions = {
 
 export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) => {
     const scanContext = options?.scanContext;
-    showModal(Screens.QR_SCANNER, '', {
+    goToScreen(Screens.QR_SCANNER, '', {
         onScanResult: (value: string, context?: string) => {
             // 自定义回调优先处理（如入库/出库扫码等需要原始内容的场景）
             if (options?.onScanResultCallback) {
@@ -83,7 +83,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                         id: 'invite_user_join_team.title',
                         defaultMessage: 'Invite User to Join Enterprise',
                     });
-                    showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
+                    goToScreen(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },
@@ -97,7 +97,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                             id: 'invite_user_join_team.title',
                             defaultMessage: 'Invite User to Join Enterprise',
                         });
-                        showModalWithBackButton(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
+                        goToScreen(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
                             statusBar: {
                                 drawBehind: true,
                             },
@@ -115,7 +115,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                                 id: 'add_user_to_friends.title',
                                 defaultMessage: 'Add user as contact',
                             });
-                    showModalWithBackButton(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', mergedData, {
+                    goToScreen(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },

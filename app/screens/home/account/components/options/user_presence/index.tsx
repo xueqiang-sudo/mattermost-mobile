@@ -75,7 +75,7 @@ const UserStatus = ({currentUser}: Props) => {
 
     const setUserStatus = useCallback((status: string) => {
         if (currentUser.status === OUT_OF_OFFICE) {
-            dismissModal();
+            popTopScreen();
             return confirmOutOfOfficeDisabled(intl, status, updateStatus);
         }
 

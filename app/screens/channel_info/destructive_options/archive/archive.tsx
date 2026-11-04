@@ -11,7 +11,7 @@ import OptionItem from '@components/option_item';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal, popToRoot} from '@screens/navigation';
+import {popTopScreen, popToRoot} from '@screens/navigation';
 import {usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {alertErrorWithFallback} from '@utils/draft';
 
@@ -75,7 +75,7 @@ const Archive = ({
     const [showDeleteOrArchiveModal, setShowDeleteOrArchiveModal] = useState(false);
 
     const close = useCallback(async (pop: boolean) => {
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
         if (pop) {
             popToRoot();
         }

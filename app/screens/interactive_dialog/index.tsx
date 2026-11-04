@@ -15,7 +15,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import SecurityManager from '@managers/security_manager';
-import {buildNavigationButton, dismissModal, setButtons} from '@screens/navigation';
+import {buildNavigationButton, popTopScreen, setButtons} from '@screens/navigation';
 import {checkDialogElementForError, checkIfErrorsMatchElements} from '@utils/integrations';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
@@ -51,7 +51,7 @@ type Props = {
 
 const close = () => {
     Keyboard.dismiss();
-    dismissModal();
+    popTopScreen();
 };
 
 const makeCloseButton = (icon: ImageResource) => {

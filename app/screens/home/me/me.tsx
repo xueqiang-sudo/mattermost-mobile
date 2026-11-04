@@ -18,7 +18,7 @@ import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {alertServerLogout} from '@utils/server';
-import {goToScreen, showModal, showModalWithBackButton} from '@screens/navigation';
+import {goToScreen, showModal, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';
@@ -135,25 +135,18 @@ const MeScreen = ({currentUser}: Props) => {
     }, [currentUser, fullName]);
 
     const openEditProfile = usePreventDoubleTap(useCallback(() => {
-        showModal(
-            Screens.EDIT_PROFILE,
-            intl.formatMessage({id: 'me.my_profile', defaultMessage: 'My Profile'}),
-        );
+        const title = intl.formatMessage({id: 'me.my_profile', defaultMessage: 'My Profile'});
+        goToScreen(Screens.EDIT_PROFILE, title, {});
     }, [intl]));
 
     const openExternalCard = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
-            Screens.EXTERNAL_PROFILE_CARD,
-            intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
-            'close-me-external-profile',
-        );
+        const title = intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'});
+        goToScreen(Screens.EXTERNAL_PROFILE_CARD, title, {});
     }, [intl]));
 
     const openSettings = usePreventDoubleTap(useCallback(() => {
-        showModal(
-            Screens.SETTINGS,
-            intl.formatMessage({id: 'mobile.screen.settings', defaultMessage: 'Settings'}),
-        );
+        const title = intl.formatMessage({id: 'mobile.screen.settings', defaultMessage: 'Settings'});
+        goToScreen(Screens.SETTINGS, title, {});
     }, [intl]));
 
     const openAbout = usePreventDoubleTap(useCallback(() => {

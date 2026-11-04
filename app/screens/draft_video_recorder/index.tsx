@@ -363,7 +363,7 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
 
     const closeModal = useCallback(async () => {
         setTorchOn(false);
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
     }, [componentId]);
 
     const closeModalRef = useRef(closeModal);
@@ -472,7 +472,7 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                 setIsRecording(false);
                 setTorchOn(false);
                 void (async () => {
-                    await dismissModal({componentId});
+                    await popTopScreen(componentId);
                     onVideoRecorded(video);
                 })();
             },

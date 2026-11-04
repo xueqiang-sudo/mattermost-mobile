@@ -129,7 +129,7 @@ const ManageRestrictedViews = ({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    useAndroidHardwareBackHandler(componentId, () => dismissModal({componentId}));
+    useAndroidHardwareBackHandler(componentId, () => popTopScreen(componentId));
 
     // Fetch members and current restricted views
     useEffect(() => {
@@ -178,7 +178,7 @@ const ManageRestrictedViews = ({
     }, []);
 
     const handleCancel = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const handleConfirm = useCallback(async () => {
@@ -211,7 +211,7 @@ const ManageRestrictedViews = ({
             }
 
             await Promise.all(promises);
-            dismissModal({componentId});
+            popTopScreen(componentId);
         } catch (error) {
             Alert.alert(
                 intl.formatMessage({id: 'mobile.error.title', defaultMessage: 'Error'}),

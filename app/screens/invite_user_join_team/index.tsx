@@ -19,7 +19,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {getCurrentUserId} from '@queries/servers/system';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {username2Nickname} from '@utils/user';
@@ -203,7 +203,7 @@ const InviteUserJoinTeam = ({componentId, closeButtonId, uid, contactTargetDepar
     }, [targetUser, intl.locale]);
 
     const onClosePressed = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);

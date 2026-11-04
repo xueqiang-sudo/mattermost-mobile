@@ -85,7 +85,7 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
     const [serviceError, setServiceError] = useState(false);
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId ?? CLOSE_BUTTON_ID, componentId, handleClose, [handleClose]);

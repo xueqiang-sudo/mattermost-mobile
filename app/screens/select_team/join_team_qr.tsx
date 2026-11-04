@@ -138,7 +138,7 @@ const JoinTeamQR: React.FC<JoinTeamQRProps> = ({componentId, closeButtonId, serv
     };
 
     const onClosePressed = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);

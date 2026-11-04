@@ -74,7 +74,7 @@ const PdfViewer = ({allowPdfLinkNavigation, closeButtonId, componentId, fileId, 
 
     const onClose = useCallback(() => {
         onDismiss?.();
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId, onDismiss]);
 
     const onLinkPressed = useCallback((event: OnLinkPressedEvent) => {

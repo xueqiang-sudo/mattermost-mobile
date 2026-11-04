@@ -390,7 +390,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serv
     });
 
     const onClosePressed = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);
@@ -420,7 +420,7 @@ const CreateTeam: React.FC<CreateTeamProps> = ({componentId, closeButtonId, serv
             // 仅确保默认部门并与团队成员对齐（不再写独立通讯录企业）
             await ensureTeamDefaultDepartment(serverUrl, team.id);
             await syncTeamMembersToDefaultDepartment(serverUrl, team.id);
-            dismissModal({componentId});
+            popTopScreen(componentId);
             InteractionManager.runAfterInteractions(() => {
                 const createdName = team.display_name ?? enterpriseName;
                 showSnackBar({

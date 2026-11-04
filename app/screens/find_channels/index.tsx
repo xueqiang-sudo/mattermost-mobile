@@ -14,7 +14,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {buildNavigationButton, dismissModal, goToScreen, setButtons} from '@screens/navigation';
+import {buildNavigationButton, goToScreen, popTopScreen, setButtons} from '@screens/navigation';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -90,7 +90,7 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
      */
     const close = useCallback(() => {
         Keyboard.dismiss();
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     /**

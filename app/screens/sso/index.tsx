@@ -151,7 +151,7 @@ const SSO = ({
         if (serverUrl) {
             NetworkManager.invalidateClient(serverUrl);
         }
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId, serverUrl]);
 
     const animatedStyles = useScreenTransitionAnimation(Screens.SSO);

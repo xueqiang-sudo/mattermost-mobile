@@ -53,7 +53,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
         const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
 
         await close();
-        showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
+        goToScreen(Screens.CREATE_OR_EDIT_CHANNEL, title);
     }, [intl]);
 
     /**
@@ -65,7 +65,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
         const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
 
         await close();
-        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+        goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
             variant: 'group_only',
         });
@@ -80,7 +80,7 @@ const QuickOptions = ({canCreateChannels, close}: Props) => {
         const closeButton = await CompassIcon.getImageSource('close', 24, closeIconColor);
 
         await close();
-        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+        goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
             variant: 'dm_only',
         });

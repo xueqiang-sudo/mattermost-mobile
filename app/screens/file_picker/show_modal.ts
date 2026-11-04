@@ -15,7 +15,7 @@ export const showFilePickerScreen = (channelId: string, onSend: (files: FileInfo
         channelId,
     };
 
-    showModalWithBackButton(
+    goToScreen(
         Screens.FILE_PICKER,
         title,
         closeButtonId,
@@ -35,7 +35,7 @@ export const showPhotoAlbumScreen = (channelId: string, onSend: (files: FileInfo
         photoMode: true,
     };
 
-    showModalWithBackButton(
+    goToScreen(
         Screens.FILE_PICKER,
         title,
         closeButtonId,

@@ -22,7 +22,7 @@ import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import WebsocketManager from '@managers/websocket_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {findChannels, showModal, showModalWithBackButton} from '@screens/navigation';
+import {findChannels, showModal, goToScreen} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import {alertServerLogout} from '@utils/server';
@@ -367,7 +367,7 @@ const ChannelListHeader = ({
         const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
-        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+        goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
             variant: 'default',
         });
@@ -378,7 +378,7 @@ const ChannelListHeader = ({
         if (!teamId) {
             return;
         }
-        showModalWithBackButton(
+        goToScreen(
             Screens.CREATE_CATEGORY,
             intl.formatMessage({id: 'create_category_modal.title', defaultMessage: 'Create Category'}),
             `close-${Screens.CREATE_CATEGORY}`,

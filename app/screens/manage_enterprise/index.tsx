@@ -18,7 +18,7 @@ import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
-import {dismissModal, goToScreen, showModalWithBackButton} from '@screens/navigation';
+import {popTopScreen, goToScreen, goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -278,7 +278,7 @@ const ManageEnterpriseScreen = ({currentUser, currentTeamId, componentId}: Props
         const listener = DeviceEventEmitter.addListener(Events.MANAGE_ENTERPRISE_REFRESH, async () => {
             const entries = await loadCompanies({isRefresh: true});
             if (entries.length === 0) {
-                dismissModal();
+                popTopScreen();
             }
         });
         return () => listener.remove();

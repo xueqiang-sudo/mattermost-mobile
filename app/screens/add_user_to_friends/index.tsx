@@ -23,7 +23,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
 import {getCurrentUserId} from '@queries/servers/system';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {user2FullPhone, username2Nickname} from '@utils/user';
@@ -277,7 +277,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
     });
 
     const onClosePressed = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);
@@ -346,7 +346,7 @@ const AddUserToFriends = ({componentId, closeButtonId, uid, forcedEmployeeContac
         await refreshRelations();
         setSheetVisible(false);
         if (forcedEmployeeContactType) {
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }
     }, [componentId, currentUserId, forcedEmployeeContactType, intl, refreshRelations, saving, serverUrl, uid]));
 

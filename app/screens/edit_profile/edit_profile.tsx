@@ -108,7 +108,7 @@ const EditProfile = ({
 
     const close = useCallback(() => {
         if (isModal) {
-            dismissModal({componentId});
+            popTopScreen(componentId);
         } else if (isTablet) {
             DeviceEventEmitter.emit(Events.ACCOUNT_SELECT_TABLET_VIEW, '');
         } else {

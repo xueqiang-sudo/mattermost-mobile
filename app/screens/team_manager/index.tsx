@@ -356,7 +356,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
         if (onBack) {
             onBack();
         } else {
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }
     }, [onBack, componentId]);
 

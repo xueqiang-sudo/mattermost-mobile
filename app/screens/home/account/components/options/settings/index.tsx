@@ -13,7 +13,7 @@ const Settings = () => {
     const intl = useIntl();
 
     const openSettings = usePreventDoubleTap(useCallback(() => {
-        showModal(
+        goToScreen(
             Screens.SETTINGS,
             intl.formatMessage({id: 'mobile.screen.settings', defaultMessage: 'Settings'}),
         );

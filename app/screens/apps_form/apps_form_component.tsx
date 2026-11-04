@@ -23,7 +23,7 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {secureGetFromRecord} from '@utils/types';
 
 import DialogIntroductionText from '../interactive_dialog/dialog_introduction_text';
-import {buildNavigationButton, dismissModal, setButtons} from '../navigation';
+import {buildNavigationButton, popTopScreen, setButtons} from '../navigation';
 
 import AppsFormField from './apps_form_field';
 
@@ -70,7 +70,7 @@ function fieldsAsElements(fields?: AppField[]): DialogElement[] {
 
 const close = () => {
     Keyboard.dismiss();
-    dismissModal();
+    popTopScreen();
 };
 
 const makeCloseButton = (icon: ImageResource) => {

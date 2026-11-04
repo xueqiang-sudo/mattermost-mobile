@@ -9,7 +9,7 @@ import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
-import {showModalWithBackButton} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -98,7 +98,7 @@ const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, cur
     const styles = getStyleSheet(theme);
 
     const handleJoinEnterprise = useCallback(() => {
-        showModalWithBackButton(Screens.JOIN_TEAM_QR, intl.formatMessage({id: 'join_team_qr.select_title', defaultMessage: 'Join Enterprise'}), 'close-select-join-team-qr', {
+        goToScreen(Screens.JOIN_TEAM_QR, intl.formatMessage({id: 'join_team_qr.select_title', defaultMessage: 'Join Enterprise'}), 'close-select-join-team-qr', {
             serverUrl,
             nickname: currentUser?.nickname || '',
             userId: currentUser?.id || '',
@@ -106,7 +106,7 @@ const EnterpriseSelection: React.FC<EnterpriseSelectionProps> = ({serverUrl, cur
     }, [intl, serverUrl, currentUser?.nickname, currentUser?.id]);
 
     const handleCreateEnterprise = () => {
-        showModalWithBackButton(Screens.CREATE_TEAM, intl.formatMessage({id: 'create_team.select_title', defaultMessage: 'Create Enterprise'}), 'close-select-create-team', {
+        goToScreen(Screens.CREATE_TEAM, intl.formatMessage({id: 'create_team.select_title', defaultMessage: 'Create Enterprise'}), 'close-select-create-team', {
             serverUrl,
             nickname: currentUser?.nickname || '',
             userId: currentUser?.id || '',

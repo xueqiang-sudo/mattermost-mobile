@@ -14,7 +14,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/user';
-import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getFullName, username2Nickname} from '@utils/user';
@@ -109,34 +109,28 @@ const ExternalProfileCardEditScreen = ({
     const secondaryName = currentUser ? `@${username2Nickname(currentUser, {locale, includeFullName: false})}` : '';
 
     const onClosePressed = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);
     useAndroidHardwareBackHandler(componentId, onClosePressed);
 
     const onCancel = usePreventDoubleTap(useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]));
 
     const onConfirm = usePreventDoubleTap(useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]));
 
     const onStylePress = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
-            Screens.EXTERNAL_PROFILE_CARD_STYLE,
-            intl.formatMessage({id: 'external_profile_card.style', defaultMessage: 'Style'}),
-            'close-external-profile-card-style',
-        );
+        const title = intl.formatMessage({id: 'external_profile_card.style', defaultMessage: 'Style'});
+        goToScreen(Screens.EXTERNAL_PROFILE_CARD_STYLE, title, {});
     }, [intl]));
 
     const onExternalInfoPress = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
-            Screens.EXTERNAL_PROFILE_CARD_EXTERNAL_INFO,
-            intl.formatMessage({id: 'external_profile_card.external_info_display', defaultMessage: 'External Information Display'}),
-            'close-external-profile-card-external-info',
-        );
+        const title = intl.formatMessage({id: 'external_profile_card.external_info_display', defaultMessage: 'External Information Display'});
+        goToScreen(Screens.EXTERNAL_PROFILE_CARD_EXTERNAL_INFO, title, {});
     }, [intl]));
 
     if (!currentUser) {

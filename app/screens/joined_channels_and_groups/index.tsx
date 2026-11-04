@@ -28,7 +28,7 @@ import {
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
 import {removeChannelsFromArchivedTeams} from '@screens/find_channels/utils';
-import {dismissModal, popTopScreen} from '@screens/navigation';
+import {popTopScreen, popTopScreen} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
 import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -271,7 +271,7 @@ const JoinedChannelsAndGroups = ({
     });
 
     const onChannelPress = useCallback(async (channel: ChannelModel | Channel) => {
-        await dismissModal({componentId: Screens.FIND_CHANNELS});
+        await popTopScreen({componentId: Screens.FIND_CHANNELS});
         switchToChannelById(serverUrl, channel.id);
     }, [serverUrl]);
 

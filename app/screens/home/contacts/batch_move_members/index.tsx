@@ -639,7 +639,7 @@ const ContactsBatchMoveMembers = ({
     }, [selectedDepartmentIds, selectedIds, selectedDepartmentPaths, selectedMemberPaths]);
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const handleBack = useCallback(() => {

@@ -291,7 +291,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
     }, [serverUrl, channelId]);
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const loadTabData = useCallback(async (tab: ActiveTab, date?: string) => {

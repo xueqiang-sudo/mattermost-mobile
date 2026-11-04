@@ -301,7 +301,7 @@ const CategoryBody = ({sortedChannels, unreadIds, unreadsOnTop, category, curren
         const categoryWithChannels = await category.toCategoryWithChannels();
         const currentChannelIds = categoryWithChannels.channel_ids || [];
 
-        showModal(
+        goToScreen(
             CATEGORY_CHANNEL_PICKER,
             category.displayName,
             {

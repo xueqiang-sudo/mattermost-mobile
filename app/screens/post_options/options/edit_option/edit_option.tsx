@@ -47,7 +47,7 @@ const EditOption = ({bottomSheetId, post, canDelete, files}: Props) => {
                 }],
             },
         };
-        showModal(Screens.EDIT_POST, title, passProps, options);
+        goToScreen(Screens.EDIT_POST, title, passProps, options);
     }, [bottomSheetId, canDelete, files, intl, post, theme.sidebarHeaderTextColor]);
 
     return (

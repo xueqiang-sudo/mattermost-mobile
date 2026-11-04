@@ -15,7 +15,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {logDebug} from '@utils/log';
 import {alertTeamAddError} from '@utils/navigation';
 import {makeStyleSheetFromTheme} from '@utils/theme';
@@ -101,7 +101,7 @@ export default function JoinTeam({
             setJoining(false);
         } else {
             handleTeamChange(serverUrl, teamId);
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }
     }, [serverUrl, componentId, intl]);
 
@@ -113,7 +113,7 @@ export default function JoinTeam({
     }, []);
 
     const onClosePressed = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);

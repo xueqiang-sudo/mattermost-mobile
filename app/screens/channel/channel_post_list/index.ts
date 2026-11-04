@@ -5,7 +5,7 @@ import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 import {combineLatest, of as of$} from 'rxjs';
-import {switchMap, distinctUntilChanged} from 'rxjs/operators';
+import {switchMap, distinctUntilChanged, map} from 'rxjs/operators';
 
 import {MM_TABLES} from '@constants/database';
 import {Preferences} from '@constants';
@@ -68,6 +68,17 @@ const enhanced = withObservables(['channelId'], ({database, channelId}: {channel
                 const {earliest, latest} = postsInChannel[0];
                 const effectiveEarliest = clearedAt > 0 ? Math.max(earliest, clearedAt) : earliest;
                 return queryPostsBetween(database, effectiveEarliest, latest, Q.desc, '', channelId, isCRTEnabled ? '' : undefined).observe();
+            }),
+            // 【去重】按 pending_post_id 或 id 去重，防止批量写入时重复渲染
+            map((posts) => {
+                const seen = new Map<string, PostModel>();
+                for (const post of posts) {
+                    const key = post.pendingPostId || post.id;
+                    if (!seen.has(key)) {
+                        seen.set(key, post);
+                    }
+                }
+                return Array.from(seen.values());
             }),
         ),
         shouldShowJoinLeaveMessages: queryAdvanceSettingsPreferences(database, Preferences.ADVANCED_FILTER_JOIN_LEAVE).

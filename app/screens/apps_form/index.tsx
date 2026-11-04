@@ -10,7 +10,7 @@ import {handleGotoLocation} from '@actions/remote/command';
 import {AppCallResponseTypes} from '@constants/apps';
 import {useServerUrl} from '@context/server';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {createCallRequest, makeCallErrorResponse} from '@utils/apps';
 
 import AppsFormComponent from './apps_form_component';
@@ -196,7 +196,7 @@ function AppsFormContainer({
 
     const close = useCallback(() => {
         Keyboard.dismiss();
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, close);

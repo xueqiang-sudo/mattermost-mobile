@@ -26,7 +26,7 @@ import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {popTopScreen, goToScreen} from '@screens/navigation';
 import {
     cascadePathLabel,
     cascadePathParts,
@@ -268,7 +268,7 @@ const ContactsSearchContent = ({
             onBack();
             return;
         }
-        dismissModal({componentId: effectiveScreenId});
+        popTopScreen({componentId: effectiveScreenId});
     }, [onBack, effectiveScreenId]);
 
     useAndroidHardwareBackHandler(effectiveScreenId, handleClose);
@@ -281,7 +281,7 @@ const ContactsSearchContent = ({
         const parentPath = pathParts.slice(0, -1).join('/');
         const titleProfile = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const cid = `close-employee-search-${emp.id}`;
-        showModalWithBackButton(
+        goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             titleProfile,
             cid,

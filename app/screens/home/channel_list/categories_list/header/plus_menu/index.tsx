@@ -28,7 +28,7 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
         await dismissBottomSheet();
 
         const title = intl.formatMessage({id: 'mobile.create_channel.title', defaultMessage: 'New channel'});
-        showModal(Screens.CREATE_OR_EDIT_CHANNEL, title);
+        goToScreen(Screens.CREATE_OR_EDIT_CHANNEL, title);
     }, [intl]);
 
     const openGroupChat = useCallback(async () => {
@@ -37,7 +37,7 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
         const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
-        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+        goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
             variant: 'group_only',
         });
@@ -49,7 +49,7 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
         const title = intl.formatMessage({id: 'plus_menu.open_private_chat.title', defaultMessage: 'Start private chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
-        showModal(Screens.CREATE_DIRECT_MESSAGE, title, {
+        goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {
             closeButton,
             variant: 'dm_only',
         });
@@ -58,7 +58,7 @@ const PlusMenuList = ({canCreateChannels, canInvitePeople}: Props) => {
     const invitePeopleToTeam = useCallback(async () => {
         await dismissBottomSheet();
 
-        showModal(
+        goToScreen(
             Screens.INVITE,
             intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
         );

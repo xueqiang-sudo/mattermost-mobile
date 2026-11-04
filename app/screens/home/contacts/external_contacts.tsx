@@ -31,7 +31,7 @@ import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {showModalWithBackButton} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 import {getContactDisplayName as getContactDisplayNameUtil} from '@utils/contact_section';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -402,7 +402,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                         ...contact.contact,
                     };
                     const title = getContactDisplayName(contact);
-                    showModalWithBackButton(
+                    goToScreen(
                         Screens.CONTACTS_EMPLOYEE_PROFILE,
                         title,
                         `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`,
@@ -451,7 +451,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                         ...contact.contact,
                     };
                     const title = getContactDisplayName(contact);
-                    showModalWithBackButton(
+                    goToScreen(
                         Screens.CONTACTS_EMPLOYEE_PROFILE,
                         title,
                         `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`,

@@ -19,7 +19,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, setButtons} from '@screens/navigation';
+import {popTopScreen, setButtons} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername, getLastPictureUpdate} from '@utils/user';
@@ -308,7 +308,7 @@ export default function Invite({
 
     const closeModal = useCallback(async () => {
         Keyboard.dismiss();
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
     }, [componentId]);
 
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

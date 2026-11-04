@@ -29,7 +29,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {bottomSheet, dismissBottomSheet, dismissModals, resetToLogin, resetToTeams, showModal, showModalWithBackButton} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, popTopScreens, resetToLogin, resetToTeams, showModal, goToScreen} from '@screens/navigation';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {showSnackBar} from '@utils/snack_bar';
@@ -225,7 +225,7 @@ const ContactsManage = ({
     const subtitle = currentDepartmentId == null ? undefined : currentDepartmentName;
 
     const handleClose = useCallback(() => {
-        dismissModals(1);
+        popTopScreens(1);
     }, []);
 
     const handleBack = useCallback(() => {
@@ -436,10 +436,9 @@ const ContactsManage = ({
         const title = isCurrentUserOwner ?
             intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}) :
             intl.formatMessage({id: 'contacts.manager_list', defaultMessage: '管理员列表'});
-        showModalWithBackButton(
+        goToScreen(
             Screens.TEAM_MANAGER,
             title,
-            'close-team-manager',
             {companyId},
             {useBackIcon: true, topBar: {visible: false}},
         );
@@ -466,7 +465,7 @@ const ContactsManage = ({
         const deptName = currentDepartmentName ?? intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
         const currentBreadcrumb = currentLevel?.breadcrumb ?? [];
         const departmentParentPath = currentBreadcrumb.length > 1 ? currentBreadcrumb.slice(0, -1).join('/') : undefined;
-        showModalWithBackButton(
+        goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
             `close-employee-${employee.id}`,
@@ -487,10 +486,9 @@ const ContactsManage = ({
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         const title = intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});
-        showModalWithBackButton(
+        goToScreen(
             Screens.INTERNAL_MEMBER_ADD,
             title,
-            'close-internal-member-add',
             {
                 ownerId,
                 companyId,
@@ -501,7 +499,7 @@ const ContactsManage = ({
     }, [companyId, companyName, intl, ownerId]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
-        const name = await subDeptInput.showModal({
+        const name = await subDeptInput.goToScreen({
             title: intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'}),
             placeholder: intl.formatMessage({id: 'contacts.sub_department_name_placeholder', defaultMessage: 'Enter department name'}),
             confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
@@ -529,7 +527,7 @@ const ContactsManage = ({
             );
             return;
         }
-        const name = await modifyDeptNameInput.showModal({
+        const name = await modifyDeptNameInput.goToScreen({
             title: intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'}),
             placeholder: intl.formatMessage({id: 'contacts.department_name_placeholder', defaultMessage: 'Department name'}),
             defaultValue: currentDepartmentName,
@@ -581,7 +579,7 @@ const ContactsManage = ({
             return;
         }
         const currentName = enterpriseDisplayName ?? companyName ?? '';
-        const name = await modifyEnterpriseNameInput.showModal({
+        const name = await modifyEnterpriseNameInput.goToScreen({
             title: intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}),
             placeholder: intl.formatMessage({id: 'contacts.enterprise_name_placeholder', defaultMessage: 'Enterprise name'}),
             defaultValue: currentName,
@@ -635,7 +633,7 @@ const ContactsManage = ({
             const myTeams = await client.getMyTeams();
             const remainingTeams = myTeams.filter((t) => t.id !== companyId);
             await client.deleteTeam(companyId);
-            await dismissModals();
+            await popTopScreens();
             if (remainingTeams.length === 0) {
                 // No other teams, go to login page
                 resetToLogin({launchType: 'normal'} as any);
@@ -690,10 +688,9 @@ const ContactsManage = ({
                             sourceId = currentDepartmentId;
                             sourceName = currentDepartmentName ?? '';
                         }
-                        showModalWithBackButton(
+                        goToScreen(
                             Screens.CONTACTS_BATCH_MOVE_MEMBERS,
                             intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
-                            'close-contacts-batch-move',
                             {
                                 companyId,
                                 sourceDepartmentId: sourceId,
@@ -764,10 +761,9 @@ const ContactsManage = ({
                         onPress={async () => {
                             await dismissBottomSheet();
                             const title = intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: '转移控制权'});
-                            showModalWithBackButton(
+                            goToScreen(
                                 Screens.TRANSFER_OWNERSHIP,
                                 title,
-                                'close-transfer-ownership',
                                 {
                                     companyId,
                                 },

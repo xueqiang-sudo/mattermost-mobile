@@ -89,12 +89,12 @@ const ContactsDepartmentBrowseFromProfile = ({
         if (stack.length > 1) {
             setStack((prev) => prev.slice(0, -1));
         } else {
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }
     }, [componentId, stack.length]);
 
     const handleClose = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const handleNavigateToDepartment = useCallback((params: {

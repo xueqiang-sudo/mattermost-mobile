@@ -339,7 +339,7 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
             // 这样可以立刻关闭弹窗，给用户最好的UX体验
             debugLog('filePicker', 'Dismissing modal first (before onSend)');
             try {
-                await dismissModal({componentId});
+                await popTopScreen(componentId);
                 debugLog('filePicker', 'Modal dismissed successfully');
             } catch (dismissError) {
                 debugLog('filePicker', `Dismiss modal error: ${dismissError instanceof Error ? dismissError.message : String(dismissError)}`);

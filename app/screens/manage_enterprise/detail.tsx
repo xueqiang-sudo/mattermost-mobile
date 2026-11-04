@@ -595,7 +595,7 @@ const ManageEnterpriseDetailScreen = ({companyId, companyName, isCurrentTeam = f
 
     const handleEditEnterprise = usePreventDoubleTap(useCallback(async () => {
         const current = (company?.name || companyName || '').trim();
-        const name = await editNameModal.showModal({
+        const name = await editNameModal.goToScreen({
             title: intl.formatMessage({id: 'enterprise.detail.modify_enterprise_name_title', defaultMessage: 'Modify enterprise name'}),
             placeholder: intl.formatMessage({id: 'enterprise.detail.name_placeholder', defaultMessage: 'Enterprise name'}),
             defaultValue: current,

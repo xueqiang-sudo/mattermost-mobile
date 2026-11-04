@@ -14,7 +14,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/user';
-import {dismissModal, setButtons, showModalWithBackButton} from '@screens/navigation';
+import {goToScreen, popTopScreen, setButtons} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getFullName, username2Nickname} from '@utils/user';
@@ -102,7 +102,7 @@ const ExternalProfileCardExternalInfoScreen = ({
     const companyAbbr = currentUser?.nickname || primaryName;
 
     const onClosePressed = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);
@@ -124,11 +124,8 @@ const ExternalProfileCardExternalInfoScreen = ({
     useNavButtonPressed(doneButton.id, componentId, onClosePressed, []);
 
     const onPreviewPress = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
-            Screens.EXTERNAL_PROFILE_CARD,
-            intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
-            'close-external-profile-card-preview',
-        );
+        const title = intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'});
+        goToScreen(Screens.EXTERNAL_PROFILE_CARD, title, {});
     }, [intl]));
 
     if (!currentUser) {

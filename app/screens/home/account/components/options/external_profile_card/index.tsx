@@ -7,7 +7,7 @@ import {useIntl} from 'react-intl';
 import OptionItem from '@components/option_item';
 import {Screens} from '@constants';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {showModalWithBackButton} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 
 const CLOSE_EXTERNAL_PROFILE_CARD = 'close-account-external-profile-card';
 
@@ -15,7 +15,7 @@ const ExternalProfileCard = () => {
     const intl = useIntl();
 
     const openExternalProfileCard = usePreventDoubleTap(useCallback(() => {
-        showModalWithBackButton(
+        goToScreen(
             Screens.EXTERNAL_PROFILE_CARD,
             intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
             CLOSE_EXTERNAL_PROFILE_CARD,

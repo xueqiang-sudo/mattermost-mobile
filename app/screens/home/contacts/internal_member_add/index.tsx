@@ -231,7 +231,7 @@ const ContactsInternalMemberAddScreen = ({componentId, ownerId, companyId, compa
         if (onBack) {
             onBack();
         } else {
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }
     }, [onBack, componentId]);
 

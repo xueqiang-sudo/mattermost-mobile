@@ -21,7 +21,7 @@ const YourProfile = ({isTablet}: Props) => {
         if (isTablet) {
             DeviceEventEmitter.emit(Events.ACCOUNT_SELECT_TABLET_VIEW, Screens.EDIT_PROFILE);
         } else {
-            showModal(
+            goToScreen(
                 Screens.EDIT_PROFILE,
                 intl.formatMessage({id: 'account.your_profile', defaultMessage: 'Your Profile'}),
             );

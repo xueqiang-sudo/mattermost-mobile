@@ -53,7 +53,7 @@ const makeRightButton = (theme: Theme, formatMessage: IntlShape['formatMessage']
 
 const close = () => {
     Keyboard.dismiss();
-    dismissModal();
+    popTopScreen();
 };
 
 const style = StyleSheet.create({

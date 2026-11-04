@@ -74,7 +74,7 @@ const RescheduledDraft: React.FC<Props> = ({
 
     const onClose = useCallback(() => {
         Keyboard.dismiss();
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const handleUIUpdates = useCallback((res: {error?: unknown}) => {

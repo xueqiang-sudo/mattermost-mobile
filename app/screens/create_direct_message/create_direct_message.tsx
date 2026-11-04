@@ -19,7 +19,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, popTopScreen, setButtons} from '@screens/navigation';
+import {popTopScreen, setButtons} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -403,11 +403,10 @@ export default function CreateDirectMessage({
         };
     }, [candidates, searchTerm, teammateNameDisplay, showExternal]);
 
-    // Close handler that works for both pushed screens (goToScreen) and modals (showModal)
+    // Close handler for pushed screens (goToScreen)
     const handleClose = useCallback(async () => {
         Keyboard.dismiss();
         await popTopScreen(componentId);
-        await dismissModal({componentId});
     }, [componentId]);
 
     // Set up the left close button in the navigation bar

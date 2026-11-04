@@ -214,7 +214,7 @@ export default function CategoryChannelPicker({
                 });
             }
 
-            await dismissModal({componentId});
+            await popTopScreen(componentId);
         } catch (error) {
             showSnackBar({
                 barType: 'ERROR',
@@ -228,7 +228,7 @@ export default function CategoryChannelPicker({
     }, [selectedIds, currentChannelIds, categoryId, serverUrl, componentId, intl]);
 
     const handleCancel = useCallback(async () => {
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
     }, [componentId]);
 
     const renderChannel = useCallback(({item}: {item: ChannelModel}) => {

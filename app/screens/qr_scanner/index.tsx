@@ -277,7 +277,7 @@ const QRScanner = ({componentId, onScanResult, scanContext, continuousScan}: Pro
         // 再延迟一点确保相机完全停止后关闭 modal
         const dismissTimer = setTimeout(() => {
             logInfo('[QRScanner.handleClose] 执行 dismissModal');
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }, 50);
 
         return dismissTimer;
@@ -730,7 +730,7 @@ const QRScanner = ({componentId, onScanResult, scanContext, continuousScan}: Pro
     }, [openImageLibrary]);
 
     const handleOpenExternalProfileCard = useCallback(() => {
-        showModalWithBackButton(
+        goToScreen(
             Screens.EXTERNAL_PROFILE_CARD,
             intl.formatMessage({id: 'external_profile_card.title', defaultMessage: 'External Profile Card'}),
             'close-external-profile-card',

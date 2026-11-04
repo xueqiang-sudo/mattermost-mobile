@@ -13,7 +13,7 @@ import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentUser, observeTeammateNameDisplay} from '@queries/servers/user';
-import {dismissModal, setButtons} from '@screens/navigation';
+import {popTopScreen, setButtons} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getFullName, username2Nickname} from '@utils/user';
@@ -120,14 +120,14 @@ const ExternalProfileCardStyleScreen = ({
     const secondaryName = currentUser ? `@${username2Nickname(currentUser, {locale, includeFullName: false})}` : '';
 
     const onClosePressed = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onClosePressed, []);
     useAndroidHardwareBackHandler(componentId, onClosePressed);
 
     const onConfirmPressed = usePreventDoubleTap(useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]));
 
     useEffect(() => {

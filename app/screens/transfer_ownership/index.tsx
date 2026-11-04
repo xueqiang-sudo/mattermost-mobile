@@ -148,7 +148,7 @@ const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, tes
         if (onBack) {
             onBack();
         } else {
-            dismissModal({componentId});
+            popTopScreen(componentId);
         }
     }, [onBack, componentId]);
 

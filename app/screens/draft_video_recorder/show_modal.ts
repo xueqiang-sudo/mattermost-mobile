@@ -13,7 +13,7 @@ export type DraftVideoRecorderPassProps = {
 };
 
 export function showDraftVideoRecorderModal(passProps: DraftVideoRecorderPassProps) {
-    showModal(Screens.DRAFT_VIDEO_RECORDER, '', passProps, {
+    goToScreen(Screens.DRAFT_VIDEO_RECORDER, '', passProps, {
         modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
         layout: {
             backgroundColor: 'transparent',
