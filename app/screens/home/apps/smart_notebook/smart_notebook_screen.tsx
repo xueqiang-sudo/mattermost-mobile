@@ -283,6 +283,14 @@ const SmartNotebookScreen = () => {
         }
     }, [viewMode, userId, loadGraph]);
 
+    // ---- Get relations for an entity ----
+    const getEntityRelations = useCallback((entityUuid: string, entityName: string): GraphRelation[] => {
+        return graphRelations.filter(rel =>
+            rel.source === entityUuid || rel.source === entityName ||
+            rel.target === entityUuid || rel.target === entityName
+        );
+    }, [graphRelations]);
+
     // ---- Delete note ----
     const onDeleteNote = useCallback((item: SmartNoteSummary) => {
         Alert.alert(
@@ -560,7 +568,7 @@ const SmartNotebookScreen = () => {
                 );
             })()}
 
-            {/* List Tab Content - Graph Entities with Knowledge Graph */}
+            {/* List Tab Content - Entities and Relations */}
             {viewMode === 'list' && (
                 graphLoading ? (
                     <View style={style.loadingContainer}>
@@ -593,51 +601,117 @@ const SmartNotebookScreen = () => {
                         refreshing={false}
                         onRefresh={loadGraph}
                         contentContainerStyle={style.listContent}
-                        ListHeaderComponent={
-                            expandedEntity ? (
-                                <KnowledgeGraph
-                                    entities={graphEntities}
-                                    relations={graphRelations}
-                                    selectedUuid={expandedEntity}
-                                    onSelectEntity={setExpandedEntity}
-                                    theme={theme}
-                                />
-                            ) : null
-                        }
                         renderItem={({item}) => {
-                            const relCount = graphRelations.filter(r =>
-                                r.source === item.uuid || r.source === item.name ||
-                                r.target === item.uuid || r.target === item.name
-                            ).length;
+                            const relations = getEntityRelations(item.uuid, item.name);
                             const isSelected = expandedEntity === item.uuid;
 
                             return (
-                                <TouchableOpacity
-                                    style={[style.entityCard, isSelected && style.entityCardExpanded]}
-                                    onPress={() => setExpandedEntity(isSelected ? null : item.uuid)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={style.entityHeader}>
-                                        <Text style={style.entityName} numberOfLines={1}>
-                                            {item.name}
-                                        </Text>
-                                        <View style={style.entityBadge}>
-                                            <Text style={style.entityBadgeText}>{relCount}</Text>
+                                <View style={style.entityCard}>
+                                    {/* Entity Header - Clickable */}
+                                    <TouchableOpacity
+                                        style={[style.entityHeader, isSelected && style.entityHeaderExpanded]}
+                                        onPress={() => setExpandedEntity(isSelected ? null : item.uuid)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={style.entityIconContainer}>
+                                            <CompassIcon
+                                                name={isSelected ? 'chevron-down' : 'chevron-right'}
+                                                size={20}
+                                                color={theme.buttonBg}
+                                            />
                                         </View>
-                                    </View>
-                                    {item.summary ? (
-                                        <Text style={style.entitySummary} numberOfLines={2}>
-                                            {item.summary}
-                                        </Text>
-                                    ) : null}
-                                </TouchableOpacity>
+                                        <View style={style.entityContent}>
+                                            <Text style={style.entityName} numberOfLines={1}>
+                                                {item.name}
+                                            </Text>
+                                            {item.summary ? (
+                                                <Text style={style.entitySummary} numberOfLines={isSelected ? 10 : 2}>
+                                                    {item.summary}
+                                                </Text>
+                                            ) : null}
+                                        </View>
+                                        <View style={style.entityBadge}>
+                                            <Text style={style.entityBadgeText}>{relations.length}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    {/* Entity Details - When Expanded */}
+                                    {isSelected && (
+                                        <View style={style.entityDetails}>
+                                            {/* Attributes */}
+                                            {item.attributes && Object.keys(item.attributes).length > 0 && (
+                                                <View style={style.entitySection}>
+                                                    <Text style={style.entitySectionTitle}>
+                                                        {intl.formatMessage({id: 'smart_notebook.entity.attributes', defaultMessage: '属性'})}
+                                                    </Text>
+                                                    {Object.entries(item.attributes).map(([key, value]) => (
+                                                        <View key={key} style={style.attributeRow}>
+                                                            <Text style={style.attributeKey}>{key}:</Text>
+                                                            <Text style={style.attributeValue}>{String(value)}</Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            )}
+
+                                            {/* Relations */}
+                                            {relations.length > 0 && (
+                                                <View style={style.entitySection}>
+                                                    <Text style={style.entitySectionTitle}>
+                                                        {intl.formatMessage(
+                                                            {id: 'smart_notebook.entity.relations', defaultMessage: '关联关系 ({count})'},
+                                                            {count: relations.length}
+                                                        )}
+                                                    </Text>
+                                                    {relations.map((rel, idx) => {
+                                                        const isSource = rel.source === item.uuid || rel.source === item.name;
+                                                        const otherEntityName = isSource
+                                                            ? (graphEntities.find(e => e.uuid === rel.target || e.name === rel.target)?.name || rel.target)
+                                                            : (graphEntities.find(e => e.uuid === rel.source || e.name === rel.source)?.name || rel.source);
+
+                                                        return (
+                                                            <View key={idx} style={style.relationRow}>
+                                                                <View style={style.relationDirection}>
+                                                                    <CompassIcon
+                                                                        name={isSource ? 'arrow-right' : 'arrow-left'}
+                                                                        size={16}
+                                                                        color={theme.buttonBg}
+                                                                    />
+                                                                </View>
+                                                                <View style={style.relationContent}>
+                                                                    <Text style={style.relationType}>{rel.relation_type}</Text>
+                                                                    <Text style={style.relationEntity} numberOfLines={1}>
+                                                                        {isSource ? '→' : '←'} {otherEntityName}
+                                                                    </Text>
+                                                                    {rel.summary && (
+                                                                        <Text style={style.relationSummary} numberOfLines={2}>
+                                                                            {rel.summary}
+                                                                        </Text>
+                                                                    )}
+                                                                </View>
+                                                            </View>
+                                                        );
+                                                    })}
+                                                </View>
+                                            )}
+
+                                            {/* No Relations */}
+                                            {relations.length === 0 && (
+                                                <View style={style.noRelationsContainer}>
+                                                    <Text style={style.noRelationsText}>
+                                                        {intl.formatMessage({id: 'smart_notebook.entity.no_relations', defaultMessage: '暂无关联关系'})}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
                             );
                         }}
                         ListEmptyComponent={
                             <View style={style.emptyContainer}>
                                 <CompassIcon name='share-variant-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
                                 <Text style={style.emptyText}>
-                                    {intl.formatMessage({id: 'smart_notebook.graph.empty', defaultMessage: '暂无知识图谱数据，请先推送笔记到图谱'})}
+                                    {intl.formatMessage({id: 'smart_notebook.graph.empty', defaultMessage: '暂无实体数据，请先推送笔记到图谱'})}
                                 </Text>
                             </View>
                         }
@@ -812,21 +886,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     entityCard: {
         backgroundColor: theme.centerChannelBg,
         borderRadius: 12,
-        padding: 16,
         marginBottom: 12,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        overflow: 'hidden',
     },
     entityHeader: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 8,
+        alignItems: 'flex-start',
+        padding: 16,
+    },
+    entityHeaderExpanded: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.05),
+    },
+    entityIconContainer: {
+        marginRight: 12,
+        paddingTop: 2,
+    },
+    entityContent: {
+        flex: 1,
     },
     entityName: {
         ...typography('Heading', 100, 'SemiBold'),
         color: theme.centerChannelColor,
-        flex: 1,
     },
     entityBadge: {
         backgroundColor: theme.buttonBg,
@@ -836,6 +918,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 6,
+        marginLeft: 8,
     },
     entityBadgeText: {
         ...typography('Body', 50, 'SemiBold'),
@@ -844,10 +927,75 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     entitySummary: {
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.7),
+        marginTop: 4,
     },
     entityCardExpanded: {
         borderColor: theme.buttonBg,
         borderWidth: 1.5,
+    },
+    entityDetails: {
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+        padding: 16,
+        paddingTop: 12,
+    },
+    entitySection: {
+        marginBottom: 16,
+    },
+    entitySectionTitle: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.buttonBg,
+        marginBottom: 8,
+    },
+    attributeRow: {
+        flexDirection: 'row',
+        paddingVertical: 4,
+    },
+    attributeKey: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+        minWidth: 80,
+    },
+    attributeValue: {
+        ...typography('Body', 75),
+        color: theme.centerChannelColor,
+        flex: 1,
+    },
+    relationRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.05),
+    },
+    relationDirection: {
+        marginRight: 8,
+        paddingTop: 2,
+    },
+    relationContent: {
+        flex: 1,
+    },
+    relationType: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
+        marginBottom: 2,
+    },
+    relationEntity: {
+        ...typography('Body', 100, 'Medium'),
+        color: theme.centerChannelColor,
+    },
+    relationSummary: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        marginTop: 4,
+    },
+    noRelationsContainer: {
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
+    noRelationsText: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.5),
     },
     entityRelations: {
         marginTop: 12,
@@ -859,12 +1007,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 6,
-    },
-    relationType: {
-        ...typography('Body', 50),
-        color: theme.buttonBg,
-        marginRight: 8,
-        minWidth: 60,
     },
     relationName: {
         ...typography('Body', 75),
