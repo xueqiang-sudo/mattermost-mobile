@@ -16,7 +16,7 @@ import {
 import {CustomStatusDurationEnum} from '@constants/custom_status';
 import SecurityManager from '@managers/security_manager';
 import {observeCurrentUser} from '@queries/servers/user';
-import {popTopScreen, popTopScreen} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import NavigationStore from '@store/navigation_store';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';

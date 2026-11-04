@@ -28,7 +28,7 @@ import {
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {queryJoinedTeams} from '@queries/servers/team';
 import {removeChannelsFromArchivedTeams} from '@screens/find_channels/utils';
-import {popTopScreen, popTopScreen} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
 import {logError} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
