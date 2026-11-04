@@ -613,27 +613,6 @@ const ContactsDepartmentAddMembersScreen = ({
                         />
                     )}
                 </>
-            {loading ? (
-                <View style={styles.loadingContainer}>
-                    <Loading color={theme.centerChannelColor} size='small'/>
-                </View>
-            ) : filteredMembers.length === 0 ? (
-                <View style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}>
-                    <Text style={styles.emptyMessage}>
-                        {intl.formatMessage({id: 'contacts.no_members', defaultMessage: 'No members'})}
-                    </Text>
-                </View>
-            ) : (
-                <FlatList
-                    style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
-                    contentContainerStyle={{paddingBottom: 24}}
-                    data={flatListData}
-                    renderItem={renderItem}
-                    keyExtractor={getKey}
-                    showsVerticalScrollIndicator={false}
-                />
-            )}
-                    </>
             )}
         </SafeAreaView>
     );
