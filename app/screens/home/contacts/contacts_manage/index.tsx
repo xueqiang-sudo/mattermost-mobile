@@ -433,7 +433,7 @@ const ContactsManage = ({
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
-        const title = intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'});
+        const title = intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员设置'});
         goToScreen(
             Screens.TEAM_MANAGER,
             title,
@@ -464,11 +464,28 @@ const ContactsManage = ({
             return;
         }
         const safeEmployee: UserProfile = {
-            ...employee,
             id: employee.id,
             username: employee.username || '',
             email: employee.email || '',
+            first_name: employee.first_name || '',
+            last_name: employee.last_name || '',
             nickname: employee.nickname || '',
+            position: employee.position || '',
+            phone: employee.phone || '',
+            create_at: employee.create_at || 0,
+            update_at: employee.update_at || 0,
+            delete_at: employee.delete_at || 0,
+            roles: employee.roles || '',
+            locale: employee.locale || '',
+            timezone: employee.timezone || {},
+            auth_service: employee.auth_service || '',
+            is_bot: employee.is_bot || false,
+            last_picture_update: employee.last_picture_update,
+            props: employee.props,
+            gender: employee.gender,
+            country_code: employee.country_code,
+            disable_welcome_email: employee.disable_welcome_email,
+            auth_data: employee.auth_data,
         };
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const deptName = currentDepartmentName ?? intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});

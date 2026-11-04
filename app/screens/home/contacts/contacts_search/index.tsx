@@ -280,11 +280,28 @@ const ContactsSearchContent = ({
             return;
         }
         const safeEmployee: UserProfile = {
-            ...emp,
             id: emp.id,
             username: emp.username || '',
             email: emp.email || '',
+            first_name: emp.first_name || '',
+            last_name: emp.last_name || '',
             nickname: emp.nickname || '',
+            position: emp.position || '',
+            phone: emp.phone || '',
+            create_at: emp.create_at || 0,
+            update_at: emp.update_at || 0,
+            delete_at: emp.delete_at || 0,
+            roles: emp.roles || '',
+            locale: emp.locale || '',
+            timezone: emp.timezone || {},
+            auth_service: emp.auth_service || '',
+            is_bot: emp.is_bot || false,
+            last_picture_update: emp.last_picture_update,
+            props: emp.props,
+            gender: emp.gender,
+            country_code: emp.country_code,
+            disable_welcome_email: emp.disable_welcome_email,
+            auth_data: emp.auth_data,
         };
         const pathParts = cascadePathParts(item, defaultDepartmentLabel);
         const fallbackDepartmentName = departmentName ? normalizeDepartmentName(departmentName, defaultDepartmentLabel) : undefined;

@@ -16,6 +16,7 @@ import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
+import {debugLog} from '@store/debug_log';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {getContactListDisplayName} from '@utils/contact_section';
@@ -288,10 +289,17 @@ const ContactsDepartmentAddMembersScreen = ({
             const allDepartments = deptRes.data;
             const defaultDeptId = defaultDeptRes.data;
 
+            debugLog('addMembers', `Fetched ${allDepartments.length} departments, defaultDeptId=${defaultDeptId}, targetDepartmentId=${targetDepartmentId}`);
+            allDepartments.forEach((d, i) => {
+                debugLog('addMembers', `  dept[${i}]: id=${d.id}, name=${d.name}`);
+            });
+
             // 【关键修复】如果默认部门（根部门）不在 allDepartments 中，构造一个虚拟部门对象加入列表
             // 这样根部门的成员才能被显示出来供用户选择
             const hasDefaultDept = defaultDeptId != null && allDepartments.some((d) => d.id === defaultDeptId);
+            debugLog('addMembers', `hasDefaultDept=${hasDefaultDept}`);
             if (defaultDeptId != null && !hasDefaultDept) {
+                debugLog('addMembers', `Adding virtual default department: id=${defaultDeptId}`);
                 allDepartments.unshift({
                     id: defaultDeptId,
                     name: '根部门',
@@ -314,6 +322,11 @@ const ContactsDepartmentAddMembersScreen = ({
                 sourceDepartments = allDepartments.filter((d) => d.id !== targetDepartmentId);
             }
 
+            debugLog('addMembers', `Source departments (${sourceDepartments.length}):`);
+            sourceDepartments.forEach((d, i) => {
+                debugLog('addMembers', `  source[${i}]: id=${d.id}, name=${d.name}`);
+            });
+
             // Fetch members from each source department
             const memberMap = new Map<string, MemberWithSource>();
             const targetMemberIds = new Set<string>();
@@ -321,6 +334,7 @@ const ContactsDepartmentAddMembersScreen = ({
             // If at specific department, fetch its members to exclude
             if (targetDepartmentId != null) {
                 const targetRes = await fetchDepartmentEmployees(serverUrl, companyId, targetDepartmentId, {perPage: 10000});
+                debugLog('addMembers', `Target dept ${targetDepartmentId} has ${targetRes.data?.length || 0} members (to exclude)`);
                 if (mounted.current && targetRes.data) {
                     for (const emp of targetRes.data) {
                         targetMemberIds.add(emp.id);
@@ -340,6 +354,8 @@ const ContactsDepartmentAddMembersScreen = ({
             }
 
             for (const {dept, res} of results) {
+                const memberCount = res.data?.length || 0;
+                debugLog('addMembers', `Dept ${dept.id} (${dept.name}): fetched ${memberCount} members`);
                 if (res.data) {
                     for (const emp of res.data) {
                         // Skip if already in target department
@@ -357,6 +373,8 @@ const ContactsDepartmentAddMembersScreen = ({
                     }
                 }
             }
+
+            debugLog('addMembers', `Total unique members: ${memberMap.size}`);
 
             if (mounted.current) {
                 setMembers(Array.from(memberMap.values()));

@@ -126,18 +126,15 @@ export default function QuickActionsSheet({
     const serverUrl = useServerUrl();
     const maxFilesReached = fileCount >= maxFileCount;
 
-    const wrapWithDismiss = useCallback((fn: () => void) => {
+    const wrapWithDismiss = useCallback((fn: () => void | Promise<void>) => {
         return async () => {
             try {
-                // 先执行实际操作（打开文件选择器等），再关闭 bottom sheet
-                // 这样即使 dismiss 失败，核心功能也能执行
-                fn();
-                // 延迟关闭 bottom sheet，让新界面有时间启动
-                setTimeout(() => {
-                    onDismiss().catch((error) => {
-                        debugLog('quick_actions', `dismiss error: ${error instanceof Error ? error.message : String(error)}`);
-                    });
-                }, 100);
+                // 等待操作完成（异步函数会打开新窗口），再关闭 bottom sheet
+                // 这样新窗口已打开，dismiss 不会导致导航冲突
+                await fn();
+                onDismiss().catch((error) => {
+                    debugLog('quick_actions', `dismiss error: ${error instanceof Error ? error.message : String(error)}`);
+                });
             } catch (error) {
                 debugLog('quick_actions', `wrapWithDismiss error: ${error instanceof Error ? error.message : String(error)}`);
             }
@@ -237,7 +234,7 @@ export default function QuickActionsSheet({
         }, title);
     }, [intl, addFiles, channelId, maxFileCount, maxFilesReached]);
 
-    const handleCameraPress = useCallback((options: {type?: string}) => {
+    const handleCameraPress = useCallback(async (options: {type?: string}) => {
         if (maxFilesReached) {
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
@@ -246,10 +243,10 @@ export default function QuickActionsSheet({
             return;
         }
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
-        picker.attachFileFromCamera(options);
+        await picker.attachFileFromCamera(options);
     }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);
 
-    const handleVisionVideoPress = useCallback(() => {
+    const handleVisionVideoPress = useCallback(async () => {
         if (maxFilesReached) {
             Alert.alert(
                 intl.formatMessage({id: 'mobile.link.error.title', defaultMessage: 'Error'}),
@@ -258,7 +255,7 @@ export default function QuickActionsSheet({
             return;
         }
         const picker = new PickerUtil(intl, addFiles, draftVideoProcessingBridge);
-        void picker.attachVideoFromVisionRecorder();
+        await picker.attachVideoFromVisionRecorder();
     }, [intl, addFiles, draftVideoProcessingBridge, maxFileCount, maxFilesReached]);
 
     const baseTestID = testID ?? 'quick_actions_sheet';

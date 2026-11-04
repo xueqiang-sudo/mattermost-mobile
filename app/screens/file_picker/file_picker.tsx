@@ -362,7 +362,11 @@ function FilePickerContent({componentId, onSend, channelId, photoMode, closeButt
             // 这样可以立刻关闭弹窗，给用户最好的UX体验
             debugLog('filePicker', 'Dismissing modal first (before onSend)');
             try {
-                await popTopScreen(componentId);
+                if (closeButtonId) {
+                    dismissModal({componentId: closeButtonId as AvailableScreens});
+                } else {
+                    dismissModal({componentId});
+                }
                 debugLog('filePicker', 'Modal dismissed successfully');
             } catch (dismissError) {
                 debugLog('filePicker', `Dismiss modal error: ${dismissError instanceof Error ? dismissError.message : String(dismissError)}`);
@@ -411,6 +415,10 @@ function FilePickerContent({componentId, onSend, channelId, photoMode, closeButt
                     debugLog('filePicker', `Compression progress: ${prepared.length}/${normalizedFiles.length} files`);
                 }
 
+                debugLog('filePicker', `Calling onSend with ${prepared.length} prepared files`);
+                prepared.forEach((f, i) => {
+                    debugLog('filePicker', `onSend file ${i + 1}: name=${f.name}, uri=${f.uri}, mime=${f.mime_type}, size=${f.size}`);
+                });
                 return onSend(prepared);
             };
 
@@ -441,7 +449,7 @@ function FilePickerContent({componentId, onSend, channelId, photoMode, closeButt
             );
             setSending(false);
         }
-    }, [componentId, state.selectedFiles, onSend, intl, sending, dispatch]);
+    }, [closeButtonId, componentId, state.selectedFiles, onSend, intl, sending, dispatch]);
 
     const selectedFilesList = Array.from(state.selectedFiles.values());
 

@@ -15,7 +15,8 @@ import {searchContactEmployees} from '@actions/remote/contact_new';
 import {setTeamManagerRole} from '@actions/remote/team';
 import {fetchTeamManagers} from '@actions/remote/team';
 import NetworkManager from '@managers/network_manager';
-import {dismissModal, popTopScreen} from '@screens/navigation';
+import {Navigation} from 'react-native-navigation';
+import {dismissModal, popTopScreen, getThemeFromState} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -206,6 +207,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
     const [ownerId, setOwnerId] = useState<string | undefined>();
     const [currentUserId, setCurrentUserId] = useState<string | undefined>();
     const isCurrentUserOwner = Boolean(ownerId && currentUserId && ownerId === currentUserId);
+    const handleConfirmRef = useRef<() => void>(() => {});
 
     const hasChanges = useMemo(() => {
         if (selectedManagerIds.size !== initialManagerIds.size) {
@@ -218,6 +220,32 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
         }
         return false;
     }, [selectedManagerIds, initialManagerIds]);
+
+    // 动态更新标准导航头右上角的"确定"按钮
+    useEffect(() => {
+        const theme = getThemeFromState();
+        const rightButtons = hasChanges ? [{
+            id: 'confirm-manager',
+            text: intl.formatMessage({id: 'common.confirm', defaultMessage: '确定'}),
+            color: theme.sidebarHeaderTextColor,
+            enabled: !saving,
+        }] : [];
+        Navigation.mergeOptions(componentId, {
+            topBar: {
+                rightButtons,
+            },
+        });
+    }, [componentId, hasChanges, intl, saving]);
+
+    // 监听导航头按钮点击
+    useEffect(() => {
+        const listener = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
+            if (buttonId === 'confirm-manager') {
+                handleConfirmRef.current();
+            }
+        });
+        return () => listener.remove();
+    }, []);
 
     const filteredMembers = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
@@ -466,7 +494,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
 
         if (hasError) {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'}),
+                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员设置'}),
                 intl.formatMessage({id: 'contacts.manager_update_failed', defaultMessage: '更新管理员角色失败，请重试。'}),
             );
         } else {
@@ -479,7 +507,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
     const handleCancel = useCallback(() => {
         if (hasChanges) {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'}),
+                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员设置'}),
                 intl.formatMessage({id: 'contacts.manager_discard_changes', defaultMessage: '有未保存的更改，确定要放弃吗？'}),
                 [
                     {
@@ -525,35 +553,11 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
         );
     }, [handleToggleManager, renderTags, selectedManagerIds, styles.checkbox, styles.checkboxChecked, styles.checkmark, styles.name, styles.row]);
 
+    // 更新 ref 以便导航按钮监听器可以调用最新的 handleConfirm
+    handleConfirmRef.current = handleConfirm;
+
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backBtn}
-                    onPress={handleCancel}
-                >
-                    <CompassIcon name='arrow-left' size={24}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'})}
-                </Text>
-                {hasChanges ? (
-                    <TouchableOpacity
-                        style={styles.saveBtn}
-                        onPress={handleConfirm}
-                        disabled={saving}
-                    >
-                        <Text style={[styles.saveBtnText, saving && styles.saveBtnTextDisabled]}>
-                            {saving
-                                ? intl.formatMessage({id: 'common.saving', defaultMessage: '保存中...'})
-                                : intl.formatMessage({id: 'common.confirm', defaultMessage: '确定'})}
-                        </Text>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.saveBtn}/>
-                )}
-            </View>
-
             <View style={styles.searchWrap}>
                 <TextInput
                     value={searchQuery}

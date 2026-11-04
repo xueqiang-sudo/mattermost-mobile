@@ -28,6 +28,7 @@ import DatabaseManager from '@database/manager';
 import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
 import {getCurrentUserId} from '@queries/servers/system';
 import {showSmartNotebookFilePicker} from '@screens/file_picker/show_modal';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -205,23 +206,38 @@ const SmartNoteDetailScreen = () => {
     // ---- File picker handler ----
     // 处理文件选择器返回的文件
     const handleFilesSelected = useCallback((files: FileInfo[]) => {
+        debugLog('smartNotebook', `handleFilesSelected called with ${files.length} files`);
+        files.forEach((file, i) => {
+            debugLog('smartNotebook', `File ${i + 1}: name=${file.name}, uri=${file.uri}, mime=${file.mime_type}, size=${file.size}`);
+        });
+
         // 将选中的文件转换为 SmartNoteBlock
-        const newBlocks: SmartNoteBlock[] = files.map((file, index) => ({
-            id: generateId(),
-            type: getFileType(file.name || '', file.mime_type || ''),
-            content: file.uri || '',  // 本地路径
-            order: blocks.length + index,
-            meta: {
-                caption: file.name || 'Unknown file',
-                size: file.size || 0,
-                mimeType: file.mime_type || '',
-                isLocal: true,  // 标记为本地文件
-                fileId: file.id,
-            },
-        }));
+        const newBlocks: SmartNoteBlock[] = files.map((file, index) => {
+            const blockType = getFileType(file.name || '', file.mime_type || '');
+            debugLog('smartNotebook', `Creating block: type=${blockType}, content=${file.uri}, caption=${file.name}`);
+            return {
+                id: generateId(),
+                type: blockType,
+                content: file.uri || '',  // 本地路径
+                order: blocks.length + index,
+                meta: {
+                    caption: file.name || 'Unknown file',
+                    size: file.size || 0,
+                    mimeType: file.mime_type || '',
+                    isLocal: true,  // 标记为本地文件
+                    fileId: file.id,
+                },
+            };
+        });
+
+        debugLog('smartNotebook', `Adding ${newBlocks.length} blocks, current blocks count: ${blocks.length}`);
 
         // 添加到编辑器
-        setBlocks(prev => [...prev, ...newBlocks]);
+        setBlocks(prev => {
+            const updated = [...prev, ...newBlocks];
+            debugLog('smartNotebook', `setBlocks: ${prev.length} -> ${updated.length} blocks`);
+            return updated;
+        });
     }, [blocks.length]);
 
     // ---- Add block of specific type ----
@@ -671,7 +687,9 @@ const SmartNoteDetailScreen = () => {
                     {mode === 'viewing' ? (
                         <View style={style.headerActions}>
                             <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
-                                <CompassIcon name='content-copy' size={20} color={theme.sidebarText}/>
+                                <Text style={style.headerActionText}>
+                                    {intl.formatMessage({id: 'smart_notebook.copy', defaultMessage: '复制'})}
+                                </Text>
                             </TouchableOpacity>
                             <TouchableOpacity onPress={handleEdit} style={style.saveBtn}>
                                 <Text style={style.saveBtnText}>
@@ -852,6 +870,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     headerActionBtn: {
         padding: 8,
         marginRight: 4,
+    },
+    headerActionText: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: theme.sidebarText,
     },
     saveBtn: {
         paddingHorizontal: 12,

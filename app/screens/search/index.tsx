@@ -10,13 +10,17 @@ import {searchAllChannels} from '@actions/remote/channel';
 import {searchProfiles} from '@actions/remote/user';
 import ChannelItem, {ROW_HEIGHT_CENTER_LIST} from '@components/channel_item';
 import CompassIcon from '@components/compass_icon';
+import {General} from '@constants';
+import DatabaseManager from '@database/manager';
 import Loading from '@components/loading';
 import SearchBar from '@components/search';
 import UserItem from '@components/user_item';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useDebounce} from '@hooks/utils';
-import {getCurrentTeamId} from '@queries/servers/system';
+import {queryUserChannelsByTypes} from '@queries/servers/channel';
+import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {username2Nickname} from '@utils/user';
@@ -145,12 +149,55 @@ const SearchScreen = ({componentId}: Props) => {
                 filteredContacts = usersResult.data.slice(0, MAX_RESULTS);
             }
 
-            // Filter and sort channels (only current team)
+            // Filter and sort channels (only current team, exclude GM - we'll add them separately)
             let filteredChannels: (ChannelModel | Channel)[] = [];
             if (!channelsResult.error && channelsResult.channels) {
                 filteredChannels = channelsResult.channels
-                    .filter((c: Channel) => c.team_id === teamId && !c.delete_at)
+                    .filter((c: Channel) => c.team_id === teamId && !c.delete_at && c.type !== General.GM_CHANNEL)
                     .slice(0, MAX_RESULTS);
+            }
+
+            // Find GM channels containing matched users
+            try {
+                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                const currentUserId = await getCurrentUserId(database);
+
+                // Get current user's GM channel IDs (for intersection)
+                const myGmChannels = await queryUserChannelsByTypes(
+                    database,
+                    currentUserId,
+                    [General.GM_CHANNEL],
+                ).fetch();
+                const myGmChannelIdSet = new Set(myGmChannels.map((c) => c.id));
+
+                // Get already-matched channel IDs to avoid duplicates
+                const existingChannelIds = new Set(filteredChannels.map((c) => c.id));
+
+                const gmChannelMap = new Map<string, ChannelModel>();
+
+                // For each matched user, find GM channels they share with the current user
+                for (const user of filteredContacts.slice(0, 10)) {
+                    const userGmChannels = await queryUserChannelsByTypes(
+                        database,
+                        user.id,
+                        [General.GM_CHANNEL],
+                    ).fetch();
+
+                    for (const ch of userGmChannels) {
+                        if (existingChannelIds.has(ch.id) || gmChannelMap.has(ch.id)) {
+                            continue;
+                        }
+                        // Only include if current user is also a member
+                        if (myGmChannelIdSet.has(ch.id)) {
+                            gmChannelMap.set(ch.id, ch);
+                        }
+                    }
+                }
+
+                const gmChannels = Array.from(gmChannelMap.values());
+                filteredChannels = [...filteredChannels, ...gmChannels];
+            } catch (gmError) {
+                debugLog('Error finding GM channels for search:', gmError);
             }
 
             setContacts(filteredContacts);

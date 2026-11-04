@@ -625,8 +625,12 @@ const ContactsDepartmentDetail = ({
             timezone: employee.timezone || {},
             auth_service: employee.auth_service || '',
             is_bot: employee.is_bot || false,
-            // 透传其他字段（展开运算符保留未列举字段）
-            ...employee,
+            last_picture_update: employee.last_picture_update,
+            props: employee.props,
+            gender: employee.gender,
+            country_code: employee.country_code,
+            disable_welcome_email: employee.disable_welcome_email,
+            auth_data: employee.auth_data,
         };
         debugLog('[Contacts] handleEmployeePress', {
             id: safeEmployee.id,
@@ -662,17 +666,14 @@ const ContactsDepartmentDetail = ({
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
-        const title = isCurrentUserOwner ?
-            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}) :
-            intl.formatMessage({id: 'contacts.manager_list', defaultMessage: '管理员列表'});
+        const title = intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员设置'});
         goToScreen(
             Screens.TEAM_MANAGER,
             title,
-            'close-team-manager',
             {companyId},
-            {useBackIcon: true, topBar: {visible: false}},
+            {useBackIcon: true},
         );
-    }, [companyId, intl, isCurrentUserOwner]));
+    }, [companyId, intl]));
 
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         if (onAddMember) {
@@ -818,9 +819,7 @@ const ContactsDepartmentDetail = ({
     }, [serverUrl, companyId, intl]));
 
     const handleMore = usePreventDoubleTap(useCallback(() => {
-        const managerMenuText = isCurrentUserOwner ?
-            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: 'Manager management'}) :
-            intl.formatMessage({id: 'contacts.manager_list', defaultMessage: 'Manager list'});
+        const managerMenuText = intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员设置'});
 
         const renderContent = () => (
             <>
@@ -862,14 +861,13 @@ const ContactsDepartmentDetail = ({
                         goToScreen(
                             Screens.CONTACTS_BATCH_MOVE_MEMBERS,
                             intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
-                            'close-contacts-batch-move',
                             {
                                 companyId,
                                 sourceDepartmentId: sourceId,
                                 sourceDepartmentName: sourceName,
                                 onSuccess: fetchData,
                             },
-                            {useBackIcon: true, topBar: {visible: false}},
+                            {useBackIcon: true},
                         );
                     }}
                     testID='contacts.department_detail.manage.more.batch_move'
@@ -953,11 +951,10 @@ const ContactsDepartmentDetail = ({
                             goToScreen(
                                 Screens.TRANSFER_OWNERSHIP,
                                 title,
-                                'close-transfer-ownership',
                                 {
                                     companyId,
                                 },
-                                {useBackIcon: true, topBar: {visible: false}},
+                                {useBackIcon: true},
                             );
                         }}
                         testID='contacts.department_detail.manage.more.transfer_ownership'

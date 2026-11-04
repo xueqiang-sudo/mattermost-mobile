@@ -18,6 +18,7 @@ import {
 import Video, {type VideoRef} from 'react-native-video';
 
 import CompassIcon from '@components/compass_icon';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -86,6 +87,17 @@ function getFileIcon(fileName: string, mimeType?: string): string {
         return 'file-excel-outline';
     }
     if (['ppt', 'pptx'].includes(ext) || mimeType?.includes('presentationml')) {
+        return 'file-powerpoint-outline';
+    }
+
+    // Apple iWork 文档
+    if (ext === 'pages') {
+        return 'file-word-outline';
+    }
+    if (ext === 'numbers') {
+        return 'file-excel-outline';
+    }
+    if (ext === 'keynote') {
         return 'file-powerpoint-outline';
     }
 
@@ -410,10 +422,16 @@ const BlockItem = ({
     }
 
     // 渲染文件块（非媒体文件）
-    if (block.type === 'file' && block.content) {
+    if (block.type === 'file') {
+        debugLog('smartNotebook', `BlockItem render file block: type=${block.type}, content=${block.content}, hasContent=${Boolean(block.content)}`);
+        if (!block.content) {
+            debugLog('smartNotebook', `WARNING: file block has no content, skipping render`);
+            return null;
+        }
         const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
         const fileName = block.meta?.caption || '文件';
         const fileIcon = getFileIcon(fileName, block.meta?.mimeType);
+        debugLog('smartNotebook', `Rendering file block: fileName=${fileName}, isLocal=${isLocal}, icon=${fileIcon}`);
 
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
@@ -607,24 +625,27 @@ const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
         setFocusedIndex(index);
     }, []);
 
-    const renderItem = useCallback(({item, index}: {item: SmartNoteBlock; index: number}) => (
-        <BlockItem
-            block={item}
-            index={index}
-            onChange={handleChange}
-            onDelete={handleDelete}
-            onAddAfter={handleAddAfter}
-            onMoveUp={handleMoveUp}
-            onMoveDown={handleMoveDown}
-            onFocus={handleFocus}
-            onPlayMedia={handlePlayMedia}
-            theme={theme}
-            editable={editable}
-            isFirst={index === 0}
-            isLast={index === blocks.length - 1}
-            isSelected={focusedIndex === index} // 只有当前聚焦的块显示工具栏
-        />
-    ), [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex]);
+    const renderItem = useCallback(({item, index}: {item: SmartNoteBlock; index: number}) => {
+        debugLog('smartNotebook', `FlatList renderItem: index=${index}, type=${item.type}, content_len=${item.content?.length || 0}`);
+        return (
+            <BlockItem
+                block={item}
+                index={index}
+                onChange={handleChange}
+                onDelete={handleDelete}
+                onAddAfter={handleAddAfter}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                onFocus={handleFocus}
+                onPlayMedia={handlePlayMedia}
+                theme={theme}
+                editable={editable}
+                isFirst={index === 0}
+                isLast={index === blocks.length - 1}
+                isSelected={focusedIndex === index} // 只有当前聚焦的块显示工具栏
+            />
+        );
+    }, [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
