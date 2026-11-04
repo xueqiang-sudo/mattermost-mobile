@@ -157,47 +157,47 @@ const SearchScreen = ({componentId}: Props) => {
                     .slice(0, MAX_RESULTS);
             }
 
-            // Find GM channels containing matched users
+            // Find channels containing matched users (GM and regular channels)
             try {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const currentUserId = await getCurrentUserId(database);
 
-                // Get current user's GM channel IDs (for intersection)
-                const myGmChannels = await queryUserChannelsByTypes(
+                // Get current user's ALL channels (for intersection)
+                const myAllChannels = await queryUserChannelsByTypes(
                     database,
                     currentUserId,
-                    [General.GM_CHANNEL],
+                    [General.OPEN_CHANNEL, General.PRIVATE_CHANNEL, General.GM_CHANNEL],
                 ).fetch();
-                const myGmChannelIdSet = new Set(myGmChannels.map((c) => c.id));
+                const myChannelIdSet = new Set(myAllChannels.map((c) => c.id));
 
                 // Get already-matched channel IDs to avoid duplicates
                 const existingChannelIds = new Set(filteredChannels.map((c) => c.id));
 
-                const gmChannelMap = new Map<string, ChannelModel>();
+                const channelMap = new Map<string, ChannelModel>();
 
-                // For each matched user, find GM channels they share with the current user
+                // For each matched user, find channels they share with the current user
                 for (const user of filteredContacts.slice(0, 10)) {
-                    const userGmChannels = await queryUserChannelsByTypes(
+                    const userChannels = await queryUserChannelsByTypes(
                         database,
                         user.id,
-                        [General.GM_CHANNEL],
+                        [General.OPEN_CHANNEL, General.PRIVATE_CHANNEL, General.GM_CHANNEL],
                     ).fetch();
 
-                    for (const ch of userGmChannels) {
-                        if (existingChannelIds.has(ch.id) || gmChannelMap.has(ch.id)) {
+                    for (const ch of userChannels) {
+                        if (existingChannelIds.has(ch.id) || channelMap.has(ch.id)) {
                             continue;
                         }
                         // Only include if current user is also a member
-                        if (myGmChannelIdSet.has(ch.id)) {
-                            gmChannelMap.set(ch.id, ch);
+                        if (myChannelIdSet.has(ch.id)) {
+                            channelMap.set(ch.id, ch);
                         }
                     }
                 }
 
-                const gmChannels = Array.from(gmChannelMap.values());
-                filteredChannels = [...filteredChannels, ...gmChannels];
-            } catch (gmError) {
-                debugLog('Error finding GM channels for search:', gmError);
+                const userRelatedChannels = Array.from(channelMap.values());
+                filteredChannels = [...filteredChannels, ...userRelatedChannels];
+            } catch (channelError) {
+                debugLog('Error finding channels for matched users:', channelError);
             }
 
             setContacts(filteredContacts);

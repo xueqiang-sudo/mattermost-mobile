@@ -10,7 +10,6 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {updateLocalUser} from '@actions/local/user';
 import {fetchCustomProfileAttributes, updateCustomProfileAttributes} from '@actions/remote/custom_profile';
 import {setDefaultProfileImage, updateMe, uploadUserProfileImage} from '@actions/remote/user';
-import CompassIcon from '@components/compass_icon';
 import TabletTitle from '@components/tablet_title';
 import {Events} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -46,7 +45,6 @@ const styles = StyleSheet.create({
     },
 });
 
-const CLOSE_BUTTON_ID = 'close-edit-profile';
 const UPDATE_BUTTON_ID = 'update-profile';
 const CUSTOM_ATTRS_PREFIX_NAME = `${CUSTOM_ATTRS_PREFIX}.`;
 
@@ -89,22 +87,14 @@ const EditProfile = ({
         };
     }, [isTablet, theme.sidebarHeaderTextColor, buttonText]);
 
-    const leftButton = useMemo(() => {
-        return isTablet ? null : {
-            id: CLOSE_BUTTON_ID,
-            icon: CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor),
-            testID: 'close.edit_profile.button',
-        };
-    }, [isTablet, theme.sidebarHeaderTextColor]);
-
     useEffect(() => {
         if (!isTablet) {
+            // 统一使用返回箭头，与设定页面保持一致
             setButtons(componentId, {
                 rightButtons: [rightButton!],
-                leftButtons: [leftButton!],
             });
         }
-    }, [isTablet, componentId, rightButton, leftButton]);
+    }, [isTablet, componentId, rightButton]);
 
     const close = useCallback(() => {
         if (isModal) {
@@ -306,8 +296,6 @@ const EditProfile = ({
         logDebug('[EditProfile] Calling submitUser');
         submitUser();
     }, [userInfo, canSave, submitUser]);
-
-    useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);
 
     useEffect(() => {
         logDebug('[EditProfile] canSave state changed to:', canSave);

@@ -37,7 +37,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.64),
     },
     title: {
-        ...typography('Body', 200, 'SemiBold'),
+        ...typography('Body', 100, 'Regular'),
         color: theme.centerChannelColor,
         marginLeft: 8,
     },

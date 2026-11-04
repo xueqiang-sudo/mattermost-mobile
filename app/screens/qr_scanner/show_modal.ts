@@ -4,7 +4,7 @@ import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
 import {MMEmployeeContactTypes} from '@client/rest/team_department';
 import {Screens} from '@constants';
-import {showModal, showModalWithBackButton} from '@screens/navigation';
+import {goToScreen, showModal, showModalWithBackButton} from '@screens/navigation';
 import {logInfo} from '@utils/log';
 import {customBase64Decode} from '@utils/security';
 import {getUrlQueryParam} from '@utils/url';
@@ -83,11 +83,11 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                         id: 'invite_user_join_team.title',
                         defaultMessage: 'Invite User to Join Enterprise',
                     });
-                    goToScreen(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
+                    goToScreen(Screens.INVITE_USER_JOIN_TEAM, title, mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },
-                    }); // data: {uid, ts}
+                    });
                     return true;
                 }
 
@@ -97,7 +97,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                             id: 'invite_user_join_team.title',
                             defaultMessage: 'Invite User to Join Enterprise',
                         });
-                        goToScreen(Screens.INVITE_USER_JOIN_TEAM, title, 'close.invite_user_join_team.button', mergedData, {
+                        goToScreen(Screens.INVITE_USER_JOIN_TEAM, title, mergedData, {
                             statusBar: {
                                 drawBehind: true,
                             },
@@ -115,7 +115,7 @@ export const showQrScannerModal = (intl: IntlShape, options?: QrScannerOptions) 
                                 id: 'add_user_to_friends.title',
                                 defaultMessage: 'Add user as contact',
                             });
-                    goToScreen(Screens.ADD_USER_TO_FRIENDS, title, 'close.add_user_to_friends.button', mergedData, {
+                    goToScreen(Screens.ADD_USER_TO_FRIENDS, title, mergedData, {
                         statusBar: {
                             drawBehind: true,
                         },

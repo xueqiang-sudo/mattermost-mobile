@@ -94,7 +94,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
     },
     sectionTitle: {
-        ...typography('Heading', 300, 'SemiBold'),
+        ...typography('Body', 100, 'Regular'),
         marginLeft: 8,
     },
     sectionHeaderRight: {

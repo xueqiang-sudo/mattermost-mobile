@@ -22,7 +22,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     heading: {
         color: changeOpacity(theme.sidebarText, 0.64),
-        ...typography('Body', 200, 'SemiBold'),
+        ...typography('Body', 100, 'Regular'),
     },
     chevron: {
         marginRight: 2,
