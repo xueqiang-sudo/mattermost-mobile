@@ -12,7 +12,7 @@ const PLUGIN_BASE = '/plugins/com.mattermost.fact-extractor';
 
 export type SmartNoteBlock = {
     id: string;
-    type: 'paragraph' | 'heading' | 'bulleted-list' | 'numbered-list' | 'list-item' | 'blockquote' | 'code-block' | 'image' | 'video' | 'audio' | 'table' | 'divider' | 'horizontal-rule';
+    type: 'paragraph' | 'heading' | 'bulleted-list' | 'numbered-list' | 'list-item' | 'checklist' | 'blockquote' | 'code-block' | 'image' | 'video' | 'audio' | 'file' | 'table' | 'divider' | 'horizontal-rule';
     content: string;
     order: number;
     meta?: Record<string, any>;
@@ -36,8 +36,8 @@ export type SmartNoteSummary = {
     preview: string;
     tags: string[];
     pinned: boolean;
-    createdAt: string;
-    updatedAt: string;
+    createdAt: number;
+    updatedAt: number;
 };
 
 // ── API helpers ──

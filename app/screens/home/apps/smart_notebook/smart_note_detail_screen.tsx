@@ -8,6 +8,7 @@ import {
     Alert,
     Clipboard,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -30,6 +31,7 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import BlockEditor, {createBlock} from './block_editor';
+import SmartNotebookFilePicker from './smart_notebook_file_picker';
 import {
     getNote,
     createNote,
@@ -73,6 +75,13 @@ const SmartNoteDetailScreen = () => {
     const [loading, setLoading] = useState(!isNew);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
+    const [showFilePicker, setShowFilePicker] = useState(false);
+    const [saveProgress, setSaveProgress] = useState<{
+        visible: boolean;
+        current: number;
+        total: number;
+        message: string;
+    }>({visible: false, current: 0, total: 0, message: ''});
 
     // Check if content has changed
     const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== noteTitle;
@@ -165,6 +174,12 @@ const SmartNoteDetailScreen = () => {
         setBlocks(newBlocks);
     }, []);
 
+    // ---- File picker handler ----
+    const handleFilesSelected = useCallback((newBlocks: SmartNoteBlock[]) => {
+        setBlocks(prev => [...prev, ...newBlocks]);
+        setShowFilePicker(false);
+    }, []);
+
     // ---- Add block of specific type ----
     const addBlock = useCallback((type: SmartNoteBlock['type'], meta?: Record<string, any>) => {
         const newBlock = createBlock(type, '');
@@ -254,47 +269,12 @@ const SmartNoteDetailScreen = () => {
     }, [serverUrl, userId, intl]);
 
     // ---- Upload file ----
-    const uploadFile = useCallback(async () => {
+    const uploadFile = useCallback(() => {
         if (!userId) return;
 
-        try {
-            const DocumentPicker = (await import('react-native-document-picker')).default;
-            const fileType = Platform.select({ios: 'public.item', default: '*/*'});
-
-            const result = await DocumentPicker.pick({
-                type: [fileType],
-                copyTo: 'cachesDirectory',
-            });
-
-            if (!result || result.length === 0) return;
-
-            const file = result[0];
-            const fileName = file.name || 'file';
-            const mimeType = file.type || 'application/octet-stream';
-            const fileUri = file.fileCopyUri || file.uri;
-
-            const uploadResult = await uploadMedia(serverUrl, userId, {
-                uri: fileUri,
-                name: fileName,
-                type: mimeType,
-            });
-
-            if (uploadResult?.url) {
-                // Add as a paragraph block with file link
-                const newBlock = createBlock('paragraph', `[${fileName}](${uploadResult.url})`);
-                setBlocks(prev => [...prev, newBlock]);
-            }
-        } catch (e: any) {
-            // User cancelled - not an error
-            if (e?.code === 'DOCUMENT_PICKER_CANCELED') {
-                return;
-            }
-            Alert.alert(
-                intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
-                e?.message || String(e),
-            );
-        }
-    }, [serverUrl, userId, intl]);
+        // 显示文件选择器底部弹窗
+        setShowFilePicker(true);
+    }, [userId]);
 
     // ---- Save ----
     // Extract title from blocks:
@@ -327,27 +307,136 @@ const SmartNoteDetailScreen = () => {
         if (!userId || saving) return;
 
         setSaving(true);
+
+        // 检查是否有本地文件需要上传
+        const {isLocalBlock} = await import('./smart_notebook_upload');
+        const localBlocks = blocks.filter(isLocalBlock);
+        const hasLocalFiles = localBlocks.length > 0;
+
         try {
-            // Use entered title, or extract from blocks, or default to "无标题"
-            const noteTitle = title.trim() || extractTitleFromBlocks(blocks);
+            let blocksToSave = blocks;
+
+            // 如果有本地文件，显示上传进度
+            if (hasLocalFiles) {
+                // 显示上传进度对话框
+                setSaveProgress({
+                    visible: true,
+                    current: 0,
+                    total: localBlocks.length,
+                    message: intl.formatMessage({
+                        id: 'smart_notebook.uploading_files',
+                        defaultMessage: '正在上传文件...',
+                    }),
+                });
+
+                // 上传所有本地文件
+                const {uploadAllLocalBlocks} = await import('./smart_notebook_upload');
+                const uploadResult = await uploadAllLocalBlocks(
+                    serverUrl,
+                    userId,
+                    blocks,
+                    (current, total) => {
+                        // 更新进度
+                        setSaveProgress({
+                            visible: true,
+                            current,
+                            total,
+                            message: intl.formatMessage(
+                                {
+                                    id: 'smart_notebook.uploading_progress',
+                                    defaultMessage: '正在上传文件 ({current}/{total})...',
+                                },
+                                {current, total},
+                            ),
+                        });
+                    },
+                );
+
+                // 隐藏上传进度
+                setSaveProgress({visible: false, current: 0, total: 0, message: ''});
+
+                // 如果有上传失败的文件，提示用户
+                if (uploadResult.errors.length > 0) {
+                    const failedNames = uploadResult.errors
+                        .map((e) => e.block.meta?.caption || '未知文件')
+                        .join(', ');
+
+                    const result = await new Promise<boolean>((resolve) => {
+                        Alert.alert(
+                            intl.formatMessage({
+                                id: 'smart_notebook.upload_warning',
+                                defaultMessage: '部分文件上传失败',
+                            }),
+                            intl.formatMessage(
+                                {
+                                    id: 'smart_notebook.upload_warning_message',
+                                    defaultMessage: '{count} 个文件上传失败：{names}\n\n是否仍然保存笔记？',
+                                },
+                                {
+                                    count: uploadResult.errors.length,
+                                    names: failedNames,
+                                },
+                            ),
+                            [
+                                {
+                                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                                    style: 'cancel',
+                                    onPress: () => resolve(false),
+                                },
+                                {
+                                    text: intl.formatMessage({id: 'smart_notebook.save_anyway', defaultMessage: '仍然保存'}),
+                                    style: 'default',
+                                    onPress: () => resolve(true),
+                                },
+                            ],
+                        );
+                    });
+
+                    if (!result) {
+                        // 用户选择取消
+                        setSaving(false);
+                        return;
+                    }
+                }
+
+                blocksToSave = uploadResult.blocks;
+            }
+
+            // 显示保存进度
+            setSaveProgress({
+                visible: true,
+                current: 0,
+                total: 1,
+                message: intl.formatMessage({
+                    id: 'smart_notebook.saving_note',
+                    defaultMessage: '正在保存笔记...',
+                }),
+            });
+
+            // 保存笔记
+            const noteTitle = title.trim() || extractTitleFromBlocks(blocksToSave);
 
             if (isNew) {
                 const createdNote = await createNote(serverUrl, userId, noteTitle, 'private');
                 if (createdNote?.id) {
                     await updateNote(serverUrl, userId, createdNote.id, {
                         title: noteTitle,
-                        blocks,
+                        blocks: blocksToSave,
                     });
                 }
             } else {
                 await updateNote(serverUrl, userId, noteId, {
                     title: noteTitle,
-                    blocks,
+                    blocks: blocksToSave,
                 });
             }
 
+            // 隐藏保存进度
+            setSaveProgress({visible: false, current: 0, total: 0, message: ''});
+
             setSaveSuccess(true);
-            setOriginalBlocks(JSON.parse(JSON.stringify(blocks))); // Update original blocks after save
+            setBlocks(blocksToSave); // 更新块为已上传版本
+            setOriginalBlocks(JSON.parse(JSON.stringify(blocksToSave)));
             setTimeout(() => setSaveSuccess(false), 2000);
 
             // After saving, go back to viewing mode (for editing existing notes)
@@ -355,8 +444,15 @@ const SmartNoteDetailScreen = () => {
                 setMode('viewing');
             }
         } catch (e) {
+            // 隐藏进度对话框
+            setSaveProgress({visible: false, current: 0, total: 0, message: ''});
+
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
+                intl.formatMessage(
+                    {id: 'smart_notebook.save_failed_message', defaultMessage: '保存笔记时出错：{error}'},
+                    {error: e instanceof Error ? e.message : String(e)},
+                ),
             );
         } finally {
             setSaving(false);
@@ -646,6 +742,67 @@ const SmartNoteDetailScreen = () => {
                     )}
                 </View>
                 )}
+
+                {/* File Picker Bottom Sheet */}
+                <Modal
+                    visible={showFilePicker}
+                    transparent={true}
+                    animationType='slide'
+                    onRequestClose={() => setShowFilePicker(false)}
+                >
+                    <View style={style.filePickerOverlay}>
+                        <View style={style.filePickerContainer}>
+                            <View style={style.filePickerHeader}>
+                                <Text style={style.filePickerTitle}>
+                                    {intl.formatMessage({id: 'smart_notebook.select_file', defaultMessage: '选择文件'})}
+                                </Text>
+                                <TouchableOpacity onPress={() => setShowFilePicker(false)}>
+                                    <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
+                                </TouchableOpacity>
+                            </View>
+                            <SmartNotebookFilePicker
+                                userId={userId}
+                                onFilesSelected={handleFilesSelected}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Save Progress Dialog */}
+                <Modal
+                    visible={saveProgress.visible}
+                    transparent={true}
+                    animationType='fade'
+                    statusBarTranslucent={true}
+                >
+                    <View style={style.saveProgressOverlay}>
+                        <View style={style.saveProgressDialog}>
+                            <ActivityIndicator
+                                size='large'
+                                color={theme.buttonBg}
+                                style={style.saveProgressIndicator}
+                            />
+                            <Text style={style.saveProgressMessage}>
+                                {saveProgress.message}
+                            </Text>
+                            {saveProgress.total > 0 && (
+                                <View style={style.saveProgressBar}>
+                                    <View
+                                        style={[
+                                            style.saveProgressBarFill,
+                                            {width: `${(saveProgress.current / saveProgress.total) * 100}%`},
+                                        ]}
+                                    />
+                                </View>
+                            )}
+                            {saveProgress.total > 0 && (
+                                <Text style={style.saveProgressText}>
+                                    {saveProgress.current} / {saveProgress.total}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+                </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -765,6 +922,76 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     toolbarText: {
         ...typography('Body', 100, 'SemiBold'),
         color: theme.centerChannelColor,
+    },
+    filePickerOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    filePickerContainer: {
+        backgroundColor: theme.centerChannelBg,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        paddingBottom: 20,
+    },
+    filePickerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    filePickerTitle: {
+        ...typography('Heading', 400, 'SemiBold'),
+        color: theme.centerChannelColor,
+    },
+    saveProgressOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    saveProgressDialog: {
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 12,
+        padding: 24,
+        minWidth: 280,
+        maxWidth: 320,
+        alignItems: 'center',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+    },
+    saveProgressIndicator: {
+        marginBottom: 16,
+    },
+    saveProgressMessage: {
+        ...typography('Body', 200, 'Medium'),
+        color: theme.centerChannelColor,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    saveProgressBar: {
+        width: '100%',
+        height: 4,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
+        borderRadius: 2,
+        marginBottom: 8,
+        overflow: 'hidden',
+    },
+    saveProgressBarFill: {
+        height: '100%',
+        backgroundColor: theme.buttonBg,
+        borderRadius: 2,
+    },
+    saveProgressText: {
+        ...typography('Body', 75, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        textAlign: 'center',
     },
 }));
 

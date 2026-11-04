@@ -1,10 +1,13 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useRef, useState, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {
+    Alert,
     FlatList,
+    Image,
+    Modal,
     Platform,
     StyleSheet,
     Text,
@@ -12,6 +15,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Video, {type VideoRef} from 'react-native-video';
 
 import CompassIcon from '@components/compass_icon';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -37,6 +41,7 @@ type BlockItemProps = {
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
+    onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
     theme: Theme;
     editable: boolean;
     isFirst: boolean;
@@ -46,6 +51,28 @@ type BlockItemProps = {
 
 // ---- Helper to generate unique ID ----
 const generateId = () => `blk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// ---- Format file size ----
+function formatFileSize(bytes: number): string {
+    if (!bytes || bytes <= 0) return '';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let idx = 0;
+    let size = bytes;
+    while (size >= 1024 && idx < units.length - 1) {
+        size /= 1024;
+        idx++;
+    }
+    return `${size.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
+}
+
+// ---- Format duration (milliseconds to mm:ss) ----
+function formatDuration(ms: number): string {
+    if (!ms || ms <= 0) return '';
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 // ---- Create new block ----
 const createBlock = (type: SmartNoteBlock['type'] = 'paragraph', content = ''): SmartNoteBlock => ({
@@ -65,6 +92,7 @@ const BlockItem = ({
     onMoveUp,
     onMoveDown,
     onFocus,
+    onPlayMedia,
     theme,
     editable,
     isFirst,
@@ -103,6 +131,7 @@ const BlockItem = ({
                 return style.codeBlock;
             case 'bulleted-list':
             case 'numbered-list':
+            case 'checklist':
                 return style.listItem;
             default:
                 return style.paragraph;
@@ -118,6 +147,10 @@ const BlockItem = ({
             const num = block.meta?.number || 1;
             return `${num}. `;
         }
+        if (block.type === 'checklist') {
+            const checked = block.meta?.checked || false;
+            return checked ? '☑ ' : '☐ ';
+        }
         return '';
     };
 
@@ -130,6 +163,8 @@ const BlockItem = ({
                 return intl.formatMessage({id: 'smart_notebook.quote_placeholder', defaultMessage: '引用'});
             case 'code-block':
                 return intl.formatMessage({id: 'smart_notebook.code_placeholder', defaultMessage: '代码'});
+            case 'checklist':
+                return intl.formatMessage({id: 'smart_notebook.checklist_placeholder', defaultMessage: '待办事项'});
             default:
                 return intl.formatMessage({id: 'smart_notebook.paragraph_placeholder', defaultMessage: '输入内容...'});
         }
@@ -137,11 +172,31 @@ const BlockItem = ({
 
     // Render media blocks
     if (block.type === 'image' && block.content) {
+        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
+        const imageUri = isLocal && !block.content.startsWith('file://') ? `file://${block.content}` : block.content;
+
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
-                    <CompassIcon name='image-outline' size={24} color={theme.centerChannelColor}/>
-                    <Text style={style.mediaLabel} numberOfLines={1}>{block.meta?.caption || block.content}</Text>
+                    <Image
+                        source={{uri: imageUri}}
+                        style={style.imagePreview}
+                        resizeMode='cover'
+                        onError={() => {
+                            // 图片加载失败时的处理
+                        }}
+                    />
+                    <View style={style.mediaInfo}>
+                        <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
+                        <Text style={style.mediaLabel} numberOfLines={1}>
+                            {block.meta?.caption || '图片'}
+                        </Text>
+                        {isLocal && (
+                            <View style={style.localBadge}>
+                                <Text style={style.localBadgeText}>本地</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
                 {editable && isSelected && (
                     <BlockActions
@@ -159,11 +214,69 @@ const BlockItem = ({
     }
 
     if (block.type === 'video' && block.content) {
+        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
+        const videoUri = isLocal && !block.content.startsWith('file://') ? `file://${block.content}` : block.content;
+
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
-                    <CompassIcon name='video-outline' size={24} color={theme.centerChannelColor}/>
-                    <Text style={style.mediaLabel} numberOfLines={1}>{block.meta?.caption || block.content}</Text>
+                    {/* 视频预览区域 */}
+                    <View style={style.videoPreviewContainer}>
+                        {isLocal ? (
+                            // 本地视频：显示第一帧缩略图
+                            <Image
+                                source={{uri: videoUri}}
+                                style={style.videoThumbnail}
+                                resizeMode='cover'
+                            />
+                        ) : (
+                            // 远程视频：也可以显示缩略图（如果有）
+                            <View style={style.videoPlaceholder}>
+                                <CompassIcon name='video-outline' size={48} color={theme.buttonBg}/>
+                            </View>
+                        )}
+                        {/* 播放按钮覆盖层 */}
+                        <TouchableOpacity
+                            style={style.playButtonOverlay}
+                            onPress={() => {
+                                // 播放视频
+                                if (onPlayMedia) {
+                                    onPlayMedia(videoUri, 'video');
+                                }
+                            }}
+                        >
+                            <View style={style.playButton}>
+                                <CompassIcon name='play' size={32} color='#FFFFFF'/>
+                            </View>
+                        </TouchableOpacity>
+                        {/* 视频时长 */}
+                        {block.meta?.duration && (
+                            <View style={style.durationBadge}>
+                                <Text style={style.durationText}>
+                                    {formatDuration(block.meta.duration)}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                    {/* 视频信息 */}
+                    <View style={style.mediaInfo}>
+                        <CompassIcon name='video-outline' size={20} color={theme.buttonBg}/>
+                        <View style={style.mediaTextInfo}>
+                            <Text style={style.mediaLabel} numberOfLines={1}>
+                                {block.meta?.caption || '视频'}
+                            </Text>
+                            {block.meta?.size && (
+                                <Text style={style.mediaMeta}>
+                                    {formatFileSize(block.meta.size)}
+                                </Text>
+                            )}
+                        </View>
+                        {isLocal && (
+                            <View style={style.localBadge}>
+                                <Text style={style.localBadgeText}>本地</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
                 {editable && isSelected && (
                     <BlockActions
@@ -181,11 +294,47 @@ const BlockItem = ({
     }
 
     if (block.type === 'audio' && block.content) {
+        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
+
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
-                    <CompassIcon name='microphone-outline' size={24} color={theme.centerChannelColor}/>
-                    <Text style={style.mediaLabel} numberOfLines={1}>{block.meta?.caption || block.content}</Text>
+                    <View style={style.audioCard}>
+                        <View style={style.mediaIconContainer}>
+                            <CompassIcon name='microphone-outline' size={32} color={theme.buttonBg}/>
+                        </View>
+                        <View style={style.mediaTextInfo}>
+                            <Text style={style.mediaLabel} numberOfLines={1}>
+                                {block.meta?.caption || '音频'}
+                            </Text>
+                            {block.meta?.size && (
+                                <Text style={style.mediaMeta}>
+                                    {formatFileSize(block.meta.size)}
+                                </Text>
+                            )}
+                            {block.meta?.duration && (
+                                <Text style={style.mediaMeta}>
+                                    {formatDuration(block.meta.duration)}
+                                </Text>
+                            )}
+                        </View>
+                        <TouchableOpacity
+                            style={style.audioPlayButton}
+                            onPress={() => {
+                                // 播放音频
+                                if (onPlayMedia) {
+                                    onPlayMedia(block.content, 'audio');
+                                }
+                            }}
+                        >
+                            <CompassIcon name='play-circle-outline' size={36} color={theme.buttonBg}/>
+                        </TouchableOpacity>
+                        {isLocal && (
+                            <View style={style.localBadge}>
+                                <Text style={style.localBadgeText}>本地</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
                 {editable && isSelected && (
                     <BlockActions
@@ -206,6 +355,49 @@ const BlockItem = ({
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.divider}/>
+                {editable && isSelected && (
+                    <BlockActions
+                        onDelete={() => onDelete(index)}
+                        onAddAfter={() => onAddAfter(index)}
+                        onMoveUp={() => onMoveUp(index)}
+                        onMoveDown={() => onMoveDown(index)}
+                        isFirst={isFirst}
+                        isLast={isLast}
+                        theme={theme}
+                    />
+                )}
+            </TouchableOpacity>
+        );
+    }
+
+    // 渲染文件块（非媒体文件）
+    if (block.type === 'file' && block.content) {
+        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
+
+        return (
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                <View style={style.mediaBlock}>
+                    <View style={style.fileCard}>
+                        <View style={style.mediaIconContainer}>
+                            <CompassIcon name='file-outline' size={32} color={theme.buttonBg}/>
+                        </View>
+                        <View style={style.mediaTextInfo}>
+                            <Text style={style.mediaLabel} numberOfLines={1}>
+                                {block.meta?.caption || '文件'}
+                            </Text>
+                            {block.meta?.size && (
+                                <Text style={style.mediaMeta}>
+                                    {formatFileSize(block.meta.size)}
+                                </Text>
+                            )}
+                        </View>
+                        {isLocal && (
+                            <View style={style.localBadge}>
+                                <Text style={style.localBadgeText}>本地</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
                 {editable && isSelected && (
                     <BlockActions
                         onDelete={() => onDelete(index)}
@@ -243,7 +435,7 @@ const BlockItem = ({
                     textAlignVertical='top'
                 />
             </View>
-            {editable && showActions && (
+            {editable && isSelected && (
                 <BlockActions
                     onDelete={() => onDelete(index)}
                     onAddAfter={() => onAddAfter(index)}
@@ -294,6 +486,23 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+    // 媒体播放状态
+    const [playingMedia, setPlayingMedia] = useState<{
+        uri: string;
+        type: 'video' | 'audio';
+    } | null>(null);
+    const videoRef = useRef<VideoRef>(null);
+
+    // 处理媒体播放
+    const handlePlayMedia = useCallback((uri: string, type: 'video' | 'audio') => {
+        setPlayingMedia({uri, type});
+    }, []);
+
+    // 关闭媒体播放器
+    const handleClosePlayer = useCallback(() => {
+        setPlayingMedia(null);
+    }, []);
 
     const handleChange = useCallback((index: number, updatedBlock: SmartNoteBlock) => {
         const newBlocks = [...blocks];
@@ -367,25 +576,84 @@ const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
             onMoveUp={handleMoveUp}
             onMoveDown={handleMoveDown}
             onFocus={handleFocus}
+            onPlayMedia={handlePlayMedia}
             theme={theme}
             editable={editable}
             isFirst={index === 0}
             isLast={index === blocks.length - 1}
             isSelected={focusedIndex === index} // 只有当前聚焦的块显示工具栏
         />
-    ), [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, theme, editable, blocks.length, focusedIndex]);
+    ), [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
     return (
-        <FlatList
-            data={blocks}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={style.listContent}
-            keyboardShouldPersistTaps='handled'
-            scrollEnabled={false}
-        />
+        <>
+            <FlatList
+                data={blocks}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                contentContainerStyle={style.listContent}
+                keyboardShouldPersistTaps='handled'
+                scrollEnabled={false}
+            />
+
+            {/* 媒体播放器 Modal */}
+            <Modal
+                visible={!!playingMedia}
+                transparent={true}
+                animationType='fade'
+                onRequestClose={handleClosePlayer}
+            >
+                <View style={style.mediaPlayerOverlay}>
+                    <TouchableOpacity
+                        style={style.mediaPlayerClose}
+                        onPress={handleClosePlayer}
+                        activeOpacity={0.9}
+                    >
+                        <CompassIcon name='close' size={32} color='#FFFFFF'/>
+                    </TouchableOpacity>
+
+                    {playingMedia?.type === 'video' ? (
+                        <Video
+                            ref={videoRef}
+                            source={{uri: playingMedia.uri}}
+                            style={style.videoPlayer}
+                            controls={true}
+                            paused={false}
+                            resizeMode='contain'
+                            onEnd={handleClosePlayer}
+                            onError={(e) => {
+                                console.error('视频播放错误:', e);
+                                Alert.alert('视频播放失败', e.error?.errorString || '未知错误');
+                                handleClosePlayer();
+                            }}
+                        />
+                    ) : playingMedia?.type === 'audio' ? (
+                        <View style={style.audioPlayerContainer}>
+                            <View style={style.audioPlayerIcon}>
+                                <CompassIcon name='microphone-outline' size={64} color='#FFFFFF'/>
+                            </View>
+                            <Video
+                                ref={videoRef}
+                                source={{uri: playingMedia.uri}}
+                                style={style.audioPlayer}
+                                controls={false}
+                                paused={false}
+                                audioOnly={true}
+                                onEnd={handleClosePlayer}
+                                onError={(e) => {
+                                    console.error('音频播放错误:', e);
+                                    Alert.alert('音频播放失败', e.error?.errorString || '未知错误');
+                                    handleClosePlayer();
+                                }}
+                            />
+                            <Text style={style.audioPlayerText}>正在播放音频...</Text>
+                        </View>
+                    ) : null}
+                </View>
+            </Modal>
+        </>
     );
 };
 
@@ -465,17 +733,113 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     mediaBlock: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: 'column',
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
         borderRadius: 8,
+        overflow: 'hidden',
+    },
+    imagePreview: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+    },
+    videoPreviewContainer: {
+        width: '100%',
+        height: 200,
+        position: 'relative',
+        backgroundColor: '#000',
+    },
+    videoThumbnail: {
+        width: '100%',
+        height: '100%',
+    },
+    videoPlaceholder: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    playButtonOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    },
+    playButton: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    durationBadge: {
+        position: 'absolute',
+        bottom: 8,
+        right: 8,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+    },
+    durationText: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: '#FFFFFF',
+    },
+    audioCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
         padding: 12,
     },
-    mediaLabel: {
-        ...typography('Body', 100, 'Regular'),
-        color: theme.centerChannelColor,
-        marginLeft: 8,
+    audioPlayButton: {
+        padding: 8,
+    },
+    fileCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+    },
+    mediaInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+    },
+    mediaTextInfo: {
         flex: 1,
+    },
+    mediaIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    mediaLabel: {
+        ...typography('Body', 200, 'Medium'),
+        color: theme.centerChannelColor,
+    },
+    mediaMeta: {
+        ...typography('Body', 75, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        marginTop: 2,
+    },
+    localBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.15),
+        borderRadius: 4,
+        marginLeft: 8,
+    },
+    localBadgeText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
     },
     divider: {
         flex: 1,
@@ -490,6 +854,47 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
     actionBtn: {
         padding: 4,
         marginHorizontal: 2,
+    },
+    mediaPlayerOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    mediaPlayerClose: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        zIndex: 1000,
+        padding: 8,
+    },
+    videoPlayer: {
+        width: '100%',
+        height: '100%',
+    },
+    audioPlayerContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
+    audioPlayerIcon: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 32,
+    },
+    audioPlayer: {
+        width: 1,
+        height: 1,
+        opacity: 0,
+    },
+    audioPlayerText: {
+        ...typography('Body', 200, 'Medium'),
+        color: '#FFFFFF',
+        textAlign: 'center',
     },
 }));
 
