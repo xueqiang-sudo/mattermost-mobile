@@ -642,7 +642,7 @@ const KnowledgeBaseScreen = () => {
     const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
 
     // File preview hook (same as chat window)
-    const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
+    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(true);
 
     // Init: load teamId
     useEffect(() => {
@@ -1808,6 +1808,9 @@ const KnowledgeBaseScreen = () => {
                 }}
                 showDeleteButton={true}
             />
+
+            {/* File preview loading modal */}
+            {PreviewLoadingModal}
         </SafeAreaView>
     );
 };

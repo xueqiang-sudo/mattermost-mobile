@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {deleteAsync, makeDirectoryAsync} from 'expo-file-system';
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Platform, StatusBar, type StatusBarStyle} from 'react-native';
 import FileViewer from 'react-native-file-viewer';
@@ -10,6 +10,7 @@ import tinyColor from 'tinycolor2';
 
 import {getLocalFileInfo, updateLocalFilePath} from '@actions/local/file';
 import {buildFilePreviewUrl, buildFileUrl, downloadFile} from '@actions/remote/file';
+import FilePreviewLoadingModal, {type PreviewStep} from '@components/files/file_preview_loading_modal';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
@@ -54,7 +55,12 @@ const getDownloadUrl = (serverUrl: string, fileId: string): string => {
 };
 
 // 触发 Office → PDF 转换并轮询（对齐 webapp）
-const triggerConversionAndPoll = async (serverUrl: string, fileId: string): Promise<string | null> => {
+// onCancel: 返回 true 表示用户已取消
+const triggerConversionAndPoll = async (
+    serverUrl: string,
+    fileId: string,
+    onCancel?: () => boolean,
+): Promise<string | null> => {
     const client = NetworkManager.getClient(serverUrl);
 
     // Step 1: 触发转换 POST /api/v4/files/{id}/convert
@@ -75,7 +81,19 @@ const triggerConversionAndPoll = async (serverUrl: string, fileId: string): Prom
 
     // Step 2: 轮询 GET /api/v4/files/{id}/info（每2s，最多30次 = 60s）
     for (let i = 0; i < 30; i++) {
+        // 检查是否取消
+        if (onCancel?.()) {
+            debugLog('[Preview] Conversion cancelled by user');
+            return null;
+        }
+
         await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // 再次检查取消（等待 2s 后）
+        if (onCancel?.()) {
+            debugLog('[Preview] Conversion cancelled by user during wait');
+            return null;
+        }
 
         try {
             const infoUrl = client.getFileRoute(fileId) + `/info?_t=${Date.now()}`;
@@ -107,6 +125,45 @@ const triggerConversionAndPoll = async (serverUrl: string, fileId: string): Prom
 
     debugLog('[Preview] Conversion polling timeout after 30 attempts (60s)');
     return null;
+};
+
+// 动态计算预览步骤：根据文件状态决定需要哪些步骤
+const getPreviewSteps = async (file: FileInfo, serverUrl: string): Promise<PreviewStep[]> => {
+    const steps: PreviewStep[] = [];
+    const ext = (file.extension || '').toLowerCase().replace(/^\./, '');
+    const isOffice = isOfficeFile(ext);
+
+    // 1. 是否需要转换：Office 文件且没有 pdf_preview_id
+    if (isOffice && file.id && !file.pdf_preview_id) {
+        steps.push('converting');
+    }
+
+    // 2. 是否需要下载
+    // 确定要下载的文件 ID（pdf_preview_id 或原始 id）
+    const downloadFileId = file.pdf_preview_id || file.id;
+    if (downloadFileId) {
+        // 构建对应的 FileInfo 以检查本地路径（路径生成依赖 id + extension，不依赖 name）
+        const checkFile: FileInfo = file.pdf_preview_id ? {
+            ...file,
+            id: file.pdf_preview_id,
+            extension: 'pdf',
+            mime_type: 'application/pdf',
+        } : file;
+
+        const localPath = getLocalFilePathFromFile(serverUrl, checkFile);
+        const exists = await fileExists(localPath);
+        if (!exists) {
+            steps.push('downloading');
+        }
+    } else if (!file.localPath) {
+        // 没有 ID 也没有 localPath，需要下载
+        steps.push('downloading');
+    }
+
+    // 3. 打开预览（总是最后一步）
+    steps.push('opening');
+
+    return steps;
 };
 
 // 确保下载目标的父目录存在。文件本地路径已从 cacheDirectory 改为
@@ -210,6 +267,24 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
     const [downloading, setDownloading] = useState(false);
     const [didCancel, setDidCancel] = useState(false);
 
+    // ── Loading Modal 状态 ──
+    const cancelToken = useRef(false);
+    const [previewLoading, setPreviewLoading] = useState({
+        visible: false,
+        fileName: '',
+        currentStep: 'idle' as PreviewStep,
+        steps: [] as PreviewStep[],
+        canCancel: true,
+    });
+
+    const hideLoadingModal = useCallback(() => {
+        setPreviewLoading(prev => ({...prev, visible: false, currentStep: 'idle'}));
+    }, []);
+
+    const cancelPreview = useCallback(() => {
+        cancelToken.current = true;
+    }, []);
+
     const setStatusBarColor = useCallback((style: StatusBarStyle = 'light-content') => {
         if (Platform.OS === 'ios') {
             if (style) {
@@ -237,8 +312,78 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
         openUnifiedFileViewer(file, theme, onDonePreviewingFile);
     }, [theme, onDonePreviewingFile]);
 
+    // 通用的 PDF 下载+打开逻辑（Office 转换后 和 已有 pdf_preview_id 共享）
+    const downloadAndOpenPdf = async (file: FileInfo, pdfPreviewId: string): Promise<boolean> => {
+        const downloadUrl = getDownloadUrl(serverUrl, pdfPreviewId);
+        debugLog('[Preview] Downloading PDF preview', {
+            originalFileId: file.id,
+            pdfPreviewId,
+            downloadUrl,
+        });
+
+        const pdfFileInfo: FileInfo = {
+            ...file,
+            id: pdfPreviewId,
+            // ✅ 保留原始文件名用于显示（预览窗口标题显示 test.docx 而非 test.pdf）
+            // name: file.name,  // 通过展开运算符已保留
+            extension: 'pdf',
+            mime_type: 'application/pdf',
+        };
+
+        const pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
+        const pdfExists = await fileExists(pdfPath);
+
+        try {
+            if (!pdfExists) {
+                // 更新步骤：下载中
+                setPreviewLoading(prev => ({...prev, currentStep: 'downloading'}));
+
+                await ensureParentDir(pdfPath);
+                debugLog('[Preview] Starting PDF download', {url: downloadUrl, destination: pdfPath});
+
+                const {downloadAsync} = await import('expo-file-system');
+                const client = NetworkManager.getClient(serverUrl);
+                const headers = client.getRequestHeaders('get');
+
+                await downloadAsync(
+                    downloadUrl,
+                    pdfPath.replace('file://', ''),
+                    {headers},
+                );
+                setProgress(1);
+
+                // 检查取消
+                if (cancelToken.current) {
+                    deleteAsync(pdfPath, {idempotent: true});
+                    return false;
+                }
+
+                debugLog('[Preview] PDF download complete');
+                await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+
+            // 更新步骤：打开预览
+            setPreviewLoading(prev => ({...prev, currentStep: 'opening', canCancel: false}));
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            openDocument(pdfFileInfo);
+            return true;
+        } catch (error) {
+            if (pdfPath) {
+                deleteAsync(pdfPath, {idempotent: true});
+            }
+            if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
+                const errorMsg = getFullErrorMessage(error);
+                debugLog('[Preview] PDF download ERROR', {error: errorMsg});
+                logDebug('error downloading PDF preview', errorMsg);
+            }
+            return false;
+        }
+    };
+
     const downloadAndPreviewFile = useCallback(async (file: FileInfo) => {
         setDidCancel(false);
+        cancelToken.current = false;
 
         const ext = (file.extension || '').toLowerCase().replace(/^\./, '');
         const isOffice = isOfficeFile(ext);
@@ -252,187 +397,71 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
             pdf_preview_id: file.pdf_preview_id,
         });
 
-        // ── Office 文件：确保有 pdf_preview_id（没有则触发转换+轮询）──
+        // ── 动态计算步骤 ──
+        const steps = await getPreviewSteps(file, serverUrl);
+        debugLog('[Preview] Computed steps', {steps});
+
+        // 显示 Loading Modal
+        setPreviewLoading({
+            visible: true,
+            fileName: file.name,
+            currentStep: steps[0] || 'opening',
+            steps,
+            canCancel: true,
+        });
+
+        // ── Office 文件：确保有 pdf_preview_id ──
         if (isOffice && file.id) {
             let pdfPreviewId = file.pdf_preview_id;
 
             if (!pdfPreviewId) {
-                debugLog('[Preview] Office file without pdf_preview_id, triggering conversion', {
-                    fileId: file.id,
-                    name: file.name,
-                });
+                debugLog('[Preview] Office file needs conversion', {fileId: file.id});
 
+                // 步骤：转换中
+                setPreviewLoading(prev => ({...prev, currentStep: 'converting'}));
                 setDownloading(true);
-                pdfPreviewId = await triggerConversionAndPoll(serverUrl, file.id);
+
+                pdfPreviewId = await triggerConversionAndPoll(serverUrl, file.id, () => cancelToken.current);
                 setDownloading(false);
 
+                // 检查取消
+                if (cancelToken.current) {
+                    debugLog('[Preview] Cancelled during conversion');
+                    hideLoadingModal();
+                    return;
+                }
+
                 if (pdfPreviewId) {
-                    // 更新 file 对象的 pdf_preview_id
                     file.pdf_preview_id = pdfPreviewId;
-                    debugLog('[Preview] Got pdf_preview_id after conversion', {pdfPreviewId});
+                    debugLog('[Preview] Conversion complete', {pdfPreviewId});
                 } else {
-                    debugLog('[Preview] Conversion failed or timeout', {fileId: file.id});
+                    debugLog('[Preview] Conversion failed or cancelled', {fileId: file.id});
+                    hideLoadingModal();
                     alertDownloadFailed(intl);
                     return;
                 }
             }
 
-            // 下载 PDF 预览版本
-            const downloadUrl = getDownloadUrl(serverUrl, pdfPreviewId);
-            debugLog('[Preview] Downloading PDF preview (Office)', {
-                originalFileId: file.id,
-                pdfPreviewId,
-                downloadUrl,
-                serverUrl,
-            });
-
-            const pdfFileInfo: FileInfo = {
-                ...file,
-                id: pdfPreviewId,
-                name: file.name.replace(/\.[^.]+$/, '.pdf'),
-                extension: 'pdf',
-                mime_type: 'application/pdf',
-            };
-
-            let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
-            const pdfExists = await fileExists(pdfPath);
-
-            try {
-                if (!pdfExists) {
-                    setDownloading(true);
-                    await ensureParentDir(pdfPath);
-
-                    debugLog('[Preview] Starting download', {
-                        url: downloadUrl,
-                        destination: pdfPath,
-                    });
-
-                    // 使用 expo-file-system 下载
-                    // 会自动跟随 307 重定向，直接写入磁盘（不进内存）
-                    const {downloadAsync} = await import('expo-file-system');
-                    const client = NetworkManager.getClient(serverUrl);
-                    const headers = client.getRequestHeaders('get');
-
-                    const downloadResult = await downloadAsync(
-                        downloadUrl,
-                        pdfPath.replace('file://', ''),
-                        {headers},
-                    );
-                    setProgress(1);
-
-                    // 记录下载结果（诊断用）
-                    debugLog('[Preview] Download response', {
-                        uri: downloadResult?.uri,
-                        status: downloadResult?.status,
-                        headers: downloadResult?.headers,
-                        url: downloadUrl,
-                    });
-
-                    // Wait a bit for file system to flush
-                    await new Promise((resolve) => setTimeout(resolve, 200));
-                }
-
-                openDocument(pdfFileInfo);
-            } catch (error) {
-                if (pdfPath) {
-                    deleteAsync(pdfPath, {idempotent: true});
-                }
-                setDownloading(false);
-                setProgress(0);
-
-                if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
-                    const errorMsg = getFullErrorMessage(error);
-                    debugLog('[Preview] Download ERROR', {
-                        error: errorMsg,
-                        errorType: error?.constructor?.name,
-                        statusCode: (error as any)?.status_code || (error as any)?.statusCode,
-                        details: (error as any)?.details,
-                    });
-                    logDebug('error downloading PDF preview', errorMsg);
-                    alertDownloadFailed(intl);
-                }
+            // 下载 PDF 并打开
+            const success = await downloadAndOpenPdf(file, pdfPreviewId);
+            if (!success && !cancelToken.current) {
+                alertDownloadFailed(intl);
             }
+            hideLoadingModal();
             return;
         }
 
-        // ── 已有 PDF 预览版本（非 Office 但有 pdf_preview_id）──
+        // ── 已有 PDF 预览版本 ──
         if (hasPdfPreview(file) && file.pdf_preview_id) {
-
-            const downloadUrl = getDownloadUrl(serverUrl, file.pdf_preview_id);
-            debugLog('[Preview] Downloading PDF preview', {
-                originalFileId: file.id,
-                pdfPreviewId: file.pdf_preview_id,
-                downloadUrl,
-                serverUrl,
-            });
-
-            const pdfFileInfo: FileInfo = {
-                ...file,
-                id: file.pdf_preview_id,
-                name: file.name.replace(/\.[^.]+$/, '.pdf'),
-                extension: 'pdf',
-                mime_type: 'application/pdf',
-            };
-
-            let pdfPath = getLocalFilePathFromFile(serverUrl, pdfFileInfo);
-            const pdfExists = await fileExists(pdfPath);
-
-            try {
-                if (!pdfExists) {
-                    setDownloading(true);
-                    await ensureParentDir(pdfPath);
-
-                    debugLog('[Preview] Starting download', {
-                        url: downloadUrl,
-                        destination: pdfPath,
-                    });
-
-                    // 使用 expo-file-system 下载
-                    // 会自动跟随 307 重定向，直接写入磁盘（不进内存）
-                    const {downloadAsync} = await import('expo-file-system');
-                    const client = NetworkManager.getClient(serverUrl);
-                    const headers = client.getRequestHeaders('get');
-
-                    const downloadResult = await downloadAsync(
-                        downloadUrl,
-                        pdfPath.replace('file://', ''),
-                        {headers},
-                    );
-                    setProgress(1);
-
-                    debugLog('[Preview] Download response', {
-                        uri: downloadResult?.uri,
-                        status: downloadResult?.status,
-                        url: downloadUrl,
-                    });
-
-                    // Wait a bit for file system to flush
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-
-                openDocument(pdfFileInfo);
-            } catch (error) {
-                if (pdfPath) {
-                    deleteAsync(pdfPath, {idempotent: true});
-                }
-                setDownloading(false);
-                setProgress(0);
-
-                if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
-                    const errorMsg = getFullErrorMessage(error);
-                    debugLog('[Preview] Download ERROR', {
-                        error: errorMsg,
-                        errorType: error?.constructor?.name,
-                        statusCode: (error as any)?.status_code || (error as any)?.statusCode,
-                        details: (error as any)?.details,
-                    });
-                    logDebug('error downloading PDF preview', errorMsg);
-                    alertDownloadFailed(intl);
-                }
+            const success = await downloadAndOpenPdf(file, file.pdf_preview_id);
+            if (!success && !cancelToken.current) {
+                alertDownloadFailed(intl);
             }
+            hideLoadingModal();
             return;
         }
 
+        // ── 普通文件（非 Office，无 PDF 预览）──
         let path;
         let exists = false;
 
@@ -448,98 +477,82 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
                 exists = await fileExists(path);
                 debugLog('[Preview] generated path check', {generatedPath: path, exists});
             }
-            debugLog('[Preview] downloadAndPreviewFile', {
-                fileId: file.id,
-                name: file.name,
-                localPath: file.localPath,
-                finalPath: path,
-                exists,
-                source: file.localPath ? 'localPath' : 'generated',
-            });
 
             if (exists) {
                 debugLog('[Preview] file exists, opening directly', {path});
+
+                // 步骤：打开预览
+                setPreviewLoading(prev => ({...prev, currentStep: 'opening', canCancel: false}));
+                await new Promise((resolve) => setTimeout(resolve, 300));
+
                 openDocument(file);
+                hideLoadingModal();
             } else {
+                // 步骤：下载中
+                setPreviewLoading(prev => ({...prev, currentStep: 'downloading'}));
                 setDownloading(true);
 
-                // Build download URL
                 const downloadUrl = getDownloadUrl(serverUrl, file.id!);
                 debugLog('[Preview] downloading file', {
                     fileId: file.id,
                     name: file.name,
                     downloadUrl,
                     localPath: path,
-                    serverUrl,
                 });
 
                 await ensureParentDir(path!);
 
-                debugLog('[Preview] Starting download', {
-                    url: downloadUrl,
-                    destination: path,
-                });
-
-                // 使用 expo-file-system 下载
-                // 会自动跟随 307 重定向，直接写入磁盘（不进内存）
                 const {downloadAsync} = await import('expo-file-system');
                 const client = NetworkManager.getClient(serverUrl);
                 const headers = client.getRequestHeaders('get');
 
-                const downloadResult = await downloadAsync(
+                await downloadAsync(
                     downloadUrl,
                     path!.replace('file://', ''),
                     {headers},
                 );
                 setProgress(1);
 
-                // 记录下载结果（诊断用）
-                debugLog('[Preview] Download response', {
-                    uri: downloadResult?.uri,
-                    status: downloadResult?.status,
-                    url: downloadUrl,
-                });
-
-                const afterExists = await fileExists(path!);
-                debugLog('[Preview] download complete, file exists now?', {path, afterExists});
-
-                // Wait a bit for file system to flush
-                await new Promise(resolve => setTimeout(resolve, 200));
-
-                // Cache the local path in database (like WeChat - persist downloaded file paths)
-                if (file.id && path) {
-                    debugLog('[Preview] updating database localPath', {fileId: file.id, path});
-                    const result = await updateLocalFilePath(serverUrl, file.id, path);
-                    debugLog('[Preview] database update result', {error: result.error});
-
-                    // Also update the file object in memory
-                    file.localPath = path;
-                    debugLog('[Preview] file object updated in memory', {fileId: file.id, localPath: file.localPath});
+                // 检查取消
+                if (cancelToken.current) {
+                    deleteAsync(path!, {idempotent: true});
+                    hideLoadingModal();
+                    return;
                 }
 
+                const afterExists = await fileExists(path!);
+                debugLog('[Preview] download complete', {path, afterExists});
+                await new Promise((resolve) => setTimeout(resolve, 200));
+
+                // 缓存本地路径
+                if (file.id && path) {
+                    await updateLocalFilePath(serverUrl, file.id, path);
+                    file.localPath = path;
+                }
+
+                // 步骤：打开预览
+                setPreviewLoading(prev => ({...prev, currentStep: 'opening', canCancel: false}));
+                await new Promise((resolve) => setTimeout(resolve, 300));
+
                 openDocument(file);
+                hideLoadingModal();
             }
         } catch (error) {
             const errorMsg = getFullErrorMessage(error);
-            debugLog('[Preview] download/preview ERROR', {
-                path,
-                error: errorMsg,
-                errorType: error?.constructor?.name,
-                statusCode: (error as any)?.status_code || (error as any)?.statusCode,
-                details: (error as any)?.details,
-            });
+            debugLog('[Preview] download/preview ERROR', {path, error: errorMsg});
             if (path) {
                 deleteAsync(path, {idempotent: true});
             }
             setDownloading(false);
             setProgress(0);
+            hideLoadingModal();
 
             if (!isErrorWithMessage(error) || error.message !== 'cancelled') {
                 logDebug('error on downloadAndPreviewFile', errorMsg);
                 alertDownloadFailed(intl);
             }
         }
-    }, [intl, openDocument, serverUrl]);
+    }, [intl, openDocument, serverUrl, hideLoadingModal]);
 
     const toggleDownloadAndPreview = useCallback((file: FileInfo) => {
         if (downloading && progress < 1) {
@@ -555,15 +568,28 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
 
     const cancelDownload = () => {
         setDidCancel(true);
+        cancelToken.current = true;
         if (downloadTask.current?.cancel) {
             downloadTask.current.cancel();
         }
     };
+
+    // ── 渲染 Loading Modal 组件 ──
+    const PreviewLoadingModal = React.createElement(FilePreviewLoadingModal, {
+        visible: previewLoading.visible,
+        fileName: previewLoading.fileName,
+        currentStep: previewLoading.currentStep,
+        steps: previewLoading.steps,
+        canCancel: previewLoading.canCancel,
+        onCancel: cancelPreview,
+    });
 
     return {
         downloading,
         progress,
         toggleDownloadAndPreview,
         downloadAndPreviewFile,
+        PreviewLoadingModal,
+        previewLoadingVisible: previewLoading.visible,
     };
 };

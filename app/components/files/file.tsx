@@ -126,7 +126,7 @@ const File = ({
     const [showActionDialog, setShowActionDialog] = useState(false);
     const pressOpacity = useRef(new RNAnimated.Value(0)).current;
     const longPressTriggered = useRef(false);
-    const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
+    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     // 微信式「点开才下载」：不在进入视口时自动下载完整文件。
     // 文档类点开走 downloadAndPreviewFile（本地无则下载），图片/视频点开走 gallery
@@ -462,7 +462,12 @@ const File = ({
     } else {
         fileComponent = renderCardWithImage(touchableWithPreview, true);
     }
-    return fileComponent;
+    return (
+        <>
+            {fileComponent}
+            {PreviewLoadingModal}
+        </>
+    );
 };
 
 export default File;

@@ -76,7 +76,7 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
     const [saving, setSaving] = useState(false);
 
     // Use the same hook as chat window for consistent file preview behavior
-    const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
+    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(true);
 
     // 加载文档详情
     const loadDetail = useCallback(async () => {
@@ -557,6 +557,9 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
                     </Text>
                 )}
             </ScrollView>
+
+            {/* File preview loading modal */}
+            {PreviewLoadingModal}
         </SafeAreaView>
     );
 };

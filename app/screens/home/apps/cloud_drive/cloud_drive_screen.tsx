@@ -418,7 +418,7 @@ const CloudDriveScreen = () => {
     const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
     // File preview hook (same as chat window)
-    const {downloadAndPreviewFile} = useDownloadFileAndPreview(true);
+    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(true);
 
     // ── Init: load team ID ──
     useEffect(() => {
@@ -1386,6 +1386,9 @@ const CloudDriveScreen = () => {
                     onRefresh={onRefresh}
                 />
             )}
+
+            {/* File preview loading modal */}
+            {PreviewLoadingModal}
 
             {/* Create Folder Modal */}
             <Modal

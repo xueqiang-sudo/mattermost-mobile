@@ -39,6 +39,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         fileDownloadContainer: {
             flexDirection: 'row',
+            alignItems: 'center',
             marginTop: 3,
         },
         infoText: {
@@ -66,7 +67,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         statusText: {
             ...typography('Body', 75, 'Regular'),
-            marginTop: 2,
+            marginLeft: 8,
         },
         uploadingText: {
             color: changeOpacity(theme.centerChannelColor, 0.48),
@@ -85,28 +86,17 @@ const FileInfo = ({disabled, currentUserId, file, channelName, fillRemainingRow 
     // 智能截断文件名，保留扩展名（微信风格：中间省略，保留前后关键部分）
     const {name, ext} = truncateFileName(file.name.trim(), 30);
 
-    // 微信风格：文件状态指示
-    // 优先级：上传中 > 未下载 > 已下载（不显示）
+    // 微信风格：发送状态指示（仅显示发送中/对方发送中）
     const uploadStatus = (file as any)._uploadStatus as string | undefined;
-    const uploadProgress = (file as any)._uploadProgress as number | undefined;
-
-    // 判断是否同账号（post 作者是当前登录用户）
     const isSameAccount = Boolean(currentUserId && file.user_id === currentUserId);
 
     let statusText = '';
-    let statusStyle = style.uploadingText;
     if (uploadStatus === 'uploading') {
-        // 上传中状态：同账号显示"上传中"，不同账号显示"对方上传中"
         if (isSameAccount) {
-            statusText = intl.formatMessage({id: 'file.status.uploading', defaultMessage: '上传中'});
+            statusText = intl.formatMessage({id: 'file.status.uploading', defaultMessage: '发送中'});
         } else {
-            statusText = intl.formatMessage({id: 'file.status.peer_uploading', defaultMessage: '对方上传中'});
+            statusText = intl.formatMessage({id: 'file.status.peer_uploading', defaultMessage: '对方发送中'});
         }
-        statusStyle = style.uploadingText;
-    } else if (!file.localPath && !file.id?.startsWith('pending_')) {
-        // 上传完成但未下载到本地
-        statusText = intl.formatMessage({id: 'file.status.not_downloaded', defaultMessage: '未下载'});
-        statusStyle = style.notDownloadedText;
     }
 
     const content = (
@@ -132,12 +122,12 @@ const FileInfo = ({disabled, currentUserId, file, channelName, fillRemainingRow 
                 <Text style={style.infoText}>
                     {`${getFormattedFileSize(file.size)}`}
                 </Text>
+                {statusText ? (
+                    <Text style={[style.statusText, style.uploadingText]}>
+                        {statusText}
+                    </Text>
+                ) : null}
             </View>
-            {statusText ? (
-                <Text style={[style.statusText, statusStyle]}>
-                    {statusText}
-                </Text>
-            ) : null}
         </>
     );
 

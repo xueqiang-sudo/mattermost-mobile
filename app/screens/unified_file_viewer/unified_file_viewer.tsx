@@ -386,8 +386,9 @@ const UnifiedFileViewer = ({componentId, fileId, fileInfo}: Props) => {
     const downloadAndShowFile = useCallback(async (file: FileInfo) => {
         try {
             // Handle PDF preview (for Office files)
+            // ✅ 保留原始文件名用于显示（预览窗口标题显示 test.docx 而非 test.pdf）
             const fileToDownload = hasPdfPreview(file) && file.pdf_preview_id
-                ? {...file, id: file.pdf_preview_id, name: file.name.replace(/\.[^.]+$/, '.pdf'), extension: 'pdf', mime_type: 'application/pdf'}
+                ? {...file, id: file.pdf_preview_id, extension: 'pdf', mime_type: 'application/pdf'}
                 : file;
 
 

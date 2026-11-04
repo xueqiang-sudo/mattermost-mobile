@@ -17,6 +17,7 @@ type FileIconProps = {
     iconSize?: number;
     smallImage?: boolean;
     testID?: string;
+    opacity?: number;
 }
 
 const BLUE_ICON = '#338AFF';
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
 
 const FileIcon = ({
     backgroundColor, defaultImage = false, failed = false, file,
-    iconColor, iconSize = 48, smallImage = false, testID = 'file-icon',
+    iconColor, iconSize = 48, smallImage = false, testID = 'file-icon', opacity = 1,
 }: FileIconProps) => {
     const theme = useTheme();
     const getFileIconNameAndColor = () => {
@@ -80,7 +81,7 @@ const FileIcon = ({
 
     return (
         <View
-            style={[styles.fileIconWrapper, {backgroundColor: bgColor}]}
+            style={[styles.fileIconWrapper, {backgroundColor: bgColor, opacity}]}
             testID={testID}
         >
             <CompassIcon

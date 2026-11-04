@@ -18,7 +18,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import Reanimated, {useAnimatedStyle, useSharedValue} from 'react-native-reanimated';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -123,6 +123,9 @@ const SmartNotebookScreen = () => {
     const [searching, setSearching] = useState(false);
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Refresh flag (set when returning from note detail)
+    const needsRefresh = useRef(false);
+
     // Graph (list tab)
     const [graphEntities, setGraphEntities] = useState<GraphEntity[]>([]);
     const [graphRelations, setGraphRelations] = useState<GraphRelation[]>([]);
@@ -162,6 +165,21 @@ const SmartNotebookScreen = () => {
     useEffect(() => {
         loadNotes();
     }, [loadNotes]);
+
+    // Refresh notes list when screen comes into focus
+    // Only refresh if needsRefresh flag is set (after creating/editing a note)
+    useFocusEffect(
+        useCallback(() => {
+            if (needsRefresh.current && userId) {
+                needsRefresh.current = false;
+                if (searchQuery.trim()) {
+                    doSearch(searchQuery);
+                } else {
+                    loadNotes();
+                }
+            }
+        }, [userId, searchQuery, doSearch, loadNotes]),
+    );
 
     // ---- Search (debounced) ----
     const doSearch = useCallback(async (query: string) => {
@@ -206,6 +224,7 @@ const SmartNotebookScreen = () => {
 
     // ---- Open detail ----
     const openDetail = useCallback((item: SmartNoteSummary) => {
+        needsRefresh.current = true;
         navigation.navigate(Screens.SMART_NOTE_DETAIL, {
             noteId: item.id,
             noteTitle: item.title || '笔记详情',
@@ -330,6 +349,7 @@ const SmartNotebookScreen = () => {
 
     // ---- Create new note ----
     const onCreateNote = useCallback(() => {
+        needsRefresh.current = true;
         navigation.navigate(Screens.SMART_NOTE_DETAIL, {
             noteId: 'new',
             noteTitle: '',

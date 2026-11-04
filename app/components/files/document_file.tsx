@@ -24,9 +24,9 @@ type DocumentFileProps = {
     uploadStatus?: string;
 }
 
-const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColor, canDownloadFiles, disabled = false, enableSecureFilePreview, file}: DocumentFileProps, ref) => {
+const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColor, canDownloadFiles, disabled = false, enableSecureFilePreview, file, uploadStatus}: DocumentFileProps, ref) => {
     const intl = useIntl();
-    const {downloadAndPreviewFile} = useDownloadFileAndPreview(enableSecureFilePreview);
+    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(enableSecureFilePreview);
 
     // Directly expose the download/preview function instead of going through Document's ref chain.
     // This avoids the "undefined is not a function" error that occurred when the nested ref chain
@@ -47,23 +47,31 @@ const DocumentFile = forwardRef<DocumentRef, DocumentFileProps>(({backgroundColo
         },
     }), [canDownloadFiles, enableSecureFilePreview, downloadAndPreviewFile, file, intl]);
 
+    // 微信风格：发送中时图标变虚（opacity 0.5），完成后变实（opacity 1）
+    const isUploading = uploadStatus === 'uploading';
+    const iconOpacity = isUploading ? 0.5 : 1;
+
     const icon = (
         <FileIcon
             backgroundColor={backgroundColor}
             file={file}
+            opacity={iconOpacity}
         />
     );
 
     // Document component is still rendered for consistency, but we no longer rely on its ref
     return (
-        <Document
-            canDownloadFiles={canDownloadFiles}
-            enableSecureFilePreview={enableSecureFilePreview}
-            file={file}
-            downloadAndPreviewFile={downloadAndPreviewFile}
-        >
-            {icon}
-        </Document>
+        <>
+            <Document
+                canDownloadFiles={canDownloadFiles}
+                enableSecureFilePreview={enableSecureFilePreview}
+                file={file}
+                downloadAndPreviewFile={downloadAndPreviewFile}
+            >
+                {icon}
+            </Document>
+            {PreviewLoadingModal}
+        </>
     );
 });
 
