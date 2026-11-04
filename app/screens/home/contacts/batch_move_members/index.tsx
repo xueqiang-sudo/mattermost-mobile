@@ -1224,58 +1224,10 @@ const ContactsBatchMoveMembers = ({
 
         return (
             <SafeAreaView
-                edges={SAFE_AREA_EDGES}
-                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                edges={['bottom', 'left', 'right']}
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 testID='contacts.batch_move_members.screen'
             >
-                <View style={styles.header}>
-                    {showMemberBackArrow ? (
-                        <TouchableOpacity
-                            style={styles.headerBackWrap}
-                            onPress={handleBack}
-                            testID='contacts.batch_move.back'
-                        >
-                            <CompassIcon
-                                name='arrow-left'
-                                size={24}
-                                color={theme.sidebarText}
-                            />
-                        </TouchableOpacity>
-                    ) : (
-                        <View style={styles.headerBackWrap}/>
-                    )}
-                    <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>
-                            {intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'})}
-                        </Text>
-                        <Text
-                            style={styles.headerSubtitle}
-                            numberOfLines={1}
-                        >{subtitle}</Text>
-                    </View>
-                    {!isInsideSelectedDepartment && hasCurrentLevelItems && (
-                        <TouchableOpacity
-                            style={styles.headerSelectAllWrap}
-                            onPress={handleToggleSelectAll}
-                            testID='contacts.batch_move.select_all'
-                        >
-                            <Text style={styles.headerSelectAllText}>
-                                {allCurrentSelected? intl.formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'}): intl.formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                        style={styles.headerCloseWrap}
-                        onPress={handleClose}
-                        testID='contacts.batch_move.close'
-                    >
-                        <CompassIcon
-                            name='close'
-                            size={24}
-                            color={theme.sidebarText}
-                        />
-                    </TouchableOpacity>
-                </View>
                 {loading ? (
                     <View style={styles.loadingContainer}>
                         <Loading
@@ -1466,47 +1418,10 @@ const ContactsBatchMoveMembers = ({
 
     return (
         <SafeAreaView
-            edges={SAFE_AREA_EDGES}
-            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            edges={['bottom', 'left', 'right']}
+            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
             testID='contacts.batch_move_members.screen'
         >
-            <View style={styles.header}>
-                {showBackArrow ? (
-                    <TouchableOpacity
-                        style={styles.headerBackWrap}
-                        onPress={handleBack}
-                        testID='contacts.batch_move.back'
-                    >
-                        <CompassIcon
-                            name='arrow-left'
-                            size={24}
-                            color={theme.sidebarText}
-                        />
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.headerBackWrap}/>
-                )}
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'contacts.select_target_department', defaultMessage: 'Select target department'})}
-                    </Text>
-                    <Text
-                        style={styles.headerSubtitle}
-                        numberOfLines={1}
-                    >{subtitle}</Text>
-                </View>
-                <TouchableOpacity
-                    style={styles.headerCloseWrap}
-                    onPress={handleClose}
-                    testID='contacts.batch_move.close'
-                >
-                    <CompassIcon
-                        name='close'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
-            </View>
             {targetLoading ? (
                 <View style={styles.loadingContainer}>
                     <Loading

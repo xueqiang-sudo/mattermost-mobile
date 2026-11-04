@@ -550,44 +550,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
     }, [handleToggleManager, isCurrentUserOwner, ownerId, renderTags, selectedManagerIds, styles.checkbox, styles.checkboxChecked, styles.checkmark, styles.name, styles.row]);
 
     return (
-        <SafeAreaView edges={SAFE_AREA_EDGES} style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backBtn}
-                    onPress={handleCancel}
-                    testID={`${testIDPrefix}.back`}
-                >
-                    <CompassIcon
-                        name='arrow-left'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                    {isCurrentUserOwner ?
-                        intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}) :
-                        intl.formatMessage({id: 'contacts.manager_list', defaultMessage: '管理员列表'})
-                    }
-                </Text>
-                {isCurrentUserOwner ? (
-                    <TouchableOpacity
-                        style={styles.saveBtn}
-                        onPress={handleConfirm}
-                        disabled={!hasChanges || saving}
-                        testID={`${testIDPrefix}.confirm`}
-                    >
-                        <Text style={[styles.saveBtnText, (!hasChanges || saving) && styles.saveBtnTextDisabled]}>
-                            {saving ?
-                                intl.formatMessage({id: 'mobile.post.saving', defaultMessage: '保存中...'}) :
-                                intl.formatMessage({id: 'common.confirm', defaultMessage: '确认'})
-                            }
-                        </Text>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.saveBtn}/>
-                )}
-            </View>
-
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
             <View style={styles.searchWrap}>
                 <TextInput
                     value={searchQuery}

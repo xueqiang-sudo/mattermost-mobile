@@ -440,7 +440,7 @@ const ContactsManage = ({
             Screens.TEAM_MANAGER,
             title,
             {companyId},
-            {useBackIcon: true, topBar: {visible: false}},
+            {useBackIcon: true, topBar: {visible: true}},
         );
     }, [companyId, intl, isCurrentUserOwner]));
 
@@ -665,6 +665,8 @@ const ContactsManage = ({
                     text={currentDepartmentId == null ? intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}) : intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'})}
                     onPress={async () => {
                         await dismissBottomSheet();
+                        // 等待底部菜单完全关闭后再显示对话框
+                        await new Promise(resolve => setTimeout(resolve, 300));
                         if (currentDepartmentId == null) {
                             handleModifyEnterpriseName();
                         } else {
@@ -697,7 +699,7 @@ const ContactsManage = ({
                                 sourceDepartmentName: sourceName,
                                 onSuccess: refetch,
                             },
-                            {useBackIcon: true, topBar: {visible: false}},
+                            {useBackIcon: true, topBar: {visible: true}},
                         );
                     }}
                     testID='contacts.manage.more.batch_move'

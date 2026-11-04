@@ -127,16 +127,15 @@ export default function QuickActionsSheet({
     const maxFilesReached = fileCount >= maxFileCount;
 
     const wrapWithDismiss = useCallback((fn: () => void) => {
-        return () => {
-            void (async () => {
-                try {
-                    await onDismiss();
-                    // Wait for bottom sheet to fully dismiss before launching picker
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                } finally {
-                    fn();
-                }
-            })();
+        return async () => {
+            try {
+                await onDismiss();
+                // Wait for bottom sheet to fully dismiss before launching picker
+                await new Promise(resolve => setTimeout(resolve, 300));
+                fn();
+            } catch (error) {
+                console.error('wrapWithDismiss error:', error);
+            }
         };
     }, [onDismiss]);
 

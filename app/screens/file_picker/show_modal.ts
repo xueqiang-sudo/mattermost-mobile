@@ -4,9 +4,6 @@
 import {showModal, dismissModal} from '@screens/navigation';
 import {Screens} from '@constants';
 import {debugLog} from '@store/debug_log';
-import CompassIcon from '@components/compass_icon';
-import {getThemeFromState} from '@context/theme';
-import {Platform} from 'react-native';
 import Navigation from 'react-native-navigation';
 
 import type {FileInfo} from '@mattermost/types/files';
@@ -29,10 +26,6 @@ const showFullscreenFilePickerModal = (
         title,
         photoMode,
     };
-
-    const theme = getThemeFromState();
-    const iconName = Platform.select({android: 'arrow-left', ios: 'arrow-back-ios', default: 'arrow-left'});
-    const closeButtonIcon = CompassIcon.getImageSourceSync(iconName, 24, theme.sidebarHeaderTextColor);
 
     // 注册关闭按钮监听器
     const listener = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
