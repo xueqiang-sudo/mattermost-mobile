@@ -459,6 +459,17 @@ const ContactsManage = ({
     }, [manageStack, intl]));
 
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile) => {
+        // 【关键修复】构建 plain object 避免 passProps 序列化丢失
+        if (!employee || !employee.id) {
+            return;
+        }
+        const safeEmployee: UserProfile = {
+            ...employee,
+            id: employee.id,
+            username: employee.username || '',
+            email: employee.email || '',
+            nickname: employee.nickname || '',
+        };
         const title = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const deptName = currentDepartmentName ?? intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
         const currentBreadcrumb = currentLevel?.breadcrumb ?? [];
@@ -466,9 +477,9 @@ const ContactsManage = ({
         goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
-            `close-employee-${employee.id}`,
+            `close-employee-${safeEmployee.id}`,
             {
-                employee,
+                employee: safeEmployee,
                 departmentName: deptName,
                 departmentParentPath,
                 companyName,
@@ -476,7 +487,7 @@ const ContactsManage = ({
                 companyId,
                 currentUserId,
                 fromManage: true,
-                closeButtonId: `close-employee-${employee.id}`,
+                closeButtonId: `close-employee-${safeEmployee.id}`,
             },
             {useBackIcon: true},
         );

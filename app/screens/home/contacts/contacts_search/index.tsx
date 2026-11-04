@@ -275,18 +275,29 @@ const ContactsSearchContent = ({
 
     const handleEmployeePress = useCallback((item: TeamMemberSearchItem) => {
         const emp = item.employee;
+        // 【关键修复】构建 plain object 避免 passProps 序列化丢失
+        if (!emp || !emp.id) {
+            return;
+        }
+        const safeEmployee: UserProfile = {
+            ...emp,
+            id: emp.id,
+            username: emp.username || '',
+            email: emp.email || '',
+            nickname: emp.nickname || '',
+        };
         const pathParts = cascadePathParts(item, defaultDepartmentLabel);
         const fallbackDepartmentName = departmentName ? normalizeDepartmentName(departmentName, defaultDepartmentLabel) : undefined;
         const leafDepartment = pathParts[pathParts.length - 1] || fallbackDepartmentName;
         const parentPath = pathParts.slice(0, -1).join('/');
         const titleProfile = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
-        const cid = `close-employee-search-${emp.id}`;
+        const cid = `close-employee-search-${safeEmployee.id}`;
         goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             titleProfile,
             cid,
             {
-                employee: emp,
+                employee: safeEmployee,
                 departmentName: leafDepartment,
                 departmentParentPath: parentPath,
                 companyName,

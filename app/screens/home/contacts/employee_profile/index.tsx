@@ -34,6 +34,7 @@ import {DEPARTMENT_PATH_DISPLAY_MAX_LENGTH, formatPathForDisplay} from '@utils/d
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {debugLog} from '@store/debug_log';
 
 import type {MMDepartment, MMEmployeeContactType, TeamBusinessRole, BusinessRoleDef} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -372,6 +373,15 @@ const ContactsEmployeeProfile = ({
     relationType,
     relationSource,
 }: Props) => {
+    // 【调试】记录传入的 employee
+    debugLog('[Contacts] EmployeeProfile props', {
+        hasEmployee: Boolean(employee),
+        employeeId: employee?.id,
+        employeeUsername: employee?.username,
+        employeeKeys: employee ? Object.keys(employee) : [],
+        rawEmployee: employee,
+    });
+
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();

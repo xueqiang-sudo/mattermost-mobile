@@ -45,6 +45,7 @@ import {showSnackBar} from '@utils/snack_bar';
 import {mergeNavigationOptions} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {debugLog} from '@store/debug_log';
 
 import type {MMDepartment} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -600,18 +601,51 @@ const ContactsDepartmentDetail = ({
     const handleEmployeePress = usePreventDoubleTap(useCallback((employee: UserProfile) => {
         const title = intl.formatMessage({id: 'contacts.employee_info', defaultMessage: 'Employee Info'});
         const departmentParentPath = baseBreadcrumb.length > 1? baseBreadcrumb.slice(0, -1).join('/'): undefined;
+
+        // 【关键修复】构建 plain object 避免 react-native-navigation passProps 序列化丢失
+        // 参考 external_contacts.tsx 的 safeEmployee 做法
+        if (!employee || !employee.id) {
+            debugLog('[Contacts] handleEmployeePress: invalid employee', {employee});
+            return;
+        }
+        const safeEmployee: UserProfile = {
+            id: employee.id,
+            username: employee.username || '',
+            email: employee.email || '',
+            first_name: employee.first_name || '',
+            last_name: employee.last_name || '',
+            nickname: employee.nickname || '',
+            position: employee.position || '',
+            phone: employee.phone || '',
+            create_at: employee.create_at || 0,
+            update_at: employee.update_at || 0,
+            delete_at: employee.delete_at || 0,
+            roles: employee.roles || '',
+            locale: employee.locale || '',
+            timezone: employee.timezone || {},
+            auth_service: employee.auth_service || '',
+            is_bot: employee.is_bot || false,
+            // 透传其他字段（展开运算符保留未列举字段）
+            ...employee,
+        };
+        debugLog('[Contacts] handleEmployeePress', {
+            id: safeEmployee.id,
+            username: safeEmployee.username,
+            keys: Object.keys(safeEmployee),
+        });
+
         goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
-            `close-employee-${employee.id}`,
+            `close-employee-${safeEmployee.id}`,
             {
-                employee,
+                employee: safeEmployee,
                 departmentName: departmentId != null ? departmentName : undefined,
                 departmentParentPath,
                 companyName,
                 companyId,
                 fromManage: manageMode,
-                closeButtonId: `close-employee-${employee.id}`,
+                closeButtonId: `close-employee-${safeEmployee.id}`,
             },
             {useBackIcon: true},
         );

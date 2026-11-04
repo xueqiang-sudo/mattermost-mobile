@@ -274,6 +274,8 @@ const ContactsDepartmentAddMembersScreen = ({
         try {
             // Fetch all departments
             const deptRes = await fetchDepartmentsByTeam(serverUrl, companyId, {perPage: 10000});
+            // 【关键修复】同时获取默认部门 ID（根部门），确保根部门成员也被加载
+            const defaultDeptRes = await fetchDefaultDepartmentId(serverUrl, companyId);
             if (!mounted.current) {
                 return;
             }
@@ -284,6 +286,23 @@ const ContactsDepartmentAddMembersScreen = ({
             }
 
             const allDepartments = deptRes.data;
+            const defaultDeptId = defaultDeptRes.data;
+
+            // 【关键修复】如果默认部门（根部门）不在 allDepartments 中，构造一个虚拟部门对象加入列表
+            // 这样根部门的成员才能被显示出来供用户选择
+            const hasDefaultDept = defaultDeptId != null && allDepartments.some((d) => d.id === defaultDeptId);
+            if (defaultDeptId != null && !hasDefaultDept) {
+                allDepartments.unshift({
+                    id: defaultDeptId,
+                    name: '根部门',
+                    team_id: companyId,
+                    parent_id: null,
+                    create_at: 0,
+                    update_at: 0,
+                    delete_at: 0,
+                    description: '',
+                });
+            }
 
             // Determine which departments to fetch members from
             let sourceDepartments: MMDepartment[];
@@ -291,7 +310,7 @@ const ContactsDepartmentAddMembersScreen = ({
                 // Root: show all sub-department members (exclude default department)
                 sourceDepartments = allDepartments.filter((d) => d.id !== effectiveTargetId);
             } else {
-                // Specific department: show all departments except current
+                // Specific department: show all departments except current (including default department)
                 sourceDepartments = allDepartments.filter((d) => d.id !== targetDepartmentId);
             }
 
@@ -309,12 +328,18 @@ const ContactsDepartmentAddMembersScreen = ({
                 }
             }
 
-            // Fetch members from source departments
-            for (const dept of sourceDepartments) {
+            // Fetch members from source departments (in parallel for better performance)
+            const fetchPromises = sourceDepartments.map(async (dept) => {
                 const res = await fetchDepartmentEmployees(serverUrl, companyId, dept.id, {perPage: 10000});
-                if (!mounted.current) {
-                    return;
-                }
+                return {dept, res};
+            });
+
+            const results = await Promise.all(fetchPromises);
+            if (!mounted.current) {
+                return;
+            }
+
+            for (const {dept, res} of results) {
                 if (res.data) {
                     for (const emp of res.data) {
                         // Skip if already in target department
