@@ -22,7 +22,7 @@ import FilesTab from './tabs/files_tab';
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {FileInfo} from '@mattermost/types/files';
 import type {Asset} from 'react-native-image-picker';
-import type {Theme} from '@mattermost/types/themes';
+import type {Theme} from '@typings/api/preferences';
 
 type TabKey = 'chat' | 'photo_album' | 'files';
 

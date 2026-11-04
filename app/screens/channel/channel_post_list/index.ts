@@ -7,7 +7,8 @@ import React from 'react';
 import {combineLatest, of as of$} from 'rxjs';
 import {switchMap, distinctUntilChanged} from 'rxjs/operators';
 
-import {MM_TABLES, Preferences} from '@constants';
+import {MM_TABLES} from '@constants/database';
+import {Preferences} from '@constants';
 import {getAdvanceSettingPreferenceAsBool} from '@helpers/api/preference';
 import {observeMyChannel, observeChannelSettings} from '@queries/servers/channel';
 import {queryPostsBetween, queryPostsInChannel} from '@queries/servers/post';
