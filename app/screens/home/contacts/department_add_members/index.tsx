@@ -69,6 +69,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         width: 40,
         flexShrink: 0,
     },
+    headerConfirmBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerConfirmText: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.sidebarHeaderTextColor,
+    },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -532,33 +542,77 @@ const ContactsDepartmentAddMembersScreen = ({
                 <Text style={styles.headerTitle} numberOfLines={1}>
                     {intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
                 </Text>
-                <View style={styles.headerPlaceholder}/>
-            </View>
-            <View style={styles.searchContainer}>
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder={intl.formatMessage({id: 'contacts.search.placeholder', defaultMessage: 'Search members'})}
-                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    autoCapitalize='none'
-                    autoCorrect={false}
-                    testID='department_add_members.search'
-                />
-                {filteredMembers.length > 0 && (
+                {members.length > 0 && selectedIds.size > 0 ? (
                     <TouchableOpacity
-                        style={styles.selectAllWrap}
-                        onPress={toggleSelectAll}
-                        testID='department_add_members.select_all'
+                        style={styles.headerConfirmBtn}
+                        onPress={handleConfirm}
+                        disabled={moving || effectiveTargetId == null}
+                        testID='department_add_members.confirm'
                     >
-                        <Text style={styles.selectAllText}>
-                            {allSelected
-                                ? intl.formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'})
-                                : intl.formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})}
+                        <Text style={styles.headerConfirmText}>
+                            {moving
+                                ? intl.formatMessage({id: 'contacts.moving', defaultMessage: 'Moving...'})
+                                : intl.formatMessage({id: 'common.confirm_with_count', defaultMessage: '确定({count})'}, {count: selectedIds.size})}
                         </Text>
                     </TouchableOpacity>
+                ) : (
+                    <View style={styles.headerPlaceholder}/>
                 )}
             </View>
+            {!loading && members.length === 0 ? (
+                <View style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}>
+                    <Text style={styles.emptyMessage}>
+                        {intl.formatMessage({id: 'contacts.no_members_to_add', defaultMessage: '无成员可以添加'})}
+                    </Text>
+                </View>
+            ) : (
+                <>
+                    <View style={styles.searchContainer}>
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder={intl.formatMessage({id: 'contacts.search.nickname_placeholder', defaultMessage: '搜索昵称'})}
+                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.4)}
+                            value={searchText}
+                            onChangeText={setSearchText}
+                            autoCapitalize='none'
+                            autoCorrect={false}
+                            testID='department_add_members.search'
+                        />
+                        {filteredMembers.length > 0 && (
+                            <TouchableOpacity
+                                style={styles.selectAllWrap}
+                                onPress={toggleSelectAll}
+                                testID='department_add_members.select_all'
+                            >
+                                <Text style={styles.selectAllText}>
+                                    {allSelected
+                                        ? intl.formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'})
+                                        : intl.formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <Loading color={theme.centerChannelColor} size='small'/>
+                        </View>
+                    ) : filteredMembers.length === 0 ? (
+                        <View style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}>
+                            <Text style={styles.emptyMessage}>
+                                {intl.formatMessage({id: 'contacts.no_members', defaultMessage: 'No members'})}
+                            </Text>
+                        </View>
+                    ) : (
+                        <FlatList
+                            style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
+                            contentContainerStyle={{paddingBottom: 24}}
+                            data={flatListData}
+                            renderItem={renderItem}
+                            keyExtractor={getKey}
+                            showsVerticalScrollIndicator={false}
+                        />
+                    )}
+                </>
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <Loading color={theme.centerChannelColor} size='small'/>
@@ -579,52 +633,8 @@ const ContactsDepartmentAddMembersScreen = ({
                     showsVerticalScrollIndicator={false}
                 />
             )}
-            <View style={styles.bottomBar}>
-                {selectedIds.size > 0 && (
-                    <View style={styles.bottomBarChipsWrap}>
-                        <FlatList
-                            horizontal={true}
-                            showsHorizontalScrollIndicator={true}
-                            data={members.filter((m) => selectedIds.has(m.employee.id))}
-                            renderItem={({item}) => (
-                                <View style={styles.selectedChip}>
-                                    <View style={styles.selectedChipIcon}>
-                                        <CompassIcon name='account-outline' size={14} color={theme.linkColor}/>
-                                    </View>
-                                    <Text style={styles.selectedChipText}>
-                                        {getContactListDisplayName(item.employee)}
-                                    </Text>
-                                </View>
-                            )}
-                            keyExtractor={(item) => `chip-${item.employee.id}`}
-                            contentContainerStyle={styles.bottomBarChipsScroll}
-                            ItemSeparatorComponent={() => <View style={{width: 8}}/>}
-                        />
-                    </View>
-                )}
-                <Text style={styles.bottomBarSummary}>
-                    {intl.formatMessage(
-                        {id: 'contacts.selected_count', defaultMessage: '{count} member(s) selected'},
-                        {count: selectedIds.size},
-                    )}
-                </Text>
-                <TouchableOpacity
-                    style={[
-                        styles.bottomButton,
-                        (selectedIds.size === 0 || moving || effectiveTargetId == null) && styles.bottomButtonDisabled,
-                    ]}
-                    onPress={handleConfirm}
-                    disabled={selectedIds.size === 0 || moving || effectiveTargetId == null}
-                    activeOpacity={0.8}
-                    testID='department_add_members.confirm'
-                >
-                    <Text style={styles.bottomButtonText}>
-                        {moving
-                            ? intl.formatMessage({id: 'contacts.moving', defaultMessage: 'Moving...'})
-                            : intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+                    </>
+            )}
         </SafeAreaView>
     );
 };

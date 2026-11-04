@@ -15,7 +15,7 @@ import {searchContactEmployees} from '@actions/remote/contact_new';
 import {setTeamManagerRole} from '@actions/remote/team';
 import {fetchTeamManagers} from '@actions/remote/team';
 import NetworkManager from '@managers/network_manager';
-import {dismissModal} from '@screens/navigation';
+import {dismissModal, popTopScreen} from '@screens/navigation';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -413,13 +413,6 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
     }, [currentUserId, intl, ownerId, selectedManagerIds, styles.ownerTag, styles.ownerTagText, styles.selfTag, styles.selfTagText, styles.tag, styles.tagText, styles.tagsWrap]);
 
     const handleToggleManager = useCallback((userId: string) => {
-        if (!isCurrentUserOwner) {
-            return;
-        }
-        // Owner cannot be removed from managers
-        if (ownerId && userId === ownerId && selectedManagerIds.has(userId)) {
-            return;
-        }
         setSelectedManagerIds((prev) => {
             const next = new Set(prev);
             if (next.has(userId)) {
@@ -429,10 +422,10 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
             }
             return next;
         });
-    }, [isCurrentUserOwner, ownerId, selectedManagerIds]);
+    }, []);
 
     const handleConfirm = useCallback(async () => {
-        if (!serverUrl || !isCurrentUserOwner || !hasChanges) {
+        if (!serverUrl || !hasChanges || saving) {
             return;
         }
         setSaving(true);
@@ -451,18 +444,6 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
             }
         }
 
-        const client = NetworkManager.getClient(serverUrl);
-        const allUserIds = Array.from(new Set([...toAdd, ...toRemove, ...Array.from(selectedManagerIds)]));
-        let users: UserProfile[] = [];
-        if (allUserIds.length > 0) {
-            try {
-                users = await client.getProfilesByIds(allUserIds);
-            } catch {
-                // no-op
-            }
-        }
-        const userMap = new Map(users.map((u) => [u.id, u]));
-
         let hasError = false;
 
         // Add new managers
@@ -473,7 +454,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
             }
         }
 
-        // Remove managers
+        // Remove managers (set to regular member)
         for (const userId of toRemove) {
             const result = await setTeamManagerRole(serverUrl, companyId, userId, false);
             if (result.error) {
@@ -485,20 +466,20 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
 
         if (hasError) {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}),
+                intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'}),
                 intl.formatMessage({id: 'contacts.manager_update_failed', defaultMessage: '更新管理员角色失败，请重试。'}),
             );
+        } else {
+            setInitialManagerIds(new Set(selectedManagerIds));
+            onChanged?.();
+            handleClose();
         }
-
-        setInitialManagerIds(new Set(selectedManagerIds));
-        onChanged?.();
-        handleClose();
-    }, [companyId, hasChanges, initialManagerIds, intl, isCurrentUserOwner, onChanged, handleClose, selectedManagerIds, serverUrl]);
+    }, [companyId, hasChanges, initialManagerIds, intl, onChanged, handleClose, saving, selectedManagerIds, serverUrl]);
 
     const handleCancel = useCallback(() => {
         if (hasChanges) {
             Alert.alert(
-                intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}),
+                intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'}),
                 intl.formatMessage({id: 'contacts.manager_discard_changes', defaultMessage: '有未保存的更改，确定要放弃吗？'}),
                 [
                     {
@@ -519,21 +500,16 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
 
     const renderItem = useCallback(({item}: {item: UserProfile}) => {
         const isSelected = selectedManagerIds.has(item.id);
-        const isOwner = ownerId === item.id;
-        const canToggle = isCurrentUserOwner && !isOwner;
 
         return (
             <TouchableOpacity
                 style={styles.row}
-                onPress={() => canToggle && handleToggleManager(item.id)}
-                disabled={!canToggle}
-                activeOpacity={canToggle ? 0.7 : 1}
+                onPress={() => handleToggleManager(item.id)}
+                activeOpacity={0.7}
             >
-                {isCurrentUserOwner ? (
-                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                        {isSelected ? <View style={styles.checkmark}/> : null}
-                    </View>
-                ) : null}
+                <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                    {isSelected ? <View style={styles.checkmark}/> : null}
+                </View>
                 <ContactAvatar
                     employee={item}
                     size={36}
@@ -547,10 +523,37 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
                 {renderTags(item.id)}
             </TouchableOpacity>
         );
-    }, [handleToggleManager, isCurrentUserOwner, ownerId, renderTags, selectedManagerIds, styles.checkbox, styles.checkboxChecked, styles.checkmark, styles.name, styles.row]);
+    }, [handleToggleManager, renderTags, selectedManagerIds, styles.checkbox, styles.checkboxChecked, styles.checkmark, styles.name, styles.row]);
 
     return (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.backBtn}
+                    onPress={handleCancel}
+                >
+                    <CompassIcon name='arrow-left' size={24}/>
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>
+                    {intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'})}
+                </Text>
+                {hasChanges ? (
+                    <TouchableOpacity
+                        style={styles.saveBtn}
+                        onPress={handleConfirm}
+                        disabled={saving}
+                    >
+                        <Text style={[styles.saveBtnText, saving && styles.saveBtnTextDisabled]}>
+                            {saving
+                                ? intl.formatMessage({id: 'common.saving', defaultMessage: '保存中...'})
+                                : intl.formatMessage({id: 'common.confirm', defaultMessage: '确定'})}
+                        </Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.saveBtn}/>
+                )}
+            </View>
+
             <View style={styles.searchWrap}>
                 <TextInput
                     value={searchQuery}
@@ -581,7 +584,7 @@ const TeamManagerScreen = ({componentId, companyId, onBack, onChanged, excludeUs
                 <Text style={styles.hint}>
                     {searchQuery.trim() ?
                         intl.formatMessage({id: 'contacts.transfer_no_members', defaultMessage: '没有匹配的成员'}) :
-                        intl.formatMessage({id: 'contacts.current_managers_empty', defaultMessage: '暂无成员'})
+                        intl.formatMessage({id: 'contacts.no_members', defaultMessage: '暂无成员'})
                     }
                 </Text>
             ) : (

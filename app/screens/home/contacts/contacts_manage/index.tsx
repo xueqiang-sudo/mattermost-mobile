@@ -433,16 +433,14 @@ const ContactsManage = ({
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
-        const title = isCurrentUserOwner ?
-            intl.formatMessage({id: 'contacts.manager_management', defaultMessage: '管理员管理'}) :
-            intl.formatMessage({id: 'contacts.manager_list', defaultMessage: '管理员列表'});
+        const title = intl.formatMessage({id: 'contacts.manager_settings', defaultMessage: '管理员设置'});
         goToScreen(
             Screens.TEAM_MANAGER,
             title,
             {companyId},
             {useBackIcon: true, topBar: {visible: true}},
         );
-    }, [companyId, intl, isCurrentUserOwner]));
+    }, [companyId, intl]));
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: MMDepartment) => {
         const top = manageStack[manageStack.length - 1];

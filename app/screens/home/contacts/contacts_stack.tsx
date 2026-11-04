@@ -1,9 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
+import {useFocusEffect, useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import {createStackNavigator, type StackNavigationProp} from '@react-navigation/stack';
-import React, {createContext, useContext} from 'react';
+import React, {createContext, useContext, useState, useCallback, useRef} from 'react';
 import {useIntl} from 'react-intl';
 
 import {Screens} from '@constants';
@@ -38,12 +38,29 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
     const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
     const params = route.params;
+    const [refreshKey, setRefreshKey] = useState(0);
+    const isFirstFocus = useRef(true);
+
+    // 监听页面聚焦事件，添加成员返回后刷新数据
+    useFocusEffect(
+        useCallback(() => {
+            // 第一次聚焦时不刷新（初始加载）
+            if (isFirstFocus.current) {
+                isFirstFocus.current = false;
+                return;
+            }
+            // 后续聚焦时刷新数据（从添加成员页面返回）
+            setRefreshKey((prev) => prev + 1);
+        }, []),
+    );
+
     if (!params) {
         return null;
     }
     const goBack = navigation.goBack.bind(navigation);
     return (
         <ContactsDepartmentDetail
+            key={refreshKey}
             componentId={Screens.CONTACTS_DEPARTMENT_DETAIL}
             rnnHomeComponentId={rnnHomeComponentId}
             departmentId={params.departmentId}

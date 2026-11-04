@@ -1358,62 +1358,6 @@ const ContactsDepartmentDetail = ({
                     </View>
                 </View>
             ) : null}
-            {departmentId !== null && (
-            <View style={styles.headerRow}>
-                <ScrollView
-                    ref={breadcrumbScrollRef}
-                    horizontal={true}
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.breadcrumbScroll}
-                    contentContainerStyle={styles.breadcrumbRow}
-                    keyboardShouldPersistTaps='handled'
-                    onContentSizeChange={scrollBreadcrumbToEnd}
-                >
-                    {pathView.items.map((pathItem, idx) => (
-                        <React.Fragment key={idx}>
-                            {idx > 0 && (
-                                <Text style={styles.breadcrumbSeparator}>
-                                    {intl.formatMessage({id: 'contacts.breadcrumb_separator', defaultMessage: '>'})}
-                                </Text>
-                            )}
-                            {pathItem.type === 'segment' ? (
-                                <TouchableOpacity
-                                    style={styles.breadcrumbLink}
-                                    onPress={() => handleBreadcrumbPress(pathItem.originalIndex)}
-                                    activeOpacity={0.7}
-                                    disabled={pathItem.originalIndex === depth}
-                                    testID={`contacts.department_detail.breadcrumb.${pathItem.originalIndex}`}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.breadcrumbText,
-                                            pathItem.originalIndex === depth && {color: theme.linkColor},
-                                        ]}
-                                        numberOfLines={1}
-                                    >
-                                        {pathItem.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ) : (
-                                <TouchableOpacity
-                                    style={styles.breadcrumbEllipsis}
-                                    onPress={handleEllipsisPress}
-                                    activeOpacity={0.7}
-                                    testID='contacts.department_detail.breadcrumb.ellipsis'
-                                >
-                                    <Text
-                                        style={styles.breadcrumbEllipsisText}
-                                        numberOfLines={1}
-                                    >
-                                        {pathItem.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                        </React.Fragment>
-                    ))}
-                </ScrollView>
-            </View>
-            )}
             <ScrollView
                 style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 contentContainerStyle={{paddingBottom: 24}}
