@@ -17,7 +17,7 @@ const Contacts = ({isFocused, theme}: Props) => {
     return (
         <View testID='contacts-container'>
             <CompassIcon
-                name='sitemap'
+                name='account-multiple-outline'
                 size={BOTTOM_TAB_ICON_SIZE}
                 color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY)}
                 testID='contacts-icon'

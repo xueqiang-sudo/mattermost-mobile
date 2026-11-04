@@ -23,7 +23,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import DraftEditPostUploadManager from '@managers/draft_upload_manager';
 import SecurityManager from '@managers/security_manager';
 import PostError from '@screens/edit_post/post_error';
-import {buildNavigationButton, dismissModal, setButtons} from '@screens/navigation';
+import {buildNavigationButton, popTopScreen, setButtons} from '@screens/navigation';
 import {fileMaxWarning, fileSizeWarning, uploadDisabledWarning} from '@utils/file';
 import {changeOpacity} from '@utils/theme';
 
@@ -144,7 +144,7 @@ const EditPost = ({
 
     const onClose = useCallback(() => {
         Keyboard.dismiss();
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     const onTextSelectionChange = useCallback((curPos: number = cursorPosition) => {

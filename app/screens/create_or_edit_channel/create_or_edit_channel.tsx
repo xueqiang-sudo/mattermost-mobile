@@ -14,7 +14,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {buildNavigationButton, dismissModal, popTopScreen, setButtons} from '@screens/navigation';
+import {buildNavigationButton, popTopScreen, setButtons} from '@screens/navigation';
 import {validateDisplayName} from '@utils/channel';
 import {changeOpacity} from '@utils/theme';
 
@@ -31,7 +31,6 @@ type Props = {
     channel?: ChannelModel;
     channelInfo?: ChannelInfoModel;
     headerOnly?: boolean;
-    isModal: boolean;
     team?: TeamModel;
 }
 
@@ -55,13 +54,9 @@ interface RequestAction {
     error?: string;
 }
 
-const close = (componentId: AvailableScreens, isModal: boolean): void => {
+const close = (componentId: AvailableScreens): void => {
     Keyboard.dismiss();
-    if (isModal) {
-        dismissModal({componentId});
-    } else {
-        popTopScreen(componentId);
-    }
+    popTopScreen(componentId);
 };
 
 const isDirect = (channel?: ChannelModel): boolean => {
@@ -83,7 +78,6 @@ const CreateOrEditChannel = ({
     channel,
     channelInfo,
     headerOnly,
-    isModal,
     team,
 }: Props) => {
     const intl = useIntl();
@@ -153,13 +147,9 @@ const CreateOrEditChannel = ({
     }, [rightButton, componentId]);
 
     useEffect(() => {
-        if (isModal) {
-            const icon = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-            setButtons(componentId, {
-                leftButtons: [makeCloseButton(icon)],
-            });
-        }
-    }, [theme, isModal]);
+        // 统一使用返回箭头，不再需要设置关闭按钮
+        // 如果需要自定义按钮，可以在这里设置
+    }, [theme]);
 
     // 企业总群（默认频道）：只读名称展示团队/企业显示名，而非频道 display_name（如「公共频道」）
     useEffect(() => {
@@ -225,9 +215,9 @@ const CreateOrEditChannel = ({
         }
 
         dispatch({type: RequestActions.COMPLETE});
-        close(componentId, isModal);
+        close(componentId);
         switchToChannelById(serverUrl, createdChannel.channel!.id, createdChannel.channel!.team_id);
-    }, [serverUrl, type, displayName, header, isModal, purpose, isValidDisplayName, componentId]);
+    }, [serverUrl, type, displayName, header, purpose, isValidDisplayName, componentId]);
 
     const onUpdateChannel = useCallback(async () => {
         if (!channel) {
@@ -268,12 +258,12 @@ const CreateOrEditChannel = ({
             return;
         }
         dispatch({type: RequestActions.COMPLETE});
-        close(componentId, isModal);
-    }, [channel, componentId, displayName, header, isEnterpriseDefaultOpen, isModal, purpose, isValidDisplayName, serverUrl]);
+        close(componentId);
+    }, [channel, componentId, displayName, header, isEnterpriseDefaultOpen, purpose, isValidDisplayName, serverUrl]);
 
     const handleClose = useCallback(() => {
-        close(componentId, isModal);
-    }, [isModal]);
+        close(componentId);
+    }, [componentId]);
 
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, handleClose, [handleClose]);
     useNavButtonPressed(CREATE_BUTTON_ID, componentId, onCreateChannel, [onCreateChannel]);

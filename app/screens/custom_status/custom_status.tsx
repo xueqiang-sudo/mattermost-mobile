@@ -21,7 +21,7 @@ import {useIsTablet} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, goToScreen, openAsBottomSheet, showModal} from '@screens/navigation';
+import {goToScreen, openAsBottomSheet, popTopScreen} from '@screens/navigation';
 import {getCurrentMomentForTimezone, getRoundedTime} from '@utils/helpers';
 import {logDebug} from '@utils/log';
 import {mergeNavigationOptions} from '@utils/navigation';
@@ -153,7 +153,7 @@ const dismissModalAndKeyboard = (isTablet: boolean, options?: Options & { compon
     if (isTablet) {
         DeviceEventEmitter.emit(Events.ACCOUNT_SELECT_TABLET_VIEW, '');
     } else {
-        dismissModal(options);
+        popTopScreen(options?.componentId);
     }
     Keyboard.dismiss();
 };
@@ -243,11 +243,8 @@ const CustomStatus = ({
             closeButtonId: 'close-custom-status',
         };
 
-        if (isTablet) {
-            showModal(screen, title, passProps);
-        } else {
-            goToScreen(screen, title, passProps);
-        }
+        // 统一使用 goToScreen (Push) 导航
+        goToScreen(screen, title, passProps);
     }, [intl, theme, isTablet, newStatus.duration, handleClearAfterClick]);
 
     const handleRecentCustomStatusSuggestionClick = useCallback((status: UserCustomStatus) => {

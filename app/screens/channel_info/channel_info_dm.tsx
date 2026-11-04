@@ -16,7 +16,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen} from '@screens/navigation';
+import {dismissAllModalsAndPopToRoot, goToScreen, popTopScreen} from '@screens/navigation';
 import {displayUsername} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -112,14 +112,14 @@ const ChannelInfoDM = ({
     const displayName = displayUsername(dmUser);
 
     const close = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
 
     const handleAddPeople = useCallback(async () => {
-        await dismissModal({componentId});
+        await popTopScreen(componentId);
         await dismissAllModalsAndPopToRoot();
         const title = intl.formatMessage({id: 'more_direct_channels.title', defaultMessage: 'Direct Messages'});
         goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {channelId});

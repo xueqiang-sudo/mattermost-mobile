@@ -23,7 +23,7 @@ import {goToCreateQuickChecklist, goToPlaybookRun, goToPlaybookRuns} from '@play
 import {type BotInfo, getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import ChannelAnnouncementBar from '@screens/channel/header/channel_announcement_bar';
 import ChannelBanner from '@screens/channel/header/channel_banner';
-import {bottomSheet, popTopScreen, showModal} from '@screens/navigation';
+import {bottomSheet, goToScreen, popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import {isTypeDMorGM, usesDiscussionGroupChannelCopy} from '@utils/channel';
 import {bottomSheetSnapPoint} from '@utils/helpers';
@@ -170,20 +170,9 @@ const ChannelHeader = ({
             ? intl.formatMessage({id: 'screens.channel_info', defaultMessage: 'Channel info'})
             : intl.formatMessage({id: 'screens.group_info', defaultMessage: 'Group info'});
 
-        const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-        const closeButtonId = 'close-channel-info';
-
-        const options = {
-            topBar: {
-                leftButtons: [{
-                    id: closeButtonId,
-                    icon: closeButton,
-                    testID: 'close.channel_info.button',
-                }],
-            },
-        };
-        showModal(Screens.CHANNEL_INFO, title, {channelId, closeButtonId}, options);
-    }), [channelId, channelName, channelType, intl, theme]));
+        // 使用 goToScreen (Push) 替代 showModal，统一为右→左滑入导航
+        goToScreen(Screens.CHANNEL_INFO, title, {channelId});
+    }), [channelId, channelName, channelType, intl]));
 
     const openBotChat = useCallback(async (bot: BotInfo) => {
         try {
@@ -253,24 +242,12 @@ const ChannelHeader = ({
 
     const openConsultation = useCallback(() => {
         const title = intl.formatMessage({id: 'consultation.title', defaultMessage: 'Consult Expert'});
-        showModal(Screens.CONSULTATION_PANEL, title, {channelId, teamId}, {
-            topBar: {
-                leftButtons: [{
-                    id: 'close-consultation-panel',
-                    text: intl.formatMessage({id: 'common.close', defaultMessage: 'Close'}),
-                }],
-            },
-        });
+        goToScreen(Screens.CONSULTATION_PANEL, title, {channelId, teamId});
     }, [channelId, teamId, intl]);
 
     const openAIAssistant = useCallback(() => {
-        const closeButtonId = 'close-ai-assistant-panel';
-        const options = {
-            topBar: {
-                visible: false,
-            },
-        };
-        showModal(Screens.AI_ASSISTANT_PANEL, '', {channelId, teamId, closeButtonId}, options);
+        const title = '';  // AI Assistant panel 不显示标题栏
+        goToScreen(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId});
     }, [channelId, teamId]);
 
     const {openPlusMenu} = usePlusMenu();

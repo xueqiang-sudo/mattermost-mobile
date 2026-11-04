@@ -264,9 +264,10 @@ const ChannelIcon = ({
         );
     } else if (type === General.OPEN_CHANNEL) {
         const isTownSquare = name === General.DEFAULT_CHANNEL;
-        if (channelId && listModalAvatar) {
-            const boxSize = LIST_MODAL_AVATAR_SIZE;
-            const boxRadius = LIST_MODAL_AVATAR_RADIUS;
+        // 公共频道在首页或列表模态框时，使用 9 宫格成员头像（与普通群组一致）
+        if (channelId && (isOnHome || listModalAvatar)) {
+            const boxSize = isOnHome ? size : LIST_MODAL_AVATAR_SIZE;
+            const boxRadius = listModalAvatar ? LIST_MODAL_AVATAR_RADIUS : roundedSquareRadius;
             if (useInitialsInsteadOfMemberGrid) {
                 icon = (
                     <ListInitialsAvatar

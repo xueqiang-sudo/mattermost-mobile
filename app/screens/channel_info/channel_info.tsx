@@ -15,7 +15,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
 import ChannelInfoAppBindings from './app_bindings';
@@ -149,7 +149,7 @@ const ChannelInfo = ({
     }
 
     const onPressed = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, onPressed, [onPressed]);

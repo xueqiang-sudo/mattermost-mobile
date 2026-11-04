@@ -13,10 +13,12 @@ import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissAllModalsAndPopToRoot, dismissModal, goToScreen, openUserProfileModal} from '@screens/navigation';
+import {dismissAllModalsAndPopToRoot, goToScreen, popTopScreen} from '@screens/navigation';
+import {getUserById} from '@queries/servers/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {displayUsername} from '@utils/user';
@@ -143,7 +145,7 @@ const ChannelInfoGM = ({
     }, [serverUrl, channelId]);
 
     const close = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, close, [close]);
@@ -213,17 +215,53 @@ const ChannelInfoGM = ({
         });
     }, [channelId, displayName, displayNameCustomized, memberIds, intl]);
 
-    // Open user profile bottom sheet when a member avatar is tapped
+    // Open employee profile page when a member avatar is tapped
     // (mirrors the enterprise directory "tap a person" pattern).
-    // The "Send message" button in the profile sheet routes by is_bot
-    // (bot → makeBotGroupChannel → botgm_ group; normal user → makeGroupChannel).
-    const handleMemberPress = useCallback((userId: string) => {
-        openUserProfileModal(intl, theme, {
-            location: componentId,
-            userId,
-            channelId,
-        });
-    }, [intl, theme, componentId, channelId]);
+    const handleMemberPress = useCallback(async (userId: string) => {
+        try {
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const user = await getUserById(database, userId);
+
+            if (!user) {
+                return;
+            }
+
+            // Convert UserModel to UserProfile format expected by employee_profile
+            const employee: UserProfile = {
+                id: user.id,
+                username: user.username || '',
+                email: user.email || '',
+                first_name: user.firstName || '',
+                last_name: user.lastName || '',
+                nickname: user.nickname || '',
+                position: user.position || '',
+                create_at: user.createAt || 0,
+                update_at: user.updateAt || 0,
+                delete_at: user.deleteAt || 0,
+                roles: user.roles || '',
+                locale: user.locale || '',
+                timezone: user.timezone || {},
+                auth_data: user.authData || '',
+                auth_service: user.authService || '',
+                is_bot: user.isBot || false,
+                bot_description: user.botDescription || '',
+                last_activity_at: user.lastActivityAt || 0,
+                last_picture_update: user.lastPictureUpdate || 0,
+            };
+
+            const title = intl.formatMessage({id: 'contacts.employee_info', defaultMessage: 'Employee Info'});
+            goToScreen(
+                Screens.CONTACTS_EMPLOYEE_PROFILE,
+                title,
+                {
+                    employee,
+                    componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
+                },
+            );
+        } catch (error) {
+            console.error('[handleMemberPress] Failed to open user profile:', error);
+        }
+    }, [serverUrl, intl]);
 
     const handleEditNickname = useCallback(() => {
         const title = intl.formatMessage({id: 'channel_info_rhs.gm.my_nickname', defaultMessage: 'My Nickname in This Group'});

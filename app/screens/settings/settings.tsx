@@ -12,7 +12,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal, goToScreen, setButtons} from '@screens/navigation';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -27,18 +27,12 @@ const Settings = ({componentId}: SettingsProps) => {
     const intl = useIntl();
 
     const close = useCallback(() => {
-        dismissModal({componentId});
+        popTopScreen(componentId);
     }, [componentId]);
 
     useEffect(() => {
-        setButtons(componentId, {
-            leftButtons: [{
-                id: CLOSE_BUTTON_ID,
-                icon: CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor),
-                testID: 'close.settings.button',
-            }],
-        });
-    }, [componentId, theme.sidebarHeaderTextColor]);
+        // 统一使用返回箭头，不再需要设置关闭按钮
+    }, [componentId]);
 
     useAndroidHardwareBackHandler(componentId, close);
     useNavButtonPressed(CLOSE_BUTTON_ID, componentId, close, []);

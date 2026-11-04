@@ -15,7 +15,7 @@ import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {dismissModal, goToScreen, showModal} from '@screens/navigation';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import {DangerSection, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
@@ -87,17 +87,15 @@ const ChannelInfoPublicPrivate = ({
     }, [serverUrl, channelId]);
 
     const close = useCallback(() => {
-        return dismissModal({componentId});
+        return popTopScreen(componentId);
     }, [componentId]);
 
     useNavButtonPressed(closeButtonId, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
 
     const handleInvitePeople = useCallback(() => {
-        showModal(
-            Screens.INVITE,
-            intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'}),
-        );
+        const title = intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'});
+        goToScreen(Screens.INVITE, title, {});
     }, [intl]);
 
     const handleRemovePeople = useCallback(() => {

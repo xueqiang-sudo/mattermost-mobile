@@ -618,8 +618,9 @@ const ContactsDepartmentDetail = ({
     }, [baseBreadcrumb, companyId, departmentId, departmentName, companyName, intl, manageMode]));
 
     const handleEnterManage = usePreventDoubleTap(useCallback(() => {
-        setManageMode(true);
-    }, []));
+        // 【修改】直接弹出合并后的菜单，不再进入管理模式显示底部按钮
+        handleMore();
+    }, [handleMore]));
 
     const handleExitManage = usePreventDoubleTap(useCallback(() => {
         setManageMode(false);
@@ -789,21 +790,27 @@ const ContactsDepartmentDetail = ({
 
         const renderContent = () => (
             <>
+                {/* 添加成员（原底部按钮1） */}
                 <SlideUpPanelItem
-                    leftIcon='pencil-outline'
-                    text={departmentId == null ?
-                        intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}) :
-                        intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'})}
+                    leftIcon='account-plus-outline'
+                    text={intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
                     onPress={async () => {
                         await dismissBottomSheet();
-                        if (departmentId == null) {
-                            handleModifyEnterpriseName();
-                        } else {
-                            handleModifyDepartmentName();
-                        }
+                        handleAddMember();
                     }}
-                    testID='contacts.department_detail.manage.more.modify_name'
+                    testID='contacts.department_detail.manage.more.add_member'
                 />
+                {/* 添加子部门（原底部按钮2） */}
+                <SlideUpPanelItem
+                    leftIcon='folder-plus-outline'
+                    text={intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        handleAddSubDepartment();
+                    }}
+                    testID='contacts.department_detail.manage.more.add_sub_department'
+                />
+                {/* 批量移动成员（原更多菜单1） */}
                 <SlideUpPanelItem
                     leftIcon='account-multiple-outline'
                     text={intl.formatMessage({id: 'contacts.batch_move_members', defaultMessage: 'Batch move members'})}
@@ -833,11 +840,28 @@ const ContactsDepartmentDetail = ({
                     }}
                     testID='contacts.department_detail.manage.more.batch_move'
                 />
+                {/* 管理员列表（原更多菜单2） */}
                 <SlideUpPanelItem
                     leftIcon='crown-outline'
                     text={managerMenuText}
                     onPress={openManagerModal}
                     testID='contacts.department_detail.manage.more.manager_management'
+                />
+                {/* 修改企业名称（原更多菜单3） */}
+                <SlideUpPanelItem
+                    leftIcon='pencil-outline'
+                    text={departmentId == null ?
+                        intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}) :
+                        intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        if (departmentId == null) {
+                            handleModifyEnterpriseName();
+                        } else {
+                            handleModifyDepartmentName();
+                        }
+                    }}
+                    testID='contacts.department_detail.manage.more.modify_name'
                 />
                 {departmentId != null && memberCount === 0 && (
                     <SlideUpPanelItem
@@ -927,9 +951,10 @@ const ContactsDepartmentDetail = ({
                 />
             </>
         );
+        // 计算菜单项数量：6个基础项 + 条件项（删除部门、转移控制权、解散企业）
         const extraItems = (departmentId != null && memberCount === 0 ? 1 : 0) +
             (isCurrentUserOwner && departmentId == null ? 2 : 0);
-        const itemCount = 4 + extraItems;
+        const itemCount = 6 + extraItems;
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,
@@ -1396,40 +1421,7 @@ const ContactsDepartmentDetail = ({
             >
                 {renderContent()}
             </ScrollView>
-            {manageMode && (
-                <View style={styles.bottomBar}>
-                    <TouchableOpacity
-                        style={styles.bottomButton}
-                        onPress={handleAddMember}
-                        activeOpacity={0.7}
-                        testID='contacts.department_detail.manage.add_member'
-                    >
-                        <Text style={styles.bottomButtonText}>
-                            {intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.bottomButton, {flex: 3}]}
-                        onPress={handleAddSubDepartment}
-                        activeOpacity={0.7}
-                        testID='contacts.department_detail.manage.add_sub_department'
-                    >
-                        <Text style={styles.bottomButtonText}>
-                            {intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.bottomButton, {flex: 1}]}
-                        onPress={handleMore}
-                        activeOpacity={0.7}
-                        testID='contacts.department_detail.manage.more'
-                    >
-                        <Text style={styles.bottomButtonText}>
-                            {intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More'})}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+            {/* 【已移除】底部3个按钮（添加成员、添加子部门、更多），改为点击右上角按钮直接弹出菜单 */}
             <CustomInputModal
                 key={subDeptInput.visible ? 'subdept-open' : 'subdept-closed'}
                 visible={subDeptInput.visible}
