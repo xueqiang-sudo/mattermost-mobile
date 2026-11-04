@@ -180,7 +180,7 @@
   "browse_channels.title": "浏览内部群",
   "calls.join_call_avatars.bottom_sheet_title": "通话参与者",
   "camera_type.photo.option": "拍摄",
-  "camera_type.video.option": "录制视频",
+  "camera_type.video.option": "录制",
   "center_panel.archived.closeChannel": "关闭内部群",
   "channel.abac_policy_enforced.description": "只有匹配指定的访问规则的用户能被选中并添加到此内部群。",
   "channel.abac_policy_enforced.title": "内部群访问被用户属性限制",
@@ -2833,5 +2833,8 @@
   "warehouse_inout.scan": "扫描",
   "warehouse_inout.duplicate_scan": "已扫描",
   "warehouse_inout.duplicate_scan_msg": "该条形码已扫描过",
-  "warehouse_inout.scan_success": "扫描成功"
+  "warehouse_inout.scan_success": "扫描成功",
+
+  "channel_list_time.yesterday_time": "昨天 {time}",
+  "channel_list_time.weekday_time": "{weekday} {time}"
 }

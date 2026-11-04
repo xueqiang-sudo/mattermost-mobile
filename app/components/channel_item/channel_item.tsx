@@ -19,7 +19,7 @@ import {formatMessagePreview} from '@utils/message_preview';
 import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_INSET, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getUserIdFromChannelName, username2Nickname} from '@utils/user';
-import {formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
+import {formatChannelListTime, formatWeChatPostHeaderTime} from '@utils/wechat_message_time';
 
 import {ChannelBody} from './channel_body';
 
@@ -681,6 +681,19 @@ const ChannelItem = ({
                                     textStyles={textStyles}
                                     channelName={channelName}
                                 />
+                                {/* 微信风格：右上角时间显示（24小时制） */}
+                                {lastPostAt > 0 && (
+                                    <Text
+                                        style={[
+                                            styles.timestampHome,
+                                            hasDarkBackground && {color: changeOpacity(theme.sidebarText, WECHAT_HOME_SECONDARY_TEXT_OPACITY)},
+                                            isMuted && {color: changeOpacity(hasDarkBackground ? theme.sidebarText : theme.centerChannelColor, 0.32)},
+                                        ]}
+                                        numberOfLines={1}
+                                    >
+                                        {formatChannelListTime(intl, lastPostAt, currentTimezone ?? undefined)}
+                                    </Text>
+                                )}
                             </View>
                             {Boolean(subtitle) && (
                                 <Text
@@ -710,11 +723,19 @@ const ChannelItem = ({
                                 channelName={channelName}
                             />
                             <View style={styles.filler}/>
-                            <Badge
-                                visible={mentionsCount > 0}
-                                value={mentionsCount}
-                                style={[styles.badge, isMuted && styles.mutedBadge, isOnCenterBg && styles.badgeOnCenterBg]}
-                            />
+                            {/* 微信风格：右上角时间显示（24小时制） */}
+                            {lastPostAt > 0 && (
+                                <Text
+                                    style={[
+                                        styles.timestamp,
+                                        isOnCenterBg && styles.timestampOnCenterBg,
+                                        isMuted && styles.muted,
+                                    ]}
+                                    numberOfLines={1}
+                                >
+                                    {formatChannelListTime(intl, lastPostAt, currentTimezone ?? undefined)}
+                                </Text>
+                            )}
                             {hasCall && (
                                 <CompassIcon
                                     name='phone-in-talk'

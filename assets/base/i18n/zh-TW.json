@@ -181,7 +181,7 @@
   "browse_channels.title": "瀏覽羣聊",
   "calls.join_call_avatars.bottom_sheet_title": "通話參與者",
   "camera_type.photo.option": "拍攝",
-  "camera_type.video.option": "錄製視頻",
+  "camera_type.video.option": "錄製",
   "center_panel.archived.closeChannel": "關閉羣聊",
   "channel.abac_policy_enforced.description": "只有匹配指定的訪問規則的用戶能被選中並添加到此羣聊。",
   "channel.abac_policy_enforced.title": "羣聊訪問被用戶屬性限制",
@@ -2829,5 +2829,8 @@
   "warehouse_inout.scan": "掃描",
   "warehouse_inout.duplicate_scan": "已掃描",
   "warehouse_inout.duplicate_scan_msg": "該條碼已掃描過",
-  "warehouse_inout.scan_success": "掃描成功"
+  "warehouse_inout.scan_success": "掃描成功",
+
+  "channel_list_time.yesterday_time": "昨天 {time}",
+  "channel_list_time.weekday_time": "{weekday} {time}"
 }

@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {showModal, dismissModal} from '@screens/navigation';
+import {showModal} from '@screens/navigation';
 import {Screens} from '@constants';
 import {debugLog} from '@store/debug_log';
-import Navigation from 'react-native-navigation';
 
 import type {FileInfo} from '@mattermost/types/files';
 
@@ -27,13 +26,10 @@ const showFullscreenFilePickerModal = (
         photoMode,
     };
 
-    // 注册关闭按钮监听器
-    const listener = Navigation.events().registerNavigationButtonPressedListener(({buttonId}) => {
-        if (buttonId === closeButtonId) {
-            listener.remove();
-            dismissModal({componentId: closeButtonId as any});
-        }
-    });
+    // 注意：不再注册 Navigation 按钮监听器。
+    // FilePicker 组件内部（file_picker.tsx 的 handleClose）会通过 dismissModal 自行关闭。
+    // 之前在此处注册 Navigation.events().registerNavigationButtonPressedListener 监听器
+    // 会在 Navigation 未完全初始化时导致 "Cannot read property 'events' of undefined" 崩溃。
 
     // 使用 showModal 并配置 topBar 隐藏，实现真正全屏
     showModal(

@@ -129,12 +129,17 @@ export default function QuickActionsSheet({
     const wrapWithDismiss = useCallback((fn: () => void) => {
         return async () => {
             try {
-                await onDismiss();
-                // Wait for bottom sheet to fully dismiss before launching picker
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // 先执行实际操作（打开文件选择器等），再关闭 bottom sheet
+                // 这样即使 dismiss 失败，核心功能也能执行
                 fn();
+                // 延迟关闭 bottom sheet，让新界面有时间启动
+                setTimeout(() => {
+                    onDismiss().catch((error) => {
+                        debugLog('quick_actions', `dismiss error: ${error instanceof Error ? error.message : String(error)}`);
+                    });
+                }, 100);
             } catch (error) {
-                console.error('wrapWithDismiss error:', error);
+                debugLog('quick_actions', `wrapWithDismiss error: ${error instanceof Error ? error.message : String(error)}`);
             }
         };
     }, [onDismiss]);

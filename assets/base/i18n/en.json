@@ -114,7 +114,7 @@
   "browse_channels.title": "Browse channels",
   "calls.join_call_avatars.bottom_sheet_title": "Call participants",
   "camera_type.photo.option": "Capture Photo",
-  "camera_type.video.option": "Record Video",
+  "camera_type.video.option": "Record",
   "center_panel.archived.closeChannel": "Close Channel",
   "channel_add_members.add_members.button": "Add Members",
   "channel_add_members.title": "Add Members",
@@ -2834,5 +2834,8 @@
   "warehouse_inout.scan": "Scan",
   "warehouse_inout.duplicate_scan": "Already scanned",
   "warehouse_inout.duplicate_scan_msg": "This barcode has already been scanned",
-  "warehouse_inout.scan_success": "Scan successful"
+  "warehouse_inout.scan_success": "Scan successful",
+
+  "channel_list_time.yesterday_time": "Yesterday {time}",
+  "channel_list_time.weekday_time": "{weekday} {time}"
 }

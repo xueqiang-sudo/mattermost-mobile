@@ -13,6 +13,11 @@ function isChineseLocale(locale: string): boolean {
     return getLocaleFromLanguage(locale).startsWith('zh');
 }
 
+function isTraditionalChinese(locale: string): boolean {
+    const loc = getLocaleFromLanguage(locale);
+    return loc === 'zh-TW' || loc === 'zh-HK' || loc.startsWith('zh-TW') || loc.startsWith('zh-HK');
+}
+
 /** 微信风格月日：中文「6月14日」；其他语言走 locale（如 en-US「Jun 14」） */
 function formatWeChatMonthDayDate(
     intl: IntlShape,
@@ -136,4 +141,77 @@ export function formatTimeSeparatorLabel(
         {id: 'wechat_time.year_month_day_time', defaultMessage: '{date} {time}'},
         {date: dateStr, time: timeStr},
     );
+}
+
+/**
+ * 微信风格聊天列表右上角时间格式化（24小时制）
+ * - 今天：HH:mm
+ * - 昨天：昨天 HH:mm / 昨天 HH:mm / Yesterday HH:mm
+ * - 本周内（含前天及7天内）：星期X HH:mm / 星期X HH:mm / Weekday HH:mm
+ * - 今年内（超过一周）：M月D日 HH:mm / M月D日 HH:mm / MMM D HH:mm
+ * - 跨年：YYYY/M/D（不显示时间）
+ */
+export function formatChannelListTime(
+    intl: IntlShape,
+    timestamp: number,
+    timezone: string | undefined,
+): string {
+    const zone = timezone || moment.tz.guess();
+    const m = moment.tz(timestamp, zone);
+    const now = moment.tz(zone);
+    moment.locale(getLocaleFromLanguage(intl.locale).toLowerCase());
+
+    // 强制 24 小时制
+    const timeStr = m.format('HH:mm');
+
+    // 今天：仅时间
+    if (isToday(m.toDate())) {
+        return timeStr;
+    }
+
+    // 昨天：昨天 HH:mm
+    if (isYesterday(m.toDate())) {
+        return intl.formatMessage(
+            {id: 'channel_list_time.yesterday_time', defaultMessage: 'Yesterday {time}'},
+            {time: timeStr},
+        );
+    }
+
+    // 本周内（前天~7天）：星期X HH:mm
+    if (m.isSame(now, 'isoWeek') || m.isAfter(now.clone().subtract(7, 'days'))) {
+        // 中文简/繁体使用"星期X"格式，其他语言使用 weekday 名称
+        if (isChineseLocale(intl.locale)) {
+            const weekdaysZhCN = ['日', '一', '二', '三', '四', '五', '六'];
+            const weekdaysZhTW = ['日', '一', '二', '三', '四', '五', '六'];
+            const weekdays = isTraditionalChinese(intl.locale) ? weekdaysZhTW : weekdaysZhCN;
+            const dayOfWeek = m.day();
+            const weekday = isTraditionalChinese(intl.locale)
+                ? `星期${weekdays[dayOfWeek]}`
+                : `星期${weekdays[dayOfWeek]}`;
+            return `${weekday} ${timeStr}`;
+        }
+        const weekday = intl.formatDate(new Date(timestamp), {weekday: 'short', timeZone: zone});
+        return intl.formatMessage(
+            {id: 'channel_list_time.weekday_time', defaultMessage: '{weekday} {time}'},
+            {weekday, time: timeStr},
+        );
+    }
+
+    // 跨年：YYYY/M/D（不显示时间）
+    if (!m.isSame(now, 'year')) {
+        return m.format('YYYY/M/D');
+    }
+
+    // 今年内（超过一周）：M月D日 HH:mm
+    if (isChineseLocale(intl.locale)) {
+        if (isTraditionalChinese(intl.locale)) {
+            return m.format('M[月]D[日] ') + timeStr;
+        }
+        return m.format('M[月]D[日] ') + timeStr;
+    }
+    return intl.formatDate(new Date(timestamp), {
+        month: 'short',
+        day: 'numeric',
+        timeZone: zone,
+    }) + ' ' + timeStr;
 }
