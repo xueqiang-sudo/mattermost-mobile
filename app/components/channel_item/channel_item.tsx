@@ -202,6 +202,9 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75),
         color: changeOpacity(theme.sidebarText, 0.64),
         marginLeft: 8,
+        width: 56,
+        textAlign: 'right',
+        marginTop: 2,
     },
     timestampOnCenterBg: {
         color: changeOpacity(theme.centerChannelColor, 0.64),
@@ -218,6 +221,9 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY),
         marginLeft: 8,
+        width: 56,
+        textAlign: 'right',
+        marginTop: 2,
     },
     subtitleHome: {
         ...typography('Body', 100),
@@ -438,6 +444,8 @@ const ChannelItem = ({
             isOnCenterBg && listRowIndex !== undefined ? getChannelListModalRowSurfaceStyle(theme) : null;
         return [
             styles.container,
+            // 非 Home 模式使用顶部对齐，确保时间始终在右上角
+            !isOnHome && {alignItems: 'flex-start'},
             listSurface,
             isOnHome ? homePadding : null,
             // 置顶聊天：浅色主题使用 sidebarBg (#ececec)，深色主题使用 sidebarTeamBarBg (#232323)
@@ -671,17 +679,19 @@ const ChannelItem = ({
                     </View>
                     {isOnHome ? (
                         <View style={{flex: 1, minWidth: 0, justifyContent: 'center'}}>
-                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                                <ChannelBody
-                                    displayName={displayName}
-                                    isMuted={isMuted}
-                                    teamDisplayName=''
-                                    teammateId={teammateId}
-                                    testId={channelItemTestId}
-                                    textStyles={textStyles}
-                                    channelName={channelName}
-                                />
-                                {/* 微信风格：右上角时间显示（24小时制） */}
+                            <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
+                                <View style={{flex: 1, minWidth: 0}}>
+                                    <ChannelBody
+                                        displayName={displayName}
+                                        isMuted={isMuted}
+                                        teamDisplayName=''
+                                        teammateId={teammateId}
+                                        testId={channelItemTestId}
+                                        textStyles={textStyles}
+                                        channelName={channelName}
+                                    />
+                                </View>
+                                {/* 微信风格：右上角时间显示（24小时制），固定宽度确保位置一致 */}
                                 {lastPostAt > 0 && (
                                     <Text
                                         style={[
@@ -713,17 +723,18 @@ const ChannelItem = ({
                         </View>
                     ) : (
                         <>
-                            <ChannelBody
-                                displayName={displayName}
-                                isMuted={isMuted}
-                                teamDisplayName={teamDisplayName}
-                                teammateId={teammateId}
-                                testId={channelItemTestId}
-                                textStyles={textStyles}
-                                channelName={channelName}
-                            />
-                            <View style={styles.filler}/>
-                            {/* 微信风格：右上角时间显示（24小时制） */}
+                            <View style={{flex: 1, minWidth: 0}}>
+                                <ChannelBody
+                                    displayName={displayName}
+                                    isMuted={isMuted}
+                                    teamDisplayName={teamDisplayName}
+                                    teammateId={teammateId}
+                                    testId={channelItemTestId}
+                                    textStyles={textStyles}
+                                    channelName={channelName}
+                                />
+                            </View>
+                            {/* 微信风格：右上角时间显示（24小时制），固定宽度确保位置一致 */}
                             {lastPostAt > 0 && (
                                 <Text
                                     style={[

@@ -49,12 +49,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         elevation: 8,
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
         marginBottom: 20,
-    },
-    headerIcon: {
-        marginRight: 10,
     },
     headerTitle: {
         ...typography('Body', 200, 'SemiBold'),
@@ -166,12 +161,6 @@ const FilePreviewLoadingModal = ({
             <View style={styles.overlay}>
                 <View style={styles.container}>
                     <View style={styles.header}>
-                        <CompassIcon
-                            name='file-outline'
-                            size={24}
-                            color={theme.buttonBg}
-                            style={styles.headerIcon}
-                        />
                         <Text
                             style={styles.headerTitle}
                             numberOfLines={1}

@@ -591,5 +591,7 @@ export const useDownloadFileAndPreview = (enableSecureFilePreview: boolean) => {
         downloadAndPreviewFile,
         PreviewLoadingModal,
         previewLoadingVisible: previewLoading.visible,
+        showPreviewLoading: setPreviewLoading,
+        hidePreviewLoading: hideLoadingModal,
     };
 };

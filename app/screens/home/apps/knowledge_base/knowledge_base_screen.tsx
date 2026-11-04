@@ -642,7 +642,7 @@ const KnowledgeBaseScreen = () => {
     const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
 
     // File preview hook (same as chat window)
-    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(true);
+    const {downloadAndPreviewFile, PreviewLoadingModal, showPreviewLoading, hidePreviewLoading} = useDownloadFileAndPreview(true);
 
     // Init: load teamId
     useEffect(() => {
@@ -913,7 +913,14 @@ const KnowledgeBaseScreen = () => {
                     downloadAndPreviewFile(fileInfo);
                 } else {
                     debugLog('[KB] No mm_file_id, downloading from KB API');
-                    // Download from KB API to temp location, then open
+                    // Show loading modal during download
+                    showPreviewLoading({
+                        visible: true,
+                        fileName: item.fileName || item.title || 'document',
+                        currentStep: 'downloading',
+                        steps: ['downloading', 'opening'],
+                        canCancel: false,
+                    });
                     try {
                         setDownloadingDocId(item.docId);
 
@@ -950,6 +957,10 @@ const KnowledgeBaseScreen = () => {
                             localPath: downloadResult.uri,
                         };
 
+                        // Update step: opening
+                        showPreviewLoading(prev => ({...prev, currentStep: 'opening', canCancel: false}));
+                        await new Promise((resolve) => setTimeout(resolve, 200));
+
                         // Open the downloaded file
                         openUnifiedFileViewer(localFileInfo, theme);
                     } catch (downloadErr) {
@@ -960,6 +971,7 @@ const KnowledgeBaseScreen = () => {
                         );
                     } finally {
                         setDownloadingDocId(null);
+                        hidePreviewLoading();
                     }
                 }
             }
@@ -970,7 +982,7 @@ const KnowledgeBaseScreen = () => {
                 intl.formatMessage({id: 'workbench.kb.preview_error', defaultMessage: 'Unable to open this file.'}),
             );
         }
-    }, [serverUrl, theme, intl, downloadAndPreviewFile]);
+    }, [serverUrl, theme, intl, downloadAndPreviewFile, showPreviewLoading, hidePreviewLoading]);
 
     // Edit document (Navigation mode)
     const openEditScreen = useCallback((doc: KBDoc) => {
