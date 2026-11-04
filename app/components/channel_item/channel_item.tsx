@@ -279,8 +279,8 @@ export const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 export const textStyle = StyleSheet.create({
-    bold: typography('Body', 300, 'SemiBold'),
-    regular: typography('Body', 300, 'Regular'),
+    bold: typography('Body', 200, 'SemiBold'),
+    regular: typography('Body', 200, 'Regular'),
 });
 
 const ChannelItem = ({

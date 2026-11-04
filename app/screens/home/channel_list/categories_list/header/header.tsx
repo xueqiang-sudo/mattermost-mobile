@@ -44,6 +44,7 @@ type Props = {
     hasTeams: boolean;
     iconPad?: boolean;
     onHeaderPress?: () => void;
+    showMenuButton?: boolean;
 
     /** 话题按钮，放在搜索左侧，顺序：话题 | 搜索 | + */
     threadsButton?: React.ReactNode;
@@ -240,6 +241,7 @@ const ChannelListHeader = ({
     hasTeams,
     iconPad,
     onHeaderPress,
+    showMenuButton = true,
     threadsButton,
 }: Props) => {
     const theme = useTheme();
@@ -476,11 +478,13 @@ const ChannelListHeader = ({
     }, [menuItems, openPlusMenu]));
 
     const onSearchPress = usePreventDoubleTap(useCallback(() => {
-        findChannels(
-            intl.formatMessage({id: 'find_channels.title', defaultMessage: '搜索群聊、联系人'}),
-            theme,
+        goToScreen(
+            Screens.SEARCH,
+            intl.formatMessage({id: 'search.title', defaultMessage: '搜索'}),
+            {},
+            {useBackIcon: true},
         );
-    }, [intl, theme]));
+    }, [intl]));
 
     const onLogoutPress = useCallback(() => {
         alertServerLogout(serverDisplayName, () => logout(serverUrl, intl), intl);
@@ -492,25 +496,27 @@ const ChannelListHeader = ({
     if (hasTeamContext) {
         header = (
             <View style={styles.outsideBox}>
-                <View ref={menuButtonRef} collapsable={false}>
-                    <TouchableWithFeedback
-                        onPress={() => {
-                            // 测量汉堡图标位置，让抽屉面板从图标下方开始显示
-                            menuButtonRef.current?.measureInWindow((_x, y, _w, h) => {
-                                openDrawer(y + h + 4);
-                            });
-                        }}
-                        style={styles.menuButton}
-                        testID='channel_list_header.menu.button'
-                        type='opacity'
-                    >
-                        <OpenDrawerIcon
-                            width={22}
-                            height={22}
-                            color={theme.centerChannelColor}
-                        />
-                    </TouchableWithFeedback>
-                </View>
+                {showMenuButton && (
+                    <View ref={menuButtonRef} collapsable={false}>
+                        <TouchableWithFeedback
+                            onPress={() => {
+                                // 测量汉堡图标位置，让抽屉面板从图标下方开始显示
+                                menuButtonRef.current?.measureInWindow((_x, y, _w, h) => {
+                                    openDrawer(y + h + 4);
+                                });
+                            }}
+                            style={styles.menuButton}
+                            testID='channel_list_header.menu.button'
+                            type='opacity'
+                        >
+                            <OpenDrawerIcon
+                                width={22}
+                                height={22}
+                                color={theme.centerChannelColor}
+                            />
+                        </TouchableWithFeedback>
+                    </View>
+                )}
                 <View style={{flex: 1}}/>
                 {Boolean(statusText) && (
                     <Text

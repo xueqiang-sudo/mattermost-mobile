@@ -93,6 +93,7 @@ const CategoriesList = ({
         <Animated.View style={[styles.container, tabletStyle]}>
             <ChannelListHeader
                 iconPad={iconPad}
+                showMenuButton={moreThanOneTeam}
             />
             <SubHeader/>
             {content}

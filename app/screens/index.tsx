@@ -220,6 +220,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.FIND_CHANNELS:
             screen = withServerDatabase(require('@screens/find_channels').default);
             break;
+        case Screens.SEARCH:
+            screen = withServerDatabase(require('@screens/search').default);
+            break;
         case Screens.FILE_PICKER:
             screen = withServerDatabase(require('@screens/file_picker/file_picker').default);
             break;
