@@ -45,7 +45,7 @@ const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 type Props = {
     componentId: AvailableScreens;
     closeButtonId?: string;
-    employee: UserProfile;
+    employee?: UserProfile;
     departmentName?: string;
     departmentParentPath?: string;
     currentUserId?: string;
@@ -383,10 +383,10 @@ const ContactsEmployeeProfile = ({
     const [isCompanyOwner, setIsCompanyOwner] = useState(false);
 
     // 管理模式下的可编辑字段
-    const [editNickname, setEditNickname] = useState(() => employee.nickname ?? '');
-    const [editEmail, setEditEmail] = useState(() => employee.email ?? '');
-    const [editPhone, setEditPhone] = useState(() => employee.phone ?? '');
-    const [editPosition, setEditPosition] = useState(() => employee.position ?? '');
+    const [editNickname, setEditNickname] = useState(() => employee?.nickname ?? '');
+    const [editEmail, setEditEmail] = useState(() => employee?.email ?? '');
+    const [editPhone, setEditPhone] = useState(() => employee?.phone ?? '');
+    const [editPosition, setEditPosition] = useState(() => employee?.position ?? '');
     const [saving, setSaving] = useState(false);
 
     // 业务角色状态
@@ -402,14 +402,14 @@ const ContactsEmployeeProfile = ({
     const [selectedDeptId, setSelectedDeptId] = useState<number | undefined>(departmentId);
 
     const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
-        if (!serverUrl || saving) {
+        if (!serverUrl || saving || !employee) {
             return;
         }
         setSaving(true);
         try {
             const client = NetworkManager.getClient(serverUrl);
             await client.patchUser({
-                id: employee.id,
+                id: employee?.id,
                 nickname: editNickname,
                 email: editEmail,
                 phone: editPhone,
@@ -420,7 +420,7 @@ const ContactsEmployeeProfile = ({
             if (fromManage && companyIdProp && selectedDeptId !== undefined && selectedDeptId !== departmentId) {
                 if (departmentId !== undefined) {
                     // 从旧部门移到新部门
-                    await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee.id, departmentId, selectedDeptId);
+                    await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee?.id, departmentId, selectedDeptId);
                 }
                 // 如果原来没有部门（departmentId为undefined），则只记录变更但不移动（需要用户手动添加到部门）
             }
@@ -433,7 +433,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setSaving(false);
         }
-    }, [serverUrl, saving, employee.id, editNickname, editEmail, editPhone, editPosition, intl, componentId, fromManage, companyIdProp, selectedDeptId, departmentId]));
+    }, [serverUrl, saving, employee?.id, editNickname, editEmail, editPhone, editPosition, intl, componentId, fromManage, companyIdProp, selectedDeptId, departmentId]));
 
     /** 企业所有者 ID（用于标签计算） */
     const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
@@ -461,7 +461,7 @@ const ContactsEmployeeProfile = ({
         let cancelled = false;
 
         const loadCompanyOwner = async () => {
-            if (!companyIdProp || !serverUrl) {
+            if (!companyIdProp || !serverUrl || !employee) {
                 if (!cancelled) {
                     setIsCompanyOwner(false);
                     setCompanyOwnerId(undefined);
@@ -472,7 +472,7 @@ const ContactsEmployeeProfile = ({
 
             const [teamResult, memberResult] = await Promise.all([
                 fetchTeamById(serverUrl, companyIdProp),
-                getTeamMembersByIds(serverUrl, companyIdProp, [employee.id], true),
+                getTeamMembersByIds(serverUrl, companyIdProp, [employee?.id], true),
             ]);
             const ownerId = teamResult.team?.creator_id;
             const memberRoles = memberResult.members?.[0]?.roles ?? '';
@@ -480,7 +480,7 @@ const ContactsEmployeeProfile = ({
             if (!cancelled) {
                 setIsCompanyOwner(Boolean(ownerId && ownerId === employee.id));
                 setCompanyOwnerId(ownerId);
-                setCompanyManagerIds(isManager ? new Set([employee.id]) : undefined);
+                setCompanyManagerIds(isManager ? new Set([employee?.id]) : undefined);
             }
         };
 
@@ -489,11 +489,11 @@ const ContactsEmployeeProfile = ({
         return () => {
             cancelled = true;
         };
-    }, [companyIdProp, employee.id, serverUrl]);
+    }, [companyIdProp, employee?.id, serverUrl]);
 
     // 加载业务角色（详情页和编辑页都需要）
     useEffect(() => {
-        if (!companyIdProp || !serverUrl) {
+        if (!companyIdProp || !serverUrl || !employee) {
             return;
         }
 
@@ -525,7 +525,7 @@ const ContactsEmployeeProfile = ({
         return () => {
             cancelled = true;
         };
-    }, [companyIdProp, employee.id, serverUrl, fromManage]);
+    }, [companyIdProp, employee?.id, serverUrl, fromManage]);
 
     // 加载部门列表（编辑模式）
     useEffect(() => {
@@ -560,7 +560,7 @@ const ContactsEmployeeProfile = ({
 
     // 保存业务角色（内联下拉关闭时自动保存）
     const handleSaveRoles = useCallback(async () => {
-        if (!companyIdProp || !serverUrl) {
+        if (!companyIdProp || !serverUrl || !employee) {
             return;
         }
 
@@ -576,8 +576,8 @@ const ContactsEmployeeProfile = ({
 
             // 批量操作
             await Promise.all([
-                ...toAdd.map((roleKey) => client.grantBusinessRole(companyIdProp, employee.id, roleKey)),
-                ...toRemove.map((roleKey) => client.revokeBusinessRole(companyIdProp, employee.id, roleKey)),
+                ...toAdd.map((roleKey) => client.grantBusinessRole(companyIdProp, employee?.id, roleKey)),
+                ...toRemove.map((roleKey) => client.revokeBusinessRole(companyIdProp, employee?.id, roleKey)),
             ]);
 
             // 刷新角色列表
@@ -595,7 +595,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setSavingRoles(false);
         }
-    }, [companyIdProp, employee.id, serverUrl, businessRoles, selectedRoleKeys, intl]);
+    }, [companyIdProp, employee?.id, serverUrl, businessRoles, selectedRoleKeys, intl]);
 
     const handleClose = useCallback(() => {
         popTopScreen(componentId);
@@ -608,10 +608,10 @@ const ContactsEmployeeProfile = ({
     const canEditRelationFields = Boolean(relationType && currentUserId && !isErpRelation);
 
     const updateRelationFields = useCallback(async (nextRemark: string, nextDescription: string, nextCompany?: string) => {
-        if (!relationType || !currentUserId) {
+        if (!relationType || !currentUserId || !employee) {
             return false;
         }
-        const result = await updateEmployeeContact(serverUrl, currentUserId, employee.id, relationType as MMEmployeeContactType, {
+        const result = await updateEmployeeContact(serverUrl, currentUserId, employee?.id, relationType as MMEmployeeContactType, {
             remark: nextRemark.trim() || undefined,
             description: nextDescription.trim() || undefined,
             company: nextCompany !== undefined ? (nextCompany.trim() || undefined) : undefined,
@@ -630,7 +630,7 @@ const ContactsEmployeeProfile = ({
         }
         DeviceEventEmitter.emit(Events.EXTERNAL_CONTACTS_CHANGED, {contactType: relationType});
         return true;
-    }, [currentUserId, employee.id, intl, relationType, serverUrl]);
+    }, [currentUserId, employee?.id, intl, relationType, serverUrl]);
 
     const handleEditRemark = usePreventDoubleTap(useCallback(async () => {
         if (!canEditRelationFields) {
@@ -681,7 +681,7 @@ const ContactsEmployeeProfile = ({
     // and an is_bot flag so that handleSendMessage can route to the right
     // channel-creation API (bot → makeBotGroupChannel; human → makeGroupChannel).
     const resolveMattermostUser = useCallback(async (): Promise<{id: string; isBot: boolean} | null> => {
-        if (!serverUrl) {
+        if (!serverUrl || !employee) {
             return null;
         }
         const client = NetworkManager.getClient(serverUrl);
@@ -691,15 +691,15 @@ const ContactsEmployeeProfile = ({
                 if (!user) return null;
                 return {id: user.id, isBot: Boolean((user as UserProfile).is_bot)};
             }
-            return {id: employee.id, isBot: Boolean(employee.is_bot)};
+            return {id: employee?.id, isBot: Boolean(employee.is_bot)};
         } catch {
-            return {id: employee.id, isBot: Boolean(employee.is_bot)};
+            return {id: employee?.id, isBot: Boolean(employee.is_bot)};
         }
-    }, [serverUrl, employee.id, employee.email, employee.is_bot]);
+    }, [serverUrl, employee?.id, employee?.email, employee?.is_bot]);
 
-    const isSelf = Boolean(currentUserId && employee.id && currentUserId === employee.id);
+    const isSelf = Boolean(currentUserId && employee?.id && currentUserId === employee.id);
     const profileTagKeys = buildEnterpriseUserTagKeys({
-        userId: employee.id,
+        userId: employee?.id,
         ownerId: companyOwnerId,
         currentUserId,
         managerIds: companyManagerIds,
@@ -743,12 +743,12 @@ const ContactsEmployeeProfile = ({
         handleClose();
     }, [serverUrl, sending, isSelf, resolveMattermostUser, intl, handleClose]));
 
-    const canSendMessage = !isSelf && Boolean(employee.email || employee.id);
+    const canSendMessage = !isSelf && Boolean(employee?.email || employee?.id);
 
     const canChangeDepartment = fromManage && Boolean(companyIdProp);
 
     const handleChangeDepartment = usePreventDoubleTap(useCallback(() => {
-        if (!canChangeDepartment || !companyIdProp) {
+        if (!canChangeDepartment || !companyIdProp || !employee) {
             return;
         }
         const sourceName = departmentName ??
@@ -765,7 +765,7 @@ const ContactsEmployeeProfile = ({
                 onSuccess: handleClose,
             },
         );
-    }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee.id, intl, handleClose]));
+    }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee?.id, intl, handleClose]));
 
     const isExternalContact = Boolean(relationType);
 
@@ -819,7 +819,7 @@ const ContactsEmployeeProfile = ({
             setDeleting(false);
             return;
         }
-        const result = await removeEmployeeContact(serverUrl, currentUserId, employee.id, relationType as MMEmployeeContactType);
+        const result = await removeEmployeeContact(serverUrl, currentUserId, employee?.id, relationType as MMEmployeeContactType);
         setDeleting(false);
         if (result.error) {
             Alert.alert(
@@ -829,14 +829,14 @@ const ContactsEmployeeProfile = ({
             return;
         }
         handleClose();
-    }, [isExternalContact, relationType, deleting, employee.id, relationRemark, handleClose, intl, serverUrl, currentUserId]));
+    }, [isExternalContact, relationType, deleting, employee?.id, relationRemark, handleClose, intl, serverUrl, currentUserId]));
 
     const handleDeleteMember = usePreventDoubleTap(useCallback(async () => {
         if (isExternalContact) {
             await handleDeleteRelation();
             return;
         }
-        if (!canDeleteEnterpriseMember || deleting) {
+        if (!canDeleteEnterpriseMember || deleting || !employee) {
             return;
         }
         const ok = await new Promise<boolean>((resolve) => {
@@ -862,7 +862,7 @@ const ContactsEmployeeProfile = ({
         try {
             /** 先获取该成员所在部门，从各部门中移除后再从团队移除 */
             const client = NetworkManager.getClient(serverUrl);
-            const departments = await client.getUserDepartments(employee.id, companyIdProp);
+            const departments = await client.getUserDepartments(employee?.id, companyIdProp);
             if (departments && departments.length > 0) {
                 for (const dept of departments) {
                     await client.removeDepartmentMember(companyIdProp, dept.id, employee.id);
@@ -886,10 +886,13 @@ const ContactsEmployeeProfile = ({
         } finally {
             setDeleting(false);
         }
-    }, [canDeleteEnterpriseMember, deleting, employee.id, employee, companyIdProp, handleClose, intl, serverUrl, isExternalContact, handleDeleteRelation]));
+    }, [canDeleteEnterpriseMember, deleting, employee?.id, employee, companyIdProp, handleClose, intl, serverUrl, isExternalContact, handleDeleteRelation]));
 
     const handleCopyBasicInfo = usePreventDoubleTap(
         useCallback(() => {
+            if (!employee) {
+                return;
+            }
             const lines: Array<{label: string; value: string}> = [];
             const nicknameLbl = intl.formatMessage({
                 id: 'supplier_customer.directory_name_subtitle',
@@ -941,7 +944,7 @@ const ContactsEmployeeProfile = ({
             if (employee.id) {
                 lines.push({
                     label: intl.formatMessage({id: 'contacts.clipboard_member_id', defaultMessage: 'Member ID'}),
-                    value: employee.id,
+                    value: employee?.id,
                 });
             }
             const text = buildClipboardTextFromLines(lines);
@@ -955,8 +958,8 @@ const ContactsEmployeeProfile = ({
             });
         }, [
             departmentClipboardValue,
-            employee.email,
-            employee.id,
+            employee?.email,
+            employee?.id,
             employee,
             employee.phone,
             employee.position,
@@ -967,6 +970,20 @@ const ContactsEmployeeProfile = ({
             relationType,
         ]),
     );
+
+    // 保护：如果 employee 未定义，显示错误信息（必须在所有 hooks 之后）
+    if (!employee) {
+        return (
+            <SafeAreaView style={styles.flex} edges={SAFE_AREA_EDGES}>
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32}}>
+                    <CompassIcon name='alert-circle-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
+                    <Text style={{...typography('Body', 200), color: theme.centerChannelColor, marginTop: 16, textAlign: 'center'}}>
+                        {intl.formatMessage({id: 'contacts.employee_not_found', defaultMessage: '员工信息不存在，请返回重试'})}
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView

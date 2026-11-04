@@ -246,9 +246,9 @@ const ChannelHeader = ({
     }, [channelId, teamId, intl]);
 
     const openAIAssistant = useCallback(() => {
-        const title = '';  // AI Assistant panel 不显示标题栏
+        const title = intl.formatMessage({id: 'channel_header.group_summary', defaultMessage: 'Group Summary'});
         goToScreen(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId});
-    }, [channelId, teamId]);
+    }, [channelId, teamId, intl]);
 
     const {openPlusMenu} = usePlusMenu();
 

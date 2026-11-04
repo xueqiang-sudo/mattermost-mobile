@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
@@ -11,7 +11,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
-import {popTopScreen} from '@screens/navigation';
+import {popTopScreen, dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {logDebug} from '@utils/log';
@@ -33,6 +33,8 @@ type Props = {
     channelId: string;
     teamId?: string;
     onSend?: (files: FileInfo[]) => void | Promise<void>;
+    closeButtonId?: string;
+    title?: string;
 };
 
 function formatFileSize(bytes: number): string {
@@ -95,6 +97,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
+    },
+    customHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+    },
+    closeButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.sidebarHeaderTextColor,
+        flex: 1,
+        textAlign: 'center',
     },
     scopeBar: {
         flexDirection: 'row',
@@ -223,7 +246,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-export default function CloudDrivePicker({componentId, channelId, teamId: propTeamId, onSend}: Props) {
+export default function CloudDrivePicker({componentId, channelId, teamId: propTeamId, onSend, closeButtonId, title}: Props) {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
@@ -426,8 +449,36 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
     const rootName = intl.formatMessage({id: 'cloud_drive_picker.root', defaultMessage: 'Root'});
     const displayBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : [{id: '', name: rootName}];
 
+    const handleClose = useCallback(() => {
+        if (closeButtonId) {
+            dismissModal({componentId: closeButtonId as AvailableScreens});
+        } else {
+            dismissModal({componentId});
+        }
+    }, [closeButtonId, componentId]);
+
     return (
         <View style={style.container}>
+            {/* 自定义顶部导航栏（全屏 Modal 时显示） */}
+            {closeButtonId && (
+                <View style={style.customHeader}>
+                    <TouchableOpacity
+                        onPress={handleClose}
+                        style={style.closeButton}
+                    >
+                        <CompassIcon
+                            name={Platform.select({android: 'arrow-left', ios: 'arrow-back-ios', default: 'arrow-left'})}
+                            size={24}
+                            color={theme.sidebarHeaderTextColor}
+                        />
+                    </TouchableOpacity>
+                    <Text style={style.headerTitle}>
+                        {title || intl.formatMessage({id: 'cloud_drive.title', defaultMessage: 'Cloud Drive'})}
+                    </Text>
+                    <View style={style.closeButton}/>
+                </View>
+            )}
+
             {/* Scope toggle */}
             <View style={style.scopeBar}>
                 {(['public', 'private'] as Scope[]).map((s) => (

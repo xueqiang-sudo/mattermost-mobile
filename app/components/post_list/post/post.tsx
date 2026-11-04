@@ -26,7 +26,7 @@ import {useHideExtraKeyboardIfNeeded} from '@context/extra_keyboard';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
-import {dismissOverlay, openAsBottomSheet, showModal, showOverlay} from '@screens/navigation';
+import {dismissOverlay, goToScreen, openAsBottomSheet, showModal, showOverlay} from '@screens/navigation';
 import {isBoRPost, isUnrevealedBoRPost} from '@utils/bor';
 import {hasJumboEmojiOnly} from '@utils/emoji/helpers';
 import {fromAutoResponder, isFromWebhook, isInvalidEphemeralTipPost, isPostFailed, isPostPendingOrFailed, isSystemMessage} from '@utils/post';
@@ -368,18 +368,12 @@ const Post = ({
                 iconName: 'message-arrow-right-outline',
                 onPress: closeAndRun(() => {
                     const consultTitle = intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'});
-                    showModal(
+                    goToScreen(
                         Screens.CONSULTATION_PANEL,
                         consultTitle,
+                        `close-${Screens.CONSULTATION_PANEL}`,
                         {channelId: post.channelId, prefillText: textMessage},
-                        {
-                            topBar: {
-                                leftButtons: [{
-                                    id: 'close-consultation-panel',
-                                    text: intl.formatMessage({id: 'mobile.close', defaultMessage: 'Close'}),
-                                }],
-                            },
-                        },
+                        {useBackIcon: true},
                     );
                 }),
             });
@@ -418,9 +412,10 @@ const Post = ({
                 iconName: 'send',
                 onPress: closeAndRun(async () => {
                     const fileIds = await post.files.fetchIds();
-                    showModal(
+                    goToScreen(
                         Screens.FORWARD_MESSAGE,
                         intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
+                        `close-${Screens.FORWARD_MESSAGE}`,
                         {
                             componentId: Screens.FORWARD_MESSAGE,
                             postId: post.id,
@@ -428,11 +423,7 @@ const Post = ({
                             message: textMessage,
                             fileIds,
                         },
-                        {
-                            topBar: {
-                                visible: false,
-                            },
-                        },
+                        {useBackIcon: true},
                     );
                 }),
             });

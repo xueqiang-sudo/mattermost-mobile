@@ -3,7 +3,7 @@
 
 import React, {useCallback, useState, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {getInfoAsync} from 'expo-file-system';
 
@@ -30,6 +30,27 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
+    },
+    customHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+    },
+    closeButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.sidebarHeaderTextColor,
+        flex: 1,
+        textAlign: 'center',
     },
     tabBar: {
         flexDirection: 'row',
@@ -162,6 +183,8 @@ type FilePickerContentProps = {
     onSend: (files: FileInfo[]) => void;
     channelId: string;
     photoMode?: boolean;
+    closeButtonId?: string;
+    title?: string;
 };
 
 function getFileIcon(name: string): string {
@@ -260,7 +283,7 @@ function KeepOriginalToggle({photoMode, hasSelection, theme}: {photoMode?: boole
     );
 }
 
-function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePickerContentProps) {
+function FilePickerContent({componentId, onSend, channelId, photoMode, closeButtonId, title}: FilePickerContentProps) {
     const intl = useIntl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
@@ -463,8 +486,36 @@ function FilePickerContent({componentId, onSend, channelId, photoMode}: FilePick
         </View>
     );
 
+    const handleClose = useCallback(() => {
+        debugLog('filePicker', 'handleClose called');
+        if (closeButtonId) {
+            dismissModal({componentId: closeButtonId as AvailableScreens});
+        } else {
+            dismissModal({componentId});
+        }
+    }, [closeButtonId, componentId]);
+
     return (
-        <SafeAreaView edges={['bottom']} style={styles.container}>
+        <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
+            {/* 自定义顶部导航栏（全屏 Modal 时显示） */}
+            {closeButtonId && (
+                <View style={styles.customHeader}>
+                    <TouchableOpacity
+                        onPress={handleClose}
+                        style={styles.closeButton}
+                    >
+                        <CompassIcon
+                            name={Platform.select({android: 'arrow-left', ios: 'arrow-back-ios', default: 'arrow-left'})}
+                            size={24}
+                            color={theme.sidebarHeaderTextColor}
+                        />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>
+                        {title || intl.formatMessage({id: 'file_picker.title', defaultMessage: 'Select Files'})}
+                    </Text>
+                    <View style={styles.closeButton}/>
+                </View>
+            )}
             {!photoMode && (
             <View style={styles.tabBar}>
                 {tabs.map((tab) => {
@@ -570,13 +621,22 @@ type FilePickerProps = {
     onSend: (files: FileInfo[]) => void;
     channelId: string;
     photoMode?: boolean;
+    closeButtonId?: string;
+    title?: string;
 };
 
-export default function FilePicker({componentId, onSend, channelId, photoMode}: FilePickerProps) {
+export default function FilePicker({componentId, onSend, channelId, photoMode, closeButtonId, title}: FilePickerProps) {
     debugLog('filePicker', `FilePicker component rendering, channelId=${channelId}, photoMode=${photoMode}`);
     return (
         <FilePickerProvider maxSelection={9}>
-            <FilePickerContent componentId={componentId} onSend={onSend} channelId={channelId} photoMode={photoMode}/>
+            <FilePickerContent
+                componentId={componentId}
+                onSend={onSend}
+                channelId={channelId}
+                photoMode={photoMode}
+                closeButtonId={closeButtonId}
+                title={title}
+            />
         </FilePickerProvider>
     );
 }

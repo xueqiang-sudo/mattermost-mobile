@@ -66,7 +66,12 @@ export function username2Nickname(user?: UserProfile | SimpleUserProfile | UserM
     const fallbackUsername = toSafeString(user.username);
     let name = '';
     if (includeFullName !== false && nickname && fullName) {
-        name = `${nickname} (${fullName})`;
+        // 如果昵称和全名相同，只显示一个，避免 "test (test)" 的重复显示
+        if (nickname.toLowerCase() === fullName.toLowerCase()) {
+            name = nickname;
+        } else {
+            name = `${nickname} (${fullName})`;
+        }
     } else {
         name = nickname || fullName || fallbackUsername;
     }

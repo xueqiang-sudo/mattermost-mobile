@@ -74,6 +74,45 @@ function formatDuration(ms: number): string {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+// ---- Get file icon based on file type ----
+function getFileIcon(fileName: string, mimeType?: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+    // Office 文档
+    if (['doc', 'docx'].includes(ext) || mimeType?.includes('wordprocessingml')) {
+        return 'file-word-outline';
+    }
+    if (['xls', 'xlsx'].includes(ext) || mimeType?.includes('spreadsheetml')) {
+        return 'file-excel-outline';
+    }
+    if (['ppt', 'pptx'].includes(ext) || mimeType?.includes('presentationml')) {
+        return 'file-powerpoint-outline';
+    }
+
+    // PDF
+    if (ext === 'pdf' || mimeType === 'application/pdf') {
+        return 'file-pdf-outline';
+    }
+
+    // 压缩包
+    if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
+        return 'folder-zip-outline';
+    }
+
+    // 文本文件
+    if (['txt', 'md', 'log', 'csv', 'json', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) {
+        return 'file-document-outline';
+    }
+
+    // 代码文件
+    if (['py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs', 'swift'].includes(ext)) {
+        return 'file-code-outline';
+    }
+
+    // 默认文件图标
+    return 'file-outline';
+}
+
 // ---- Create new block ----
 const createBlock = (type: SmartNoteBlock['type'] = 'paragraph', content = ''): SmartNoteBlock => ({
     id: generateId(),
@@ -373,17 +412,19 @@ const BlockItem = ({
     // 渲染文件块（非媒体文件）
     if (block.type === 'file' && block.content) {
         const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
+        const fileName = block.meta?.caption || '文件';
+        const fileIcon = getFileIcon(fileName, block.meta?.mimeType);
 
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
                     <View style={style.fileCard}>
                         <View style={style.mediaIconContainer}>
-                            <CompassIcon name='file-outline' size={32} color={theme.buttonBg}/>
+                            <CompassIcon name={fileIcon} size={32} color={theme.buttonBg}/>
                         </View>
                         <View style={style.mediaTextInfo}>
                             <Text style={style.mediaLabel} numberOfLines={1}>
-                                {block.meta?.caption || '文件'}
+                                {fileName}
                             </Text>
                             {block.meta?.size && (
                                 <Text style={style.mediaMeta}>

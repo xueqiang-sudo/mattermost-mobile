@@ -647,7 +647,7 @@ const ContactsDepartmentDetail = ({
     }, [onAddMember]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
-        const name = await subDeptInput.goToScreen({
+        const name = await subDeptInput.showModal({
             title: intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'}),
             placeholder: intl.formatMessage({id: 'contacts.sub_department_name_placeholder', defaultMessage: 'Enter department name'}),
             confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
@@ -675,7 +675,7 @@ const ContactsDepartmentDetail = ({
             );
             return;
         }
-        const name = await modifyDeptNameInput.goToScreen({
+        const name = await modifyDeptNameInput.showModal({
             title: intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'}),
             placeholder: intl.formatMessage({id: 'contacts.department_name_placeholder', defaultMessage: 'Department name'}),
             defaultValue: departmentName,

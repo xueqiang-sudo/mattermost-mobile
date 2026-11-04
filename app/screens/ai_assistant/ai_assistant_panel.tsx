@@ -23,7 +23,6 @@ import {Screens as ScreenConstants} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -60,22 +59,6 @@ type ConsultationQA = {
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {flex: 1},
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
-    },
-    headerButton: {padding: 8},
-    headerTitle: {
-        ...typography('Heading', 400, 'SemiBold'),
-        color: theme.centerChannelColor,
-        flex: 1,
-        textAlign: 'center',
-        marginRight: 40,
-    },
     tabs: {
         flexDirection: 'row',
         paddingHorizontal: 16,
@@ -289,10 +272,6 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             }
         })();
     }, [serverUrl, channelId]);
-
-    const handleClose = useCallback(() => {
-        popTopScreen(componentId);
-    }, [componentId]);
 
     const loadTabData = useCallback(async (tab: ActiveTab, date?: string) => {
         setLoading(true);
@@ -676,22 +655,12 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
     };
 
     return (
-        <SafeAreaView style={styles.flex} testID='ai_assistant.panel'>
+        <SafeAreaView style={styles.flex} testID='ai_assistant.panel' edges={['bottom']}>
             <KeyboardAvoidingView
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
             >
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
-                        <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'channel_header.group_summary', defaultMessage: 'Group Summary'})}
-                    </Text>
-                    <View style={{width: 40}}/>
-                </View>
-
             {renderTabs()}
 
             <View style={styles.flex}>

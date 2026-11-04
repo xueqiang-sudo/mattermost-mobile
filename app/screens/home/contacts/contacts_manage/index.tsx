@@ -499,7 +499,7 @@ const ContactsManage = ({
     }, [companyId, companyName, intl, ownerId]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
-        const name = await subDeptInput.goToScreen({
+        const name = await subDeptInput.showModal({
             title: intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'}),
             placeholder: intl.formatMessage({id: 'contacts.sub_department_name_placeholder', defaultMessage: 'Enter department name'}),
             confirmContent: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}),
@@ -579,7 +579,7 @@ const ContactsManage = ({
             return;
         }
         const currentName = enterpriseDisplayName ?? companyName ?? '';
-        const name = await modifyEnterpriseNameInput.goToScreen({
+        const name = await modifyEnterpriseNameInput.showModal({
             title: intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}),
             placeholder: intl.formatMessage({id: 'contacts.enterprise_name_placeholder', defaultMessage: 'Enterprise name'}),
             defaultValue: currentName,

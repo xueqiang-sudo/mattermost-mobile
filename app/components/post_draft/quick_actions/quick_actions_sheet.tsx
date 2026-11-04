@@ -204,7 +204,7 @@ export default function QuickActionsSheet({
                     }),
                 );
             }
-        });
+        }, intl);
     }, [addFiles, channelId, intl, maxFilesReached, maxFileCount, serverUrl]);
 
     const handleGalleryPress = useCallback(() => {

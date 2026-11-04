@@ -27,11 +27,13 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
 import {getCurrentUserId} from '@queries/servers/system';
+import {showSmartNotebookFilePicker} from '@screens/file_picker/show_modal';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import type {FileInfo} from '@mattermost/types/files';
+
 import BlockEditor, {createBlock} from './block_editor';
-import SmartNotebookFilePicker from './smart_notebook_file_picker';
 import {
     getNote,
     createNote,
@@ -41,6 +43,33 @@ import {
     type SmartNote,
     type SmartNoteBlock,
 } from './smart_notebook_api';
+
+// ---- Utility Functions ----
+
+// 生成唯一ID
+const generateId = () => `blk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// 根据文件扩展名识别类型
+function getFileType(fileName: string, mimeType: string): SmartNoteBlock['type'] {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+    if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff'].includes(ext)) {
+        return 'image';
+    }
+    if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(ext)) {
+        return 'video';
+    }
+    if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'].includes(ext)) {
+        return 'audio';
+    }
+
+    // 根据 MIME 类型判断
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+
+    return 'file';
+}
 
 // ---- Types ----
 
@@ -75,7 +104,6 @@ const SmartNoteDetailScreen = () => {
     const [loading, setLoading] = useState(!isNew);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
-    const [showFilePicker, setShowFilePicker] = useState(false);
     const [saveProgress, setSaveProgress] = useState<{
         visible: boolean;
         current: number;
@@ -175,10 +203,26 @@ const SmartNoteDetailScreen = () => {
     }, []);
 
     // ---- File picker handler ----
-    const handleFilesSelected = useCallback((newBlocks: SmartNoteBlock[]) => {
+    // 处理文件选择器返回的文件
+    const handleFilesSelected = useCallback((files: FileInfo[]) => {
+        // 将选中的文件转换为 SmartNoteBlock
+        const newBlocks: SmartNoteBlock[] = files.map((file, index) => ({
+            id: generateId(),
+            type: getFileType(file.name || '', file.mime_type || ''),
+            content: file.uri || '',  // 本地路径
+            order: blocks.length + index,
+            meta: {
+                caption: file.name || 'Unknown file',
+                size: file.size || 0,
+                mimeType: file.mime_type || '',
+                isLocal: true,  // 标记为本地文件
+                fileId: file.id,
+            },
+        }));
+
+        // 添加到编辑器
         setBlocks(prev => [...prev, ...newBlocks]);
-        setShowFilePicker(false);
-    }, []);
+    }, [blocks.length]);
 
     // ---- Add block of specific type ----
     const addBlock = useCallback((type: SmartNoteBlock['type'], meta?: Record<string, any>) => {
@@ -270,11 +314,12 @@ const SmartNoteDetailScreen = () => {
 
     // ---- Upload file ----
     const uploadFile = useCallback(() => {
-        if (!userId) return;
-
-        // 显示文件选择器底部弹窗
-        setShowFilePicker(true);
-    }, [userId]);
+        // 调用全屏文件选择器（和聊天窗口一样）
+        showSmartNotebookFilePicker(
+            handleFilesSelected,
+            intl.formatMessage({id: 'smart_notebook.select_file', defaultMessage: '选择文件'}),
+        );
+    }, [handleFilesSelected, intl]);
 
     // ---- Save ----
     // Extract title from blocks:
@@ -743,31 +788,6 @@ const SmartNoteDetailScreen = () => {
                 </View>
                 )}
 
-                {/* File Picker Bottom Sheet */}
-                <Modal
-                    visible={showFilePicker}
-                    transparent={true}
-                    animationType='slide'
-                    onRequestClose={() => setShowFilePicker(false)}
-                >
-                    <View style={style.filePickerOverlay}>
-                        <View style={style.filePickerContainer}>
-                            <View style={style.filePickerHeader}>
-                                <Text style={style.filePickerTitle}>
-                                    {intl.formatMessage({id: 'smart_notebook.select_file', defaultMessage: '选择文件'})}
-                                </Text>
-                                <TouchableOpacity onPress={() => setShowFilePicker(false)}>
-                                    <CompassIcon name='close' size={24} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-                            </View>
-                            <SmartNotebookFilePicker
-                                userId={userId}
-                                onFilesSelected={handleFilesSelected}
-                            />
-                        </View>
-                    </View>
-                </Modal>
-
                 {/* Save Progress Dialog */}
                 <Modal
                     visible={saveProgress.visible}
@@ -921,30 +941,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     toolbarText: {
         ...typography('Body', 100, 'SemiBold'),
-        color: theme.centerChannelColor,
-    },
-    filePickerOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    filePickerContainer: {
-        backgroundColor: theme.centerChannelBg,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        paddingBottom: 20,
-    },
-    filePickerHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    filePickerTitle: {
-        ...typography('Heading', 400, 'SemiBold'),
         color: theme.centerChannelColor,
     },
     saveProgressOverlay: {
