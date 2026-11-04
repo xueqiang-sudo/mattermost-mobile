@@ -18,7 +18,7 @@ import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {alertServerLogout} from '@utils/server';
-import {goToScreen, showModal, goToScreen} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';

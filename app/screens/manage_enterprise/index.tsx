@@ -18,7 +18,7 @@ import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {observeCurrentTeamId} from '@queries/servers/system';
 import {observeCurrentUser} from '@queries/servers/user';
-import {popTopScreen, goToScreen, goToScreen} from '@screens/navigation';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 

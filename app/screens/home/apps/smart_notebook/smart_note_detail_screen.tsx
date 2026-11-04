@@ -195,11 +195,6 @@ const SmartNoteDetailScreen = () => {
         addBlock('code-block');
     }, [addBlock]);
 
-    const insertTable = useCallback(() => {
-        addBlock('paragraph', {});
-        // For now, just add a paragraph - tables are complex
-    }, [addBlock]);
-
     // ---- Upload image ----
     const uploadImage = useCallback(async () => {
         if (!userId) return;
@@ -627,11 +622,8 @@ const SmartNoteDetailScreen = () => {
                     <TouchableOpacity onPress={insertCode} style={style.toolbarBtn}>
                         <Text style={style.toolbarText}>&lt;/&gt;</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={insertTable} style={style.toolbarBtn}>
-                        <Text style={style.toolbarText}>⊞</Text>
-                    </TouchableOpacity>
                     <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
-                        <CompassIcon name='file-outline' size={20} color={theme.centerChannelColor}/>
+                        <CompassIcon name='folder-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
                         <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>

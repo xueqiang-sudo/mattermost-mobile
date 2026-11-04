@@ -41,6 +41,7 @@ type BlockItemProps = {
     editable: boolean;
     isFirst: boolean;
     isLast: boolean;
+    isSelected: boolean; // 当前是否被选中
 };
 
 // ---- Helper to generate unique ID ----
@@ -68,17 +69,22 @@ const BlockItem = ({
     editable,
     isFirst,
     isLast,
+    isSelected,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);
     const textInputRef = useRef<TextInput>(null);
-    const [showActions, setShowActions] = useState(false);
 
     const handleContentChange = useCallback((text: string) => {
         onChange(index, {...block, content: text});
     }, [index, block, onChange]);
 
     const handleFocus = useCallback(() => {
+        onFocus(index);
+    }, [index, onFocus]);
+
+    // 点击块容器时聚焦
+    const handlePress = useCallback(() => {
         onFocus(index);
     }, [index, onFocus]);
 
@@ -132,12 +138,12 @@ const BlockItem = ({
     // Render media blocks
     if (block.type === 'image' && block.content) {
         return (
-            <View style={style.blockContainer}>
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
                     <CompassIcon name='image-outline' size={24} color={theme.centerChannelColor}/>
                     <Text style={style.mediaLabel} numberOfLines={1}>{block.meta?.caption || block.content}</Text>
                 </View>
-                {editable && (
+                {editable && isSelected && (
                     <BlockActions
                         onDelete={() => onDelete(index)}
                         onAddAfter={() => onAddAfter(index)}
@@ -148,18 +154,18 @@ const BlockItem = ({
                         theme={theme}
                     />
                 )}
-            </View>
+            </TouchableOpacity>
         );
     }
 
     if (block.type === 'video' && block.content) {
         return (
-            <View style={style.blockContainer}>
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
                     <CompassIcon name='video-outline' size={24} color={theme.centerChannelColor}/>
                     <Text style={style.mediaLabel} numberOfLines={1}>{block.meta?.caption || block.content}</Text>
                 </View>
-                {editable && (
+                {editable && isSelected && (
                     <BlockActions
                         onDelete={() => onDelete(index)}
                         onAddAfter={() => onAddAfter(index)}
@@ -170,18 +176,18 @@ const BlockItem = ({
                         theme={theme}
                     />
                 )}
-            </View>
+            </TouchableOpacity>
         );
     }
 
     if (block.type === 'audio' && block.content) {
         return (
-            <View style={style.blockContainer}>
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.mediaBlock}>
                     <CompassIcon name='microphone-outline' size={24} color={theme.centerChannelColor}/>
                     <Text style={style.mediaLabel} numberOfLines={1}>{block.meta?.caption || block.content}</Text>
                 </View>
-                {editable && (
+                {editable && isSelected && (
                     <BlockActions
                         onDelete={() => onDelete(index)}
                         onAddAfter={() => onAddAfter(index)}
@@ -192,15 +198,15 @@ const BlockItem = ({
                         theme={theme}
                     />
                 )}
-            </View>
+            </TouchableOpacity>
         );
     }
 
     if (block.type === 'divider' || block.type === 'horizontal-rule') {
         return (
-            <View style={style.blockContainer}>
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 <View style={style.divider}/>
-                {editable && (
+                {editable && isSelected && (
                     <BlockActions
                         onDelete={() => onDelete(index)}
                         onAddAfter={() => onAddAfter(index)}
@@ -211,7 +217,7 @@ const BlockItem = ({
                         theme={theme}
                     />
                 )}
-            </View>
+            </TouchableOpacity>
         );
     }
 
@@ -220,7 +226,7 @@ const BlockItem = ({
     const blockStyle = getBlockTextStyle();
 
     return (
-        <View style={style.blockContainer}>
+        <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
             {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
             <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
                 {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
@@ -237,7 +243,7 @@ const BlockItem = ({
                     textAlignVertical='top'
                 />
             </View>
-            {editable && (
+            {editable && showActions && (
                 <BlockActions
                     onDelete={() => onDelete(index)}
                     onAddAfter={() => onAddAfter(index)}
@@ -248,7 +254,7 @@ const BlockItem = ({
                     theme={theme}
                 />
             )}
-        </View>
+        </TouchableOpacity>
     );
 };
 
@@ -365,8 +371,9 @@ const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
             editable={editable}
             isFirst={index === 0}
             isLast={index === blocks.length - 1}
+            isSelected={focusedIndex === index} // 只有当前聚焦的块显示工具栏
         />
-    ), [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, theme, editable, blocks.length]);
+    ), [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, theme, editable, blocks.length, focusedIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
