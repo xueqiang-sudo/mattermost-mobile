@@ -38,6 +38,7 @@ class EphemeralStoreSingleton {
     private switchingToChannel = new Set<string>();
     private acknowledgingPost = new Set<string>();
     private unacknowledgingPost = new Set<string>();
+    private creatingPosts = new Set<string>();  // 跟踪正在创建的 post（防止 WebSocket 和 HTTP 响应重复处理）
     private currentThreadId = '';
     private notificationTapped = false;
     private enablingCRT = false;
@@ -311,6 +312,19 @@ class EphemeralStoreSingleton {
 
     isUnacknowledgingPost = (postId: string) => {
         return this.unacknowledgingPost.has(postId);
+    };
+
+    // 跟踪正在创建的 post（防止 WebSocket 和 HTTP 响应重复处理）
+    setCreatingPost = (pendingPostId: string) => {
+        this.creatingPosts.add(pendingPostId);
+    };
+
+    unsetCreatingPost = (pendingPostId: string) => {
+        this.creatingPosts.delete(pendingPostId);
+    };
+
+    isCreatingPost = (pendingPostId: string) => {
+        return this.creatingPosts.has(pendingPostId);
     };
 
     getChannelPlaybooksSynced = (serverUrl: string, channelId: string) => {

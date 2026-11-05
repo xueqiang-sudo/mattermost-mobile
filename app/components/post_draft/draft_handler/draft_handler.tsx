@@ -548,7 +548,12 @@ export default function DraftHandler(props: Props) {
                             }
                         } catch (err) {
                             logError('[addFiles createPost]', err);
-                            debugLog('DRAFT', `addFiles: Phase 3 exception (post ${index}) - ${err}`);
+                            try {
+                                debugLog('DRAFT', `addFiles: Phase 3 exception (post ${index}) - ${err}`);
+                            } catch (logErr) {
+                                // debugLog 本身出错时忽略，不影响主流程
+                                logError('[addFiles createPost] debugLog failed', logErr);
+                            }
                         }
                         createdPostIds[index] = createdPostId;
                     }));
@@ -615,8 +620,15 @@ export default function DraftHandler(props: Props) {
                                 throw new Error('copyDriveFileToChannel returned no file');
                             }
                             completeProgress(progressKey);
-                            await updatePostFileIds(serverUrl, postId, [copied as FileInfo]);
-                            debugLog('DRAFT', `addFiles: cloud drive file ${file.name} copied, post ${postId} updated`);
+
+                            // 【参考 webapp】使用 patchPost 同时更新 message 和 file_ids
+                            const client = NetworkManager.getClient(serverUrl);
+                            await client.patchPost({
+                                id: postId,
+                                message: `!{file:${copied.id}}`,
+                                file_ids: [copied.id],
+                            });
+                            debugLog('DRAFT', `addFiles: cloud drive file ${file.name} copied, post ${postId} updated with patchPost`);
                         } catch (cdErr) {
                             logError('[addFiles cloudDriveCopy]', cdErr);
                             failProgress(progressKey);

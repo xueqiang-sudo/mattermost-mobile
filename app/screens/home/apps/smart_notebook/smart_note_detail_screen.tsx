@@ -192,9 +192,14 @@ const SmartNoteDetailScreen = () => {
                 const newBlock = createBlock('paragraph', result.text);
                 setBlocks(prev => [...prev, newBlock]);
             } else {
+                // 针对 400 错误提供更具体的信息
+                const errorMsg = result.statusCode === 400
+                    ? `请求参数错误(400): ${result.error || '请检查音频文件格式'}\n\n调试信息:\n- 文件名: ${file.name}\n- MIME: ${file.mime_type}\n- 路径: ${file.localPath}`
+                    : (result.error || intl.formatMessage({id: 'smart_notebook.voice_empty', defaultMessage: '语音识别结果为空'}));
+
                 Alert.alert(
                     intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
-                    result.error || intl.formatMessage({id: 'smart_notebook.voice_empty', defaultMessage: '语音识别结果为空'}),
+                    errorMsg,
                     [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
                 );
             }

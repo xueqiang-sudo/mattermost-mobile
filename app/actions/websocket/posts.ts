@@ -79,6 +79,16 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
         metadata_files: post.metadata?.files?.length || 0,
     });
 
+    // 【关键修复】检查这个 post 是否正在通过 createPost API 创建中
+    // 如果是，跳过 WebSocket 处理，让 HTTP 响应先处理完
+    // 这样可以避免 WebSocket 和 HTTP 响应同时处理导致 post 渲染两次
+    if (post.pending_post_id && EphemeralStore.isCreatingPost(post.pending_post_id)) {
+        debugLog('[WS:handleNewPostEvent] ⏭️ 跳过：post 正在通过 HTTP 创建中', {
+            pending_post_id: post.pending_post_id,
+        });
+        return;
+    }
+
     const currentUserId = await getCurrentUserId(database);
 
     const existing = await getPostById(database, post.pending_post_id) || await getPostById(database, post.id);

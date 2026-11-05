@@ -2817,7 +2817,7 @@
   "workbench.drive.empty_subtitle": "创建新文件夹或切换范围以开始使用。",
   "workbench.drive.root": "云盘",
   "workbench.drive.title": "云盘",
-  "workbench.drive.scope_public": "公开",
+  "workbench.drive.scope_public": "公有",
   "workbench.drive.scope_private": "私有",
   "workbench.drive.new_folder": "新建文件夹",
   "workbench.drive.create_folder_title": "新建文件夹",
@@ -2847,5 +2847,13 @@
   "upload_progress.status.uploading": "上传中...",
   "upload_progress.status.pending": "等待中",
   "upload_progress.retry": "重试",
-  "upload_progress.done": "完成"
+  "upload_progress.done": "完成",
+
+  "cloud_drive.title": "云盘",
+  "cloud_drive_picker.scope_public": "公有",
+  "cloud_drive_picker.scope_private": "私有",
+  "cloud_drive_picker.root": "根目录",
+  "cloud_drive_picker.error_title": "错误",
+  "cloud_drive_picker.error": "发送文件失败",
+  "cloud_drive_picker.empty": "此文件夹为空"
 }

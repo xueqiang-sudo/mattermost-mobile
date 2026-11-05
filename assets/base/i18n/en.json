@@ -2848,5 +2848,13 @@
   "upload_progress.status.uploading": "Uploading...",
   "upload_progress.status.pending": "Pending",
   "upload_progress.retry": "Retry",
-  "upload_progress.done": "Done"
+  "upload_progress.done": "Done",
+
+  "cloud_drive.title": "Cloud Drive",
+  "cloud_drive_picker.scope_public": "Public",
+  "cloud_drive_picker.scope_private": "Private",
+  "cloud_drive_picker.root": "Root",
+  "cloud_drive_picker.error_title": "Error",
+  "cloud_drive_picker.error": "Failed to send files",
+  "cloud_drive_picker.empty": "This folder is empty"
 }

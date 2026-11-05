@@ -2843,5 +2843,13 @@
   "upload_progress.status.uploading": "上傳中...",
   "upload_progress.status.pending": "等待中",
   "upload_progress.retry": "重試",
-  "upload_progress.done": "完成"
+  "upload_progress.done": "完成",
+
+  "cloud_drive.title": "雲端硬碟",
+  "cloud_drive_picker.scope_public": "公有",
+  "cloud_drive_picker.scope_private": "私有",
+  "cloud_drive_picker.root": "根目錄",
+  "cloud_drive_picker.error_title": "錯誤",
+  "cloud_drive_picker.error": "發送檔案失敗",
+  "cloud_drive_picker.empty": "此資料夾為空"
 }

@@ -375,7 +375,11 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
             } as unknown as FileInfo));
 
             // Dismiss the picker first so the user sees the chat immediately.
-            await popTopScreen(componentId);
+            if (closeButtonId) {
+                dismissModal({componentId: closeButtonId as AvailableScreens});
+            } else {
+                dismissModal({componentId});
+            }
 
             if (fileInfos.length > 0 && onSend) {
                 await onSend(fileInfos);

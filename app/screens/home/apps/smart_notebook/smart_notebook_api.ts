@@ -197,7 +197,7 @@ export async function uploadMedia(
 export async function transcribeAudio(
     serverUrl: string,
     file: {uri: string; name: string; type: string},
-): Promise<{success: boolean; text?: string; error?: string}> {
+): Promise<{success: boolean; text?: string; error?: string; statusCode?: number}> {
     const client = NetworkManager.getClient(serverUrl);
 
     // 确保文件名有正确的扩展名
@@ -223,7 +223,11 @@ export async function transcribeAudio(
         }
     }
 
-    console.log('[transcribeAudio] 发送文件:', {
+    const VOICE_PLUGIN_BASE = '/plugins/com.superera.voice-recognition';
+    const endpoint = VOICE_PLUGIN_BASE + '/api/v1/transcribe';
+
+    console.log('[transcribeAudio] 请求信息:', {
+        endpoint,
         originalName: file.name,
         finalName: fileName,
         mimeType: file.type,
@@ -237,26 +241,34 @@ export async function transcribeAudio(
         type: file.type,
     } as any);
 
-    // Use voice-to-text-plugin's direct transcription API
-    const VOICE_PLUGIN_BASE = '/plugins/com.superera.voice-recognition';
-    const endpoint = VOICE_PLUGIN_BASE + '/api/v1/transcribe';
-
     try {
         const resp = await client.doFetch(endpoint, {
             method: 'post',
             body: formData,
         });
 
+        console.log('[transcribeAudio] 成功响应:', resp);
         // doFetch returns {data: ...} or throws on error
         return resp?.data || resp;
     } catch (e: any) {
         // Extract error details
         const errorMessage = e?.message || String(e);
         const serverMessage = e?.server_error?.message || e?.details?.error || '';
-        console.log('[transcribeAudio] Error:', errorMessage, serverMessage);
+        const statusCode = e?.status_code || e?.statusCode;
+        const responseData = e?.details?.data || e?.response?.data;
+
+        console.error('[transcribeAudio] 错误详情:', {
+            message: errorMessage,
+            serverMessage,
+            statusCode,
+            responseData,
+            fullError: JSON.stringify(e, null, 2),
+        });
+
         return {
             success: false,
             error: serverMessage || errorMessage || '语音转文字服务暂不可用',
+            statusCode,
         };
     }
 }

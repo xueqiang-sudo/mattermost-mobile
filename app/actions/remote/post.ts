@@ -161,6 +161,8 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
     let created;
     try {
+        // 标记 pending_post_id 正在创建，防止 WebSocket 事件重复处理
+        EphemeralStore.setCreatingPost(pendingPostId);
         debugLog('POST', `[createPost] calling server API with pending_post_id=${newPost.pending_post_id}`);
         created = await client.createPost({...newPost, create_at: 0});
         debugLog('POST', `[createPost] server returned post id=${created.id}, pending_post_id=${created.pending_post_id || 'none'}, file_ids=${JSON.stringify(created.file_ids || [])}`);
@@ -306,6 +308,10 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     newPost = created;
 
     return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};
+    } finally {
+        // 清除标记，允许后续 WebSocket 事件正常处理
+        EphemeralStore.unsetCreatingPost(pendingPostId);
+    }
 }
 
 /**
