@@ -322,6 +322,15 @@ class EphemeralStoreSingleton {
         if (serverPostId) {
             this.creatingServerPosts.add(serverPostId);
         }
+
+        // 【安全阀】防止 Set 无限增长，30秒后自动清理
+        // 正常情况下 createPost 会在几秒内完成，30秒足够长了
+        setTimeout(() => {
+            this.creatingPosts.delete(pendingPostId);
+            if (serverPostId) {
+                this.creatingServerPosts.delete(serverPostId);
+            }
+        }, 30000); // 30秒
     };
 
     unsetCreatingPost = (pendingPostId: string, serverPostId?: string) => {

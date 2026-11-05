@@ -215,7 +215,12 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         }
 
         // 【修复】错误路径也要清除标记，防止后续 WebSocket 事件重复处理
-        EphemeralStore.unsetCreatingPost(pendingPostId);
+        // 关键：必须同时清除 pendingPostId 和 serverPostId（如果有的话）
+        if (created?.id) {
+            EphemeralStore.unsetCreatingPost(pendingPostId, created.id);
+        } else {
+            EphemeralStore.unsetCreatingPost(pendingPostId);
+        }
         return {data: {postId: pendingPostId}};
     } finally {
         // 【修复】不在这里清除 pendingPostId 标记，统一在函数末尾清除

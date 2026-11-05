@@ -527,6 +527,7 @@ export default function DraftHandler(props: Props) {
 
                     await Promise.all(postBatch.map(async ({pendingPostId: serverPendingPostId, post: serverPost, files: serverFiles, index}) => {
                         let createdPostId = serverPendingPostId;
+                        let phase3Failed = false;  // 标记 Phase 3 是否失败
                         try {
                             const result = await createPost(
                                 serverUrl,
@@ -537,6 +538,7 @@ export default function DraftHandler(props: Props) {
 
                             if (result.error) {
                                 debugLog('DRAFT', `addFiles: Phase 3 ERROR (post ${index}) - ${result.error}`);
+                                phase3Failed = true;
                             } else if (result.data?.postId) {
                                 createdPostId = result.data.postId;
                                 debugLog('DRAFT', `addFiles: Phase 3 - post ${index} created, id=${createdPostId}`);
@@ -547,6 +549,7 @@ export default function DraftHandler(props: Props) {
                                 }
                             }
                         } catch (err) {
+                            phase3Failed = true;
                             logError('[addFiles createPost]', err);
                             try {
                                 debugLog('DRAFT', `addFiles: Phase 3 exception (post ${index}) - ${err}`);
@@ -556,6 +559,10 @@ export default function DraftHandler(props: Props) {
                             }
                         }
                         createdPostIds[index] = createdPostId;
+                        // 如果 Phase 3 失败，标记该索引，后续上传时跳过
+                        if (phase3Failed) {
+                            createdPostIds[index] = `FAILED:${serverPendingPostId}`;
+                        }
                     }));
                 }
 
@@ -584,6 +591,13 @@ export default function DraftHandler(props: Props) {
 
                     // 进度键用 pending 文件 id（file.id），因为聊天列表从 DB 读取的 File 只有 id，无 clientId
                     const progressKey = file.id!;
+
+                    // 【关键修复】检查 Phase 3 是否失败，如果失败则跳过上传
+                    if (postId.startsWith('FAILED:')) {
+                        debugLog('DRAFT', `addFiles: skipping upload for ${file.name} because Phase 3 failed`);
+                        failProgress(progressKey);
+                        return;
+                    }
 
                     // Existing server files (group files tab): already uploaded, keep as-is
                     if (isExistingServerFile) {

@@ -18,6 +18,7 @@ import {getRawRecordPairs, getUniqueRawsBy, getValidRecordsForUpdate} from '@dat
 import {createPostsChain, getPostListEdges} from '@database/operator/utils/post';
 import {queryScheduledPostsForTeam} from '@queries/servers/scheduled_post';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 import FileModel from '@typings/database/models/servers/file';
 import ScheduledPostModel from '@typings/database/models/servers/scheduled_post';
 import {isUnrevealedBoRPost} from '@utils/bor';
