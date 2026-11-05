@@ -414,7 +414,13 @@ const SmartNoteDetailScreen = () => {
 
                 if (uploadResult?.url) {
                     const newBlock = createBlock('image', uploadResult.url);
-                    newBlock.meta = {caption: asset.fileName || '图片'};
+                    newBlock.meta = {
+                        caption: asset.fileName || '图片',
+                        fileName: asset.fileName || 'image.jpg',
+                        isLocal: false,
+                        url: uploadResult.url,
+                        mmFileId: uploadResult.fileId || '',
+                    };
                     setBlocks(prev => [...prev, newBlock]);
                 }
             });
@@ -442,8 +448,14 @@ const SmartNoteDetailScreen = () => {
                 });
 
                 if (uploadResult?.url) {
-                    const newBlock = createBlock('video', uploadResult.url);
-                    newBlock.meta = {caption: asset.fileName || '视频'};
+                    const newBlock = createBlock('image', uploadResult.url);
+                    newBlock.meta = {
+                        caption: `[VIDEO:${uploadResult.url}]${asset.fileName || '视频'}`,
+                        fileName: asset.fileName || 'video.mp4',
+                        isLocal: false,
+                        url: uploadResult.url,
+                        mmFileId: uploadResult.fileId || '',
+                    };
                     setBlocks(prev => [...prev, newBlock]);
                 }
             });
@@ -499,6 +511,19 @@ const SmartNoteDetailScreen = () => {
         const {isLocalBlock} = await import('./smart_notebook_upload');
         const localBlocks = blocks.filter(isLocalBlock);
         const hasLocalFiles = localBlocks.length > 0;
+
+        // 调试日志：追踪保存前的块状态
+        debugLog('[SmartNotebook] performSave: 检查本地文件', {
+            totalBlocks: blocks.length,
+            localBlocksCount: localBlocks.length,
+            blockDetails: blocks.map(b => ({
+                id: b.id,
+                type: b.type,
+                isLocal: b.meta?.isLocal,
+                fileName: b.meta?.fileName,
+                contentLen: b.content?.length,
+            })),
+        });
 
         try {
             let blocksToSave = blocks;
@@ -557,10 +582,20 @@ const SmartNoteDetailScreen = () => {
                 if (uploadResult.errors.length > 0) {
                     const failedNames = uploadResult.errors
                         .map((e) => {
+                            // 优先使用 meta.fileName
+                            if (e.block.meta?.fileName) {
+                                return e.block.meta.fileName;
+                            }
                             // 提取 VIDEO/AUDIO caption 中的文件名
                             const cap = e.block.meta?.caption || '';
                             const m = cap.match(/^\[(?:VIDEO|AUDIO):[^\]]*\](.*)$/);
-                            return m ? m[1] : (e.block.meta?.fileName || cap || '未知文件');
+                            if (m && m[1]) return m[1];
+                            // 从 content 路径提取文件名
+                            if (e.block.content) {
+                                const parts = e.block.content.split('/');
+                                return parts[parts.length - 1] || '未知文件';
+                            }
+                            return '未知文件';
                         })
                         .join(', ');
 

@@ -3,6 +3,7 @@
 
 import {uploadMedia} from './smart_notebook_api';
 import type {SmartNoteBlock} from './smart_notebook_api';
+import {debugLog} from '@store/debug_log';
 
 // webapp 兼容的 VIDEO/AUDIO caption 编码格式
 const MEDIA_CAPTION_RE = /^\[(VIDEO|AUDIO):([^\]]*)\](.*)$/;
@@ -165,6 +166,19 @@ export async function uploadAllLocalBlocks(
     let current = 0;
     const errors: Array<{block: SmartNoteBlock; error: string}> = [];
 
+    // 调试日志：记录哪些块被识别为本地块
+    debugLog('[SmartNotebookUpload] Found local blocks', {
+        totalBlocks: blocks.length,
+        localBlocksCount: localBlocks.length,
+        localBlockDetails: localBlocks.map(b => ({
+            type: b.type,
+            id: b.id,
+            fileName: b.meta?.fileName,
+            isLocal: b.meta?.isLocal,
+            contentPreview: b.content?.substring(0, 60),
+        })),
+    });
+
     const resultBlocks = [...blocks];
 
     for (let i = 0; i < blocks.length; i++) {
@@ -180,12 +194,24 @@ export async function uploadAllLocalBlocks(
             current++;
             onProgress?.(current, total);
         } catch (error: any) {
+            // 上传失败的块也标记为非本地，避免重复上传
+            const failedBlock = {...block, meta: {...block.meta, isLocal: false}};
+            resultBlocks[i] = failedBlock;
             errors.push({
                 block,
                 error: error?.message || String(error),
             });
+            current++;
+            onProgress?.(current, total);
         }
     }
+
+    debugLog('[SmartNotebookUpload] upload complete', {
+        totalBlocks: blocks.length,
+        localBlocks: total,
+        successCount: total - errors.length,
+        errorsCount: errors.length,
+    });
 
     return {
         success: errors.length === 0,

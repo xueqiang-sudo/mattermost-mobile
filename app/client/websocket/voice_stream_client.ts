@@ -26,7 +26,7 @@ export class VoiceStreamClient {
                 // Build WebSocket URL
                 const wsProtocol = this.serverUrl.startsWith('https') ? 'wss' : 'ws';
                 const baseUrl = this.serverUrl.replace(/^https?:\/\//, '');
-                const wsUrl = `${wsProtocol}://${baseUrl}/api/v4/plugins/voice-stream?token=${encodeURIComponent(this.token)}`;
+                const wsUrl = `${wsProtocol}://${baseUrl}/api/v4/voice-stream?token=${encodeURIComponent(this.token)}`;
 
                 console.log('[VoiceStreamClient] Connecting to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
 
