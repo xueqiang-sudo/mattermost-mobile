@@ -34,6 +34,13 @@ export function useVoiceStream(serverUrl: string, token: string) {
     const clientRef = useRef<VoiceStreamClient | null>(null);
     const sessionIdRef = useRef<string | null>(null);
 
+    // 【关键修复】使用 ref 来保存最新的 token，避免闭包捕获旧值
+    const tokenRef = useRef(token);
+    tokenRef.current = token;
+
+    const serverUrlRef = useRef(serverUrl);
+    serverUrlRef.current = serverUrl;
+
     /**
      * Request microphone permission
      */
@@ -64,6 +71,23 @@ export function useVoiceStream(serverUrl: string, token: string) {
             setState('connecting');
             setResult({partialText: '', finalText: '', error: null});
 
+            // 【关键修复】使用 ref 获取最新的 token
+            const currentToken = tokenRef.current;
+            const currentServerUrl = serverUrlRef.current;
+
+            // 检查 token 是否有效
+            if (!currentToken || currentToken.trim() === '') {
+                console.error('[useVoiceStream] Token is empty or invalid');
+                setState('error');
+                setResult(r => ({...r, error: '认证令牌无效，请重新登录'}));
+                Alert.alert(
+                    '认证失败',
+                    '语音转文字服务需要重新登录才能使用',
+                    [{text: '确定'}]
+                );
+                return false;
+            }
+
             // Request permission
             const hasPermission = await requestPermission();
             if (!hasPermission) {
@@ -80,8 +104,8 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 return false;
             }
 
-            // Create WebSocket client
-            const client = new VoiceStreamClient(serverUrl, token);
+            // Create WebSocket client with latest token
+            const client = new VoiceStreamClient(currentServerUrl, currentToken);
 
             // Set up callbacks
             client.onTranscription = (text, isFinal) => {
@@ -155,7 +179,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
 
             return false;
         }
-    }, [serverUrl, token, requestPermission]);
+    }, [requestPermission]);
 
     /**
      * Stop streaming: stop recording + finalize transcription

@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
     Alert,
+    Animated,
     Clipboard,
     KeyboardAvoidingView,
     Modal,
@@ -126,6 +127,33 @@ const SmartNoteDetailScreen = () => {
     const [loading, setLoading] = useState(!isNew);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
+
+    // 脉冲动画
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    // 录音开始时启动脉冲动画
+    useEffect(() => {
+        if (voiceStreamState === 'recording') {
+            const pulse = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 0.3,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 800,
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            pulse.start();
+            return () => pulse.stop();
+        } else {
+            pulseAnim.setValue(1);
+        }
+    }, [voiceStreamState, pulseAnim]);
 
     // 标题输入对话框状态
     const [showTitleDialog, setShowTitleDialog] = useState(false);
@@ -988,7 +1016,7 @@ const SmartNoteDetailScreen = () => {
                     <View style={style.recordingBanner}>
                         <CompassIcon name='microphone' size={16} color={theme.dndIndicator}/>
                         <Text style={style.recordingText}>
-                            {intl.formatMessage({id: 'smart_notebook.realtime_recording', defaultMessage: '实时转录中...说出你想写的内容'})}
+                            {intl.formatMessage({id: 'smart_notebook.realtime_recording', defaultMessage: '正在录音...点击麦克风结束'})}
                         </Text>
                         {voiceStreamResult.partialText ? (
                             <Text style={[style.recordingText, {marginTop: 4, fontStyle: 'italic'}]} numberOfLines={2}>
@@ -1043,16 +1071,33 @@ const SmartNoteDetailScreen = () => {
                     ) : voiceStreamState === 'recording' ? (
                         <TouchableOpacity
                             onPress={async () => {
+                                // 停止录音并完成转文字
                                 const finalText = await stopStreaming();
                                 console.log('[SmartNote] Voice stopped, final text:', finalText);
                             }}
-                            style={[style.toolbarBtnLarge, style.toolbarBtnActive]}
+                            style={[style.toolbarBtnLarge, style.toolbarBtnRecording]}
                         >
-                            <CompassIcon name='microphone' size={28} color={theme.dndIndicator}/>
+                            <CompassIcon name='microphone' size={32} color={theme.buttonColor}/>
+                            {/* 录音中的脉冲动画效果 */}
+                            <Animated.View
+                                style={[
+                                    style.recordingPulse,
+                                    {opacity: pulseAnim},
+                                ]}
+                            />
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
                             onPress={async () => {
+                                // 【关键修复】检查 bearerToken 是否已准备好
+                                if (!bearerToken || bearerToken.trim() === '') {
+                                    Alert.alert(
+                                        intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
+                                        '认证信息尚未准备好，请稍后再试',
+                                    );
+                                    return;
+                                }
+
                                 const started = await startStreaming();
                                 if (!started) {
                                     Alert.alert(
@@ -1292,6 +1337,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     toolbarBtnActive: {
         backgroundColor: changeOpacity(theme.dndIndicator, 0.15),
+    },
+    toolbarBtnRecording: {
+        backgroundColor: theme.dndIndicator,
+        position: 'relative',
+        overflow: 'visible',
+    },
+    recordingPulse: {
+        position: 'absolute',
+        top: -4,
+        left: -4,
+        right: -4,
+        bottom: -4,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: theme.dndIndicator,
+        opacity: 0.6,
     },
     recordingBanner: {
         flexDirection: 'row',
