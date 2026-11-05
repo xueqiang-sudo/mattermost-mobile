@@ -500,7 +500,7 @@ class VoiceRecorderModuleImpl(
                 Log.d(TAG, "========== 实时录音已停止 ==========")
 
                 withContext(Dispatchers.Main) {
-                    promise.resolve()
+                    promise.resolve(null)
                 }
 
             } catch (e: Exception) {

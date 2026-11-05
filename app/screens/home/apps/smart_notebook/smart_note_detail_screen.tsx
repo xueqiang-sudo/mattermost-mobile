@@ -126,6 +126,11 @@ const SmartNoteDetailScreen = () => {
     const [loading, setLoading] = useState(!isNew);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
+
+    // 标题输入对话框状态
+    const [showTitleDialog, setShowTitleDialog] = useState(false);
+    const [titleInput, setTitleInput] = useState('');
+
     const [saveProgress, setSaveProgress] = useState<{
         visible: boolean;
         current: number;
@@ -487,6 +492,17 @@ const SmartNoteDetailScreen = () => {
 
     const handleSave = useCallback(async () => {
         if (!userId || saving) return;
+
+        // 检查是否有 H1 标题
+        const hasH1Title = blocks.some(block =>
+            block.type === 'heading' && block.meta?.level === 1 && block.content?.trim()
+        );
+
+        // 如果没有 H1 标题且用户没有手动输入标题，显示对话框
+        if (!hasH1Title && !title.trim()) {
+            setShowTitleDialog(true);
+            return;
+        }
 
         setSaving(true);
 
@@ -978,12 +994,6 @@ const SmartNoteDetailScreen = () => {
                     <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
                         <CompassIcon name='folder-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
-                        <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={uploadVideo} style={style.toolbarBtn}>
-                        <CompassIcon name='video-outline' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
                     {/* Real-time voice stream button - independent from chat window voice messages */}
                     {voiceStreamState === 'connecting' || voiceProcessing ? (
                         <View style={style.toolbarBtn}>
@@ -995,9 +1005,9 @@ const SmartNoteDetailScreen = () => {
                                 const finalText = await stopStreaming();
                                 console.log('[SmartNote] Voice stopped, final text:', finalText);
                             }}
-                            style={[style.toolbarBtn, style.toolbarBtnActive]}
+                            style={[style.toolbarBtnLarge, style.toolbarBtnActive]}
                         >
-                            <CompassIcon name='microphone' size={20} color={theme.dndIndicator}/>
+                            <CompassIcon name='microphone' size={28} color={theme.dndIndicator}/>
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
@@ -1010,9 +1020,9 @@ const SmartNoteDetailScreen = () => {
                                     );
                                 }
                             }}
-                            style={style.toolbarBtn}
+                            style={style.toolbarBtnLarge}
                         >
-                            <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
+                            <CompassIcon name='microphone-outline' size={28} color={theme.centerChannelColor}/>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -1156,6 +1166,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     toolbarBtn: {
         padding: 8,
         borderRadius: 4,
+    },
+    toolbarBtnLarge: {
+        padding: 12,
+        borderRadius: 6,
+        marginLeft: 4,
     },
     toolbarBtnActive: {
         backgroundColor: changeOpacity(theme.dndIndicator, 0.15),

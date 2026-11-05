@@ -305,13 +305,19 @@ import os.log
 
                 // 将音频数据转换为 base64
                 let audioData = buffer.audioBufferList.pointee.mBuffers
-                if let data = Data(bytes: audioData.mData!, count: Int(audioData.mDataByteSize)) {
-                    let base64String = data.base64EncodedString()
 
-                    // 回调给JS
-                    self.runOnMain {
-                        onChunkReady(base64String)
-                    }
+                // 检查 mData 指针是否有效
+                guard let mDataPointer = audioData.mData else {
+                    return
+                }
+
+                // Data(bytes:count:) 返回非 Optional 的 Data，直接使用
+                let data = Data(bytes: mDataPointer, count: Int(audioData.mDataByteSize))
+                let base64String = data.base64EncodedString()
+
+                // 回调给JS
+                self.runOnMain {
+                    onChunkReady(base64String)
                 }
             }
 

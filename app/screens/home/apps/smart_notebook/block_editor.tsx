@@ -41,7 +41,8 @@ type BlockItemProps = {
     index: number;
     onChange: (index: number, block: SmartNoteBlock) => void;
     onDelete: (index: number) => void;
-    onAddAfter: (index: number) => void;
+    onAddAfter: (index: number, type?: SmartNoteBlock['type'], meta?: any) => void;
+    onAddAfterWithFocus: (index: number, type?: SmartNoteBlock['type'], meta?: any) => void;
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
@@ -144,6 +145,7 @@ const BlockItem = ({
     onChange,
     onDelete,
     onAddAfter,
+    onAddAfterWithFocus,
     onMoveUp,
     onMoveDown,
     onFocus,
@@ -158,15 +160,17 @@ const BlockItem = ({
     const intl = useIntl();
     const style = getBlockStyle(theme);
     const textInputRef = useRef<TextInput>(null);
+    const [shouldAutoFocus, setShouldAutoFocus] = useState(false);
 
     // 自动聚焦 TextInput（用于插入块后光标移动到新位置）
     useEffect(() => {
-        if (autoFocus && textInputRef.current) {
+        if ((autoFocus || shouldAutoFocus) && textInputRef.current) {
             setTimeout(() => {
                 textInputRef.current?.focus();
+                setShouldAutoFocus(false);
             }, 100);
         }
-    }, [autoFocus]);
+    }, [autoFocus, shouldAutoFocus]);
 
     const handleContentChange = useCallback((text: string) => {
         onChange(index, {...block, content: text});
@@ -180,6 +184,35 @@ const BlockItem = ({
     const handlePress = useCallback(() => {
         onFocus(index);
     }, [index, onFocus]);
+
+    // 处理回车键：列表项自动续行
+    const handleKeyPress = useCallback((e: any) => {
+        // 检查是否是回车键
+        if (e.nativeEvent.key === 'Enter') {
+            // 检查是否是列表类型
+            if (block.type === 'bulleted-list' || block.type === 'numbered-list' || block.type === 'checklist') {
+                // 如果是空列表项，转换为普通段落
+                if (!block.content.trim()) {
+                    onChange(index, {...block, type: 'paragraph', content: '', meta: undefined});
+                    return;
+                }
+
+                // 否则创建新的列表项
+                let newMeta: any = {};
+                if (block.type === 'numbered-list') {
+                    // 有序列表：序号加1
+                    const currentNumber = block.meta?.number || 1;
+                    newMeta = {number: currentNumber + 1};
+                } else if (block.type === 'checklist') {
+                    // 待办列表：默认未选中
+                    newMeta = {checked: false};
+                }
+
+                // 创建新块并设置焦点
+                onAddAfterWithFocus(index, block.type, newMeta);
+            }
+        }
+    }, [index, block, onChange, onAddAfterWithFocus]);
 
     // Get appropriate style for block type
     const getBlockTextStyle = () => {
@@ -452,6 +485,7 @@ const BlockItem = ({
                     value={block.content}
                     onChangeText={handleContentChange}
                     onFocus={handleFocus}
+                    onKeyPress={handleKeyPress}
                     placeholder={getPlaceholder()}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
                     multiline
@@ -510,6 +544,10 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+    const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
+
+    // FlatList 引用，用于控制滚动
+    const flatListRef = useRef<FlatList>(null);
 
     // 同步光标位置给父组件
     useEffect(() => {
@@ -523,6 +561,26 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
             onFocusApplied?.();
         }
     }, [pendingFocusIndex, blocks.length, onFocusApplied]);
+
+    // 处理列表项回车后的焦点定位和智能滚动
+    useEffect(() => {
+        if (nextFocusIndex != null && nextFocusIndex >= 0 && nextFocusIndex < blocks.length) {
+            // 设置焦点
+            setFocusedIndex(nextFocusIndex);
+
+            // 延迟滚动，确保新块已渲染并且焦点已设置
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                    index: nextFocusIndex,
+                    animated: true,
+                    viewPosition: 0.5,  // 滚动到中间位置
+                });
+            }, 150);  // 等待 DOM 更新
+
+            // 清除状态
+            setNextFocusIndex(null);
+        }
+    }, [nextFocusIndex, blocks.length]);
 
     // 媒体播放状态
     const [playingMedia, setPlayingMedia] = useState<{
@@ -566,8 +624,11 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
         onChange(newBlocks);
     }, [blocks, onChange]);
 
-    const handleAddAfter = useCallback((index: number) => {
-        const newBlock = createBlock('paragraph', '');
+    const handleAddAfter = useCallback((index: number, type?: SmartNoteBlock['type'], meta?: any) => {
+        const newBlock = createBlock(type || 'paragraph', '');
+        if (meta) {
+            newBlock.meta = meta;
+        }
         const newBlocks = [...blocks];
         newBlocks.splice(index + 1, 0, newBlock);
         // Update order
@@ -575,6 +636,25 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
             b.order = i;
         });
         onChange(newBlocks);
+        // 设置下一个焦点（让"+"按钮也支持自动聚焦和滚动）
+        setNextFocusIndex(index + 1);
+    }, [blocks, onChange]);
+
+    // 添加新块并设置焦点（用于列表项回车）
+    const handleAddAfterWithFocus = useCallback((index: number, type?: SmartNoteBlock['type'], meta?: any) => {
+        const newBlock = createBlock(type || 'paragraph', '');
+        if (meta) {
+            newBlock.meta = meta;
+        }
+        const newBlocks = [...blocks];
+        newBlocks.splice(index + 1, 0, newBlock);
+        // Update order
+        newBlocks.forEach((b, i) => {
+            b.order = i;
+        });
+        onChange(newBlocks);
+        // 设置下一个焦点
+        setNextFocusIndex(index + 1);
     }, [blocks, onChange]);
 
     const handleMoveUp = useCallback((index: number) => {
@@ -615,6 +695,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 onChange={handleChange}
                 onDelete={handleDelete}
                 onAddAfter={handleAddAfter}
+                onAddAfterWithFocus={handleAddAfterWithFocus}
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
@@ -624,10 +705,10 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 isFirst={index === 0}
                 isLast={index === blocks.length - 1}
                 isSelected={focusedIndex === index}
-                autoFocus={pendingFocusIndex === index}
+                autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex, pendingFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
