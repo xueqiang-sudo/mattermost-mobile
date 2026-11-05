@@ -85,9 +85,19 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     if (post.pending_post_id && EphemeralStore.isCreatingPost(post.pending_post_id)) {
         debugLog('[WS:handleNewPostEvent] ⏭️ 跳过：post 正在通过 HTTP 创建中', {
             pending_post_id: post.pending_post_id,
+            post_id: post.id,
+            has_files: !!post.file_ids?.length,
         });
         return;
     }
+
+    debugLog('[WS:handleNewPostEvent] 🚀 开始处理 WebSocket post', {
+        post_id: post.id,
+        pending_post_id: post.pending_post_id,
+        isCreatingPost: post.pending_post_id ? EphemeralStore.isCreatingPost(post.pending_post_id) : false,
+        has_files: !!post.file_ids?.length,
+        file_count: post.file_ids?.length || 0,
+    });
 
     const currentUserId = await getCurrentUserId(database);
 

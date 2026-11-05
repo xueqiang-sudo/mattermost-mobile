@@ -269,6 +269,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
         newPost = created;
 
+        debugLog('POST', `[createPost] ✅ 成功：server_post_id=${created.id}, pending_post_id=${pendingPostId}, file_ids=${JSON.stringify(created.file_ids || [])}`);
         return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};
 
     } catch (error) {
