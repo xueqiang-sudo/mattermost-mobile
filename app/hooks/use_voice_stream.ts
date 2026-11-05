@@ -7,6 +7,7 @@ import Permissions from 'react-native-permissions';
 
 import {VoiceStreamClient} from '@client/websocket/voice_stream_client';
 import {startRealtimeRecording, stopRealtimeRecording} from '@mattermost/voice-recorder';
+import {debugLog} from '@store/debug_log';
 
 export type VoiceStreamState = 'idle' | 'connecting' | 'recording' | 'error';
 
@@ -64,19 +65,31 @@ export function useVoiceStream(serverUrl: string, token: string) {
      * Start streaming: connect WebSocket + start recording
      */
     const startStreaming = useCallback(async () => {
+        debugLog('VOICE_STREAM', '[startStreaming] ===== 开始启动语音流 =====');
         console.log('[useVoiceStream] Starting stream...');
 
         try {
             // Reset state
+            debugLog('VOICE_STREAM', '[startStreaming] Step 1: Reset state');
             setState('connecting');
             setResult({partialText: '', finalText: '', error: null});
 
             // 【关键修复】使用 ref 获取最新的 token
+            debugLog('VOICE_STREAM', '[startStreaming] Step 2: Get latest token from ref');
             const currentToken = tokenRef.current;
             const currentServerUrl = serverUrlRef.current;
 
+            debugLog('VOICE_STREAM', '[startStreaming] Step 3: Validate token', {
+                hasToken: Boolean(currentToken),
+                tokenLength: currentToken?.length || 0,
+                tokenPrefix: currentToken ? `${currentToken.substring(0, 10)}...` : 'none',
+                hasServerUrl: Boolean(currentServerUrl),
+                serverUrl: currentServerUrl,
+            });
+
             // 检查 token 是否有效
             if (!currentToken || currentToken.trim() === '') {
+                debugLog('VOICE_STREAM', '[startStreaming] ❌ Token is empty or invalid');
                 console.error('[useVoiceStream] Token is empty or invalid');
                 setState('error');
                 setResult(r => ({...r, error: '认证令牌无效，请重新登录'}));
@@ -89,8 +102,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
             }
 
             // Request permission
+            debugLog('VOICE_STREAM', '[startStreaming] Step 4: Request microphone permission');
             const hasPermission = await requestPermission();
+            debugLog('VOICE_STREAM', '[startStreaming] Permission result:', {hasPermission});
+
             if (!hasPermission) {
+                debugLog('VOICE_STREAM', '[startStreaming] ❌ Permission denied');
                 setState('error');
                 setResult(r => ({...r, error: '麦克风权限被拒绝'}));
                 Alert.alert(
@@ -105,9 +122,14 @@ export function useVoiceStream(serverUrl: string, token: string) {
             }
 
             // Create WebSocket client with latest token
+            debugLog('VOICE_STREAM', '[startStreaming] Step 5: Create VoiceStreamClient', {
+                serverUrl: currentServerUrl,
+                tokenPrefix: `${currentToken.substring(0, 10)}...`,
+            });
             const client = new VoiceStreamClient(currentServerUrl, currentToken);
 
             // Set up callbacks
+            debugLog('VOICE_STREAM', '[startStreaming] Step 6: Set up client callbacks');
             client.onTranscription = (text, isFinal) => {
                 console.log('[useVoiceStream] Transcription:', text, 'isFinal:', isFinal);
                 setResult(r => ({
@@ -123,12 +145,14 @@ export function useVoiceStream(serverUrl: string, token: string) {
             };
 
             client.onError = (error) => {
+                debugLog('VOICE_STREAM', '[startStreaming] ❌ Client error:', error);
                 console.error('[useVoiceStream] Error:', error);
                 setResult(r => ({...r, error}));
                 setState('error');
             };
 
             client.onClose = (code, reason) => {
+                debugLog('VOICE_STREAM', '[startStreaming] Connection closed:', {code, reason});
                 console.log('[useVoiceStream] Connection closed:', code, reason);
                 if (state === 'recording') {
                     // Unexpected closure
@@ -138,13 +162,17 @@ export function useVoiceStream(serverUrl: string, token: string) {
             };
 
             // Connect to WebSocket
+            debugLog('VOICE_STREAM', '[startStreaming] Step 7: Connect to WebSocket');
             await client.connect();
+            debugLog('VOICE_STREAM', '[startStreaming] ✅ WebSocket connected');
             clientRef.current = client;
 
             // Send start message
+            debugLog('VOICE_STREAM', '[startStreaming] Step 8: Send start control message');
             client.sendControlMessage('start');
 
             // Start real-time recording
+            debugLog('VOICE_STREAM', '[startStreaming] Step 9: Start real-time recording');
             const recordingStarted = await startRealtimeRecording(
                 (chunkBase64) => {
                     // Audio chunk callback - send to server
@@ -155,7 +183,10 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 {format: 'pcm'}
             );
 
+            debugLog('VOICE_STREAM', '[startStreaming] Recording result:', {recordingStarted});
+
             if (!recordingStarted) {
+                debugLog('VOICE_STREAM', '[startStreaming] ❌ Recording failed to start');
                 client.close();
                 clientRef.current = null;
                 setState('error');
@@ -163,11 +194,17 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 return false;
             }
 
+            debugLog('VOICE_STREAM', '[startStreaming] Step 10: Set state to recording');
             setState('recording');
+            debugLog('VOICE_STREAM', '[startStreaming] ✅ 语音流启动成功');
             console.log('[useVoiceStream] Streaming started successfully');
             return true;
 
         } catch (error: any) {
+            debugLog('VOICE_STREAM', '[startStreaming] ❌ 异常捕获:', {
+                message: error?.message || String(error),
+                stack: error?.stack || 'no stack',
+            });
             console.error('[useVoiceStream] Start failed:', error);
             setState('error');
             setResult(r => ({...r, error: error.message || '启动失败'}));

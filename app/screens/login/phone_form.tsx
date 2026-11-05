@@ -207,7 +207,7 @@ const PhoneLoginForm = ({
 
     // 显示昵称输入对话框并返回 Promise
     const showNicknameInput = useCallback((): Promise<string | null> => {
-        return goToScreen({
+        return showModal({
             title: intl.formatMessage(messages.enterNickname),
             placeholder: intl.formatMessage(messages.nicknamePlaceholder),
             confirmContent: intl.formatMessage(messages.confirm),

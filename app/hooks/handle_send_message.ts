@@ -343,7 +343,7 @@ export const useHandleSendMessage = ({
         } finally {
             setSendingMessage(false);
         }
-    }, [serverUrl, channelId, rootId, currentUserId, postPriority, createPost, showSnackBar]);
+    }, [serverUrl, channelId, rootId, currentUserId, postPriority]);
 
     useEffect(() => {
         getChannelTimezones(serverUrl, channelId).then(({channelTimezones}) => {
