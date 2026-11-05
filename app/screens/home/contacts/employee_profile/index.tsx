@@ -35,6 +35,7 @@ import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {debugLog} from '@store/debug_log';
+import {getCachedEmployee} from './employee_cache';
 
 import type {MMDepartment, MMEmployeeContactType, TeamBusinessRole, BusinessRoleDef} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
@@ -359,7 +360,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const ContactsEmployeeProfile = ({
     componentId,
     closeButtonId,
-    employee,
+    employee: employeeProp,
     departmentName,
     departmentParentPath,
     departmentId,
@@ -373,13 +374,16 @@ const ContactsEmployeeProfile = ({
     relationType,
     relationSource,
 }: Props) => {
+    // 优先使用 passProps 传入的 employee；若 RNN 序列化丢失，从模块级缓存读取
+    const employee = employeeProp ?? (closeButtonId ? getCachedEmployee(closeButtonId) : undefined);
+
     // 【调试】记录传入的 employee
     debugLog('[Contacts] EmployeeProfile props', {
         hasEmployee: Boolean(employee),
         employeeId: employee?.id,
         employeeUsername: employee?.username,
         employeeKeys: employee ? Object.keys(employee) : [],
-        rawEmployee: employee,
+        fromCache: !employeeProp && Boolean(employee),
     });
 
     const theme = useTheme();
@@ -646,7 +650,7 @@ const ContactsEmployeeProfile = ({
         if (!canEditRelationFields) {
             return;
         }
-        const nextValue = await remarkEditInput.goToScreen({
+        const nextValue = await remarkEditInput.showModal({
             title: intl.formatMessage({id: 'supplier_customer.field_remark', defaultMessage: 'Remark name'}),
             placeholder: intl.formatMessage({id: 'supplier_customer.add_remark_placeholder', defaultMessage: 'e.g. ACME purchasing contact'}),
             defaultValue: relationRemark,
@@ -661,7 +665,7 @@ const ContactsEmployeeProfile = ({
         if (!canEditRelationFields) {
             return;
         }
-        const nextValue = await relationDescriptionEditInput.goToScreen({
+        const nextValue = await relationDescriptionEditInput.showModal({
             title: intl.formatMessage({id: 'supplier_customer.relation', defaultMessage: 'Relation description'}),
             placeholder: intl.formatMessage({id: 'supplier_customer.field_description_edit_placeholder', defaultMessage: 'How do you work together? Add context—for example projects, roles, or reminders—for yourself and your enterprise. (optional)'}),
             defaultValue: relationDescription,
@@ -676,7 +680,7 @@ const ContactsEmployeeProfile = ({
         if (!canEditRelationFields) {
             return;
         }
-        const nextValue = await companyEditInput.goToScreen({
+        const nextValue = await companyEditInput.showModal({
             title: intl.formatMessage({id: 'contacts.enterprise_name', defaultMessage: '企业名称'}),
             placeholder: intl.formatMessage({id: 'contacts.external.company_placeholder', defaultMessage: 'e.g. ACME Corporation'}),
             defaultValue: editingCompany,

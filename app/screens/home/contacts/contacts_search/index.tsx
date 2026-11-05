@@ -27,6 +27,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {popTopScreen, goToScreen} from '@screens/navigation';
+import {setCachedEmployee} from '@screens/home/contacts/employee_profile/employee_cache';
 import {
     cascadePathLabel,
     cascadePathParts,
@@ -309,6 +310,7 @@ const ContactsSearchContent = ({
         const parentPath = pathParts.slice(0, -1).join('/');
         const titleProfile = intl.formatMessage({id: 'contacts.personal_info', defaultMessage: 'Personal Information'});
         const cid = `close-employee-search-${safeEmployee.id}`;
+        setCachedEmployee(cid, safeEmployee);
         goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             titleProfile,

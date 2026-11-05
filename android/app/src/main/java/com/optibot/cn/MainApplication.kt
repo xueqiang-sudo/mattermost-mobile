@@ -2,7 +2,9 @@ package com.optibot.cn
 
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.res.Configuration
+import android.hardware.SensorManager
 import com.mattermost.helpers.CustomPushNotificationHelper
 import com.facebook.react.PackageList
 import com.facebook.react.ReactHost
@@ -30,6 +32,27 @@ import java.io.File
 class MainApplication : NavigationApplication() {
     private var listenerAdded = false
 
+    companion object {
+        /**
+         * 隐私合规：用户同意隐私政策前，阻止 React Native 读取传感器列表。
+         * JS 层用户点击"同意"后通过 PrivacyConsentModule 置 true。
+         */
+        @Volatile
+        var sensorAccessAllowed: Boolean = false
+    }
+
+    /**
+     * 拦截传感器服务：用户未同意隐私政策时返回 null，
+     * 阻止 React Native (FaceBookReact SDK) 在同意前读取传感器列表。
+     * React Native DevSupportManager 对 null 做了安全处理，不会崩溃。
+     */
+    override fun getSystemService(name: String): Any? {
+        if (name == Context.SENSOR_SERVICE && !sensorAccessAllowed) {
+            return null
+        }
+        return super.getSystemService(name)
+    }
+
     override val reactNativeHost: ReactNativeHost =
         ReactNativeHostWrapper(this,
             object : DefaultReactNativeHost(this) {
@@ -42,6 +65,7 @@ class MainApplication : NavigationApplication() {
                         add(ApkInstallerPackage())
                         add(LogcatBridgePackage())
                         add(BatteryOptimizationPackage())
+                        add(PrivacyConsentPackage())
                     }
 
                 override fun getJSMainModuleName(): String = "index"

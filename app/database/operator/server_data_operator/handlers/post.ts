@@ -292,6 +292,7 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
         for (const post of posts) {
             // Find any pending posts that matches the ones received to mark for deletion
             if (post.pending_post_id && post.id !== post.pending_post_id) {
+                debugLog('POST', `[handlePosts] marking pending post ${post.pending_post_id} for deletion (real post id=${post.id})`);
                 pendingPostsToDelete.push({
                     ...post,
                     id: post.pending_post_id,
@@ -333,6 +334,10 @@ const PostHandler = <TBase extends Constructor<ServerDataOperatorBase>>(supercla
             }
 
             post.file_ids?.forEach((fileId) => receivedFilesSet.add(fileId));
+        }
+
+        if (pendingPostsToDelete.length > 0) {
+            debugLog('POST', `[handlePosts] will delete ${pendingPostsToDelete.length} pending posts: ${pendingPostsToDelete.map(p => p.id).join(', ')}`);
         }
 
         // Get unique posts in case they are duplicated

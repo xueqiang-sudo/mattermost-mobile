@@ -5,6 +5,8 @@ import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {
     BackHandler,
+    NativeModules,
+    Platform,
     ScrollView,
     Text,
     View,
@@ -111,6 +113,10 @@ const LaunchAgreement = ({componentId}: Props) => {
 
     const handleAgree = useCallback(async () => {
         await setAcceptedAgreement();
+        // 隐私合规：用户同意后才允许 React Native 读取传感器列表
+        if (Platform.OS === 'android' && NativeModules.PrivacyConsent) {
+            NativeModules.PrivacyConsent.allowSensorAccess();
+        }
         await popTopScreen(componentId);
         // 隐私合规：用户同意后才初始化 JPush SDK
         JPushManager.init();

@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, FlatList, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, FlatList, LayoutAnimation, Platform, Text, TextInput, TouchableOpacity, UIManager, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
@@ -12,6 +12,7 @@ import {
     fetchDepartmentsByTeam,
     fetchDepartmentEmployees,
 } from '@actions/remote/contact_new';
+import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
 import CompassIcon from '@components/compass_icon';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
@@ -24,6 +25,10 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {MMDepartment} from '@client/rest/team_department';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
 
@@ -110,12 +115,23 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingVertical: 10,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    sectionHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
     },
     sectionHeaderText: {
         ...typography('Body', 100, 'SemiBold'),
         color: changeOpacity(theme.centerChannelColor, 0.64),
+        marginLeft: 6,
+    },
+    sectionHeaderCount: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+        marginLeft: 6,
     },
     listItem: {
         flexDirection: 'row',
@@ -415,13 +431,19 @@ const ContactsDepartmentAddMembersScreen = ({
         });
     }, [members, searchText]);
 
+    const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
     // Group by source department
     const groupedMembers = useMemo(() => {
         const groups = new Map<string, {departmentName: string; members: MemberWithSource[]}>();
         for (const m of filteredMembers) {
             const key = String(m.sourceDepartmentId);
             if (!groups.has(key)) {
-                groups.set(key, {departmentName: m.sourceDepartmentName, members: []});
+                // 将 FORCE_TEAM_DEFAULT_DEPARTMENT 显示为团队名称
+                const displayName = m.sourceDepartmentName === DEFAULT_TEAM_DEPARTMENT_NAME
+                    ? (companyName || intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'}))
+                    : m.sourceDepartmentName;
+                groups.set(key, {departmentName: displayName, members: []});
             }
             groups.get(key)!.members.push(m);
         }
@@ -430,7 +452,20 @@ const ContactsDepartmentAddMembersScreen = ({
             departmentName: value.departmentName,
             members: value.members,
         }));
-    }, [filteredMembers]);
+    }, [filteredMembers, companyName, intl]);
+
+    const toggleSection = useCallback((key: string) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setCollapsedSections((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+            return next;
+        });
+    }, []);
 
     const allFilteredIds = useMemo(
         () => filteredMembers.map((m) => m.employee.id),
@@ -519,11 +554,26 @@ const ContactsDepartmentAddMembersScreen = ({
         onSuccess();
     }, [companyId, effectiveTargetId, intl, members, onSuccess, selectedIds, serverUrl]));
 
-    const renderSectionHeader = useCallback((deptName: string) => (
-        <View style={styles.sectionHeader}>
-            <Text style={styles.sectionHeaderText}>{deptName}</Text>
-        </View>
-    ), [styles.sectionHeader, styles.sectionHeaderText]);
+    const renderSectionHeader = useCallback((sectionKey: string, deptName: string, count: number) => {
+        const collapsed = collapsedSections.has(sectionKey);
+        return (
+            <TouchableOpacity
+                style={styles.sectionHeader}
+                onPress={() => toggleSection(sectionKey)}
+                activeOpacity={0.7}
+            >
+                <View style={styles.sectionHeaderLeft}>
+                    <CompassIcon
+                        name={collapsed ? 'chevron-right' : 'chevron-down'}
+                        size={16}
+                        color={changeOpacity(theme.centerChannelColor, 0.48)}
+                    />
+                    <Text style={styles.sectionHeaderText}>{deptName}</Text>
+                    <Text style={styles.sectionHeaderCount}>({count})</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    }, [collapsedSections, styles.sectionHeader, styles.sectionHeaderLeft, styles.sectionHeaderText, styles.sectionHeaderCount, toggleSection, theme]);
 
     const renderMember = useCallback((m: MemberWithSource) => {
         const selected = selectedIds.has(m.employee.id);
@@ -549,19 +599,24 @@ const ContactsDepartmentAddMembersScreen = ({
     }, [selectedIds, styles.checkbox, styles.checkboxSelected, styles.checkboxUnselected, styles.listItem, styles.listItemAvatar, styles.listItemName, toggleMember]);
 
     const flatListData = useMemo(() => {
-        const items: Array<{type: 'header'; key: string; departmentName: string} | {type: 'member'; key: string; member: MemberWithSource}> = [];
+        const items: Array<{type: 'header'; key: string; departmentName: string; memberCount: number} | {type: 'member'; key: string; member: MemberWithSource}> = [];
         for (const group of groupedMembers) {
-            items.push({type: 'header', key: `h-${group.key}`, departmentName: group.departmentName});
-            for (const m of group.members) {
-                items.push({type: 'member', key: `m-${m.employee.id}`, member: m});
+            const collapsed = collapsedSections.has(group.key);
+            items.push({type: 'header', key: `h-${group.key}`, departmentName: group.departmentName, memberCount: group.members.length});
+            if (!collapsed) {
+                for (const m of group.members) {
+                    items.push({type: 'member', key: `m-${m.employee.id}`, member: m});
+                }
             }
         }
         return items;
-    }, [groupedMembers]);
+    }, [groupedMembers, collapsedSections]);
 
     const renderItem = useCallback(({item}: {item: typeof flatListData[number]}) => {
         if (item.type === 'header') {
-            return renderSectionHeader(item.departmentName);
+            // Extract section key from header key (remove 'h-' prefix)
+            const sectionKey = item.key.slice(2);
+            return renderSectionHeader(sectionKey, item.departmentName, item.memberCount);
         }
         return renderMember(item.member);
     }, [renderSectionHeader, renderMember]);

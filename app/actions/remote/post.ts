@@ -76,6 +76,8 @@ export type BatchFileMeta = {
 };
 
 export async function createPost(serverUrl: string, post: Partial<Post>, files: FileInfo[] = [], skipPendingPostCreation = false): Promise<{data?: {postId?: string; pendingFiles?: BatchFileMeta[]}; error?: unknown}> {
+    debugLog('POST', `[createPost] called with skipPendingPostCreation=${skipPendingPostCreation}, files=${files.length}, pending_post_id=${post.pending_post_id || 'none'}`);
+
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
         return {error: `${serverUrl} database not found`};
@@ -92,6 +94,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     const currentUserId = await getCurrentUserId(database);
     const timestamp = Date.now();
     const pendingPostId = post.pending_post_id || `${currentUserId}:${timestamp}`;
+    debugLog('POST', `[createPost] using pendingPostId=${pendingPostId}`);
 
     if (!skipPendingPostCreation) {
         const existing = await getPostById(database, pendingPostId);
@@ -158,7 +161,9 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
 
     let created;
     try {
+        debugLog('POST', `[createPost] calling server API with pending_post_id=${newPost.pending_post_id}`);
         created = await client.createPost({...newPost, create_at: 0});
+        debugLog('POST', `[createPost] server returned post id=${created.id}, pending_post_id=${created.pending_post_id || 'none'}, file_ids=${JSON.stringify(created.file_ids || [])}`);
         if (!created.metadata && newPost.metadata) {
             created = {
                 ...created,
@@ -209,6 +214,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     let pendingFilesFromServer: BatchFileMeta[] | undefined;
     if (created.props?.pending_files && Array.isArray(created.props.pending_files)) {
         pendingFilesFromServer = created.props.pending_files as BatchFileMeta[];
+        debugLog('POST', `[createPost] server returned pending_files: ${JSON.stringify(pendingFilesFromServer)}`);
     }
 
     // If we have pending files and server returned file_ids, use them
@@ -220,6 +226,7 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             ...created,
             file_ids: serverFileIds,
         };
+        debugLog('POST', `[createPost] using server file_ids: ${JSON.stringify(serverFileIds)}`);
     } else if (files.length > 0) {
         // Fall back to local pending file ids
         const pendingFileIds = files.map((file) => file.id);
@@ -227,29 +234,44 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             ...created,
             file_ids: pendingFileIds,
         };
+        debugLog('POST', `[createPost] using local pending file_ids: ${JSON.stringify(pendingFileIds)}`);
     }
+
+    // 【关键修复】手动添加 pending_post_id 到服务端返回的 post
+    // 服务端 SanitizeInput 会移除 pending_post_id，导致 handlePosts 无法识别并删除 pending post
+    // 这里手动添加回去，确保 handlePosts 能正确删除 pending post，避免重复显示
+    const postForHandlePosts = {
+        ...created,
+        pending_post_id: pendingPostId,
+    };
+    debugLog('POST', `[createPost] calling handlePosts with post id=${postForHandlePosts.id}, pending_post_id=${postForHandlePosts.pending_post_id}, will delete pending post if exists`);
 
     const models = await operator.handlePosts({
         actionType: ActionType.POSTS.RECEIVED_NEW,
-        order: [created.id],
-        posts: [created],
+        order: [postForHandlePosts.id],
+        posts: [postForHandlePosts],
         prepareRecordsOnly: true,
     });
+    debugLog('POST', `[createPost] handlePosts returned ${models.length} models`);
 
     // Create file records with the real post ID
     // Files are passed with post_id: '' (empty), so we set it to the real post ID
     if (files.length > 0) {
+        debugLog('POST', `[createPost] creating ${files.length} file records for post ${created.id}`);
         // If server returned file_ids, use those for the local File records
         const filesWithPostId = files.map((f, idx) => {
             const serverFileId = pendingFilesFromServer?.[idx]?.file_id;
+            const finalFileId = serverFileId || f.id;
+            debugLog('POST', `[createPost] file ${idx + 1}: pending_id=${f.id}, server_id=${serverFileId || 'none'}, final_id=${finalFileId}`);
             return {
                 ...f,
                 post_id: created.id,
                 // If server generated a file_id, use it; otherwise keep local id
-                id: serverFileId || f.id,
+                id: finalFileId,
             };
         });
         const fileModels = await operator.handleFiles({files: filesWithPostId, prepareRecordsOnly: true});
+        debugLog('POST', `[createPost] handleFiles returned ${fileModels.length} file models`);
         models.push(...fileModels);
     }
 
@@ -266,7 +288,9 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             models.push(...threadModels);
         }
     }
+    debugLog('POST', `[createPost] saving ${models.length} models to database (skipPendingPostCreation=${skipPendingPostCreation})`);
     await operator.batchRecords(models, 'createPost - success');
+    debugLog('POST', `[createPost] completed successfully, post id=${created.id}, pending_post_id=${pendingPostId}`);
 
     newPost = created;
 

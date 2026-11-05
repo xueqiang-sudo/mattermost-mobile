@@ -64,7 +64,18 @@ export const showSmartNotebookFilePicker = (
     onSend: (files: FileInfo[]) => void,
     title = 'Select Files',
 ) => {
+    debugLog('smartNotebook', `showSmartNotebookFilePicker called, title=${title}`);
     // 使用临时 channelId（智能笔记本不需要真正的 channelId）
     const tempChannelId = 'smart_notebook_temp';
-    showFullscreenFilePickerModal(tempChannelId, onSend, title, false);
+
+    // 包装 onSend 回调以添加日志
+    const wrappedOnSend = (files: FileInfo[]) => {
+        debugLog('smartNotebook', `showSmartNotebookFilePicker: onSend callback called with ${files.length} files`);
+        files.forEach((file, i) => {
+            debugLog('smartNotebook', `showSmartNotebookFilePicker: file ${i + 1}: name=${file.name}, uri=${file.uri}, id=${file.id}, mime=${file.mime_type}, size=${file.size}, source=${(file as any).source || 'unknown'}`);
+        });
+        onSend(files);
+    };
+
+    showFullscreenFilePickerModal(tempChannelId, wrappedOnSend, title, false);
 };

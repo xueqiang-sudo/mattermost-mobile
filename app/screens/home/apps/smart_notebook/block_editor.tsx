@@ -31,6 +31,9 @@ type BlockEditorProps = {
     onChange: (blocks: SmartNoteBlock[]) => void;
     theme: Theme;
     editable: boolean;
+    onFocusedIndexChange?: (index: number) => void;
+    pendingFocusIndex?: number | null;
+    onFocusApplied?: () => void;
 };
 
 type BlockItemProps = {
@@ -48,6 +51,7 @@ type BlockItemProps = {
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean; // 当前是否被选中
+    autoFocus?: boolean; // 是否自动聚焦 TextInput
 };
 
 // ---- Helper to generate unique ID ----
@@ -149,10 +153,20 @@ const BlockItem = ({
     isFirst,
     isLast,
     isSelected,
+    autoFocus,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);
     const textInputRef = useRef<TextInput>(null);
+
+    // 自动聚焦 TextInput（用于插入块后光标移动到新位置）
+    useEffect(() => {
+        if (autoFocus && textInputRef.current) {
+            setTimeout(() => {
+                textInputRef.current?.focus();
+            }, 100);
+        }
+    }, [autoFocus]);
 
     const handleContentChange = useCallback((text: string) => {
         onChange(index, {...block, content: text});
@@ -222,9 +236,109 @@ const BlockItem = ({
     };
 
     // Render media blocks
-    if (block.type === 'image' && block.content) {
-        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
-        const imageUri = isLocal && !block.content.startsWith('file://') ? `file://${block.content}` : block.content;
+    // 对齐 webapp：视频/音频存储为 image 类型，通过 caption 中的 [VIDEO:url] / [AUDIO:url] 标记区分
+    if (block.type === 'image') {
+        const caption = block.meta?.caption || '';
+        const mediaMatch = caption.match(/^\[(VIDEO|AUDIO):([^\]]*)\](.*)$/);
+
+        // ── 视频/音频块（webapp 兼容格式）──
+        if (mediaMatch) {
+            const mediaType = mediaMatch[1]; // 'VIDEO' or 'AUDIO'
+            const mediaUrl = mediaMatch[2];
+            const displayName = mediaMatch[3] || block.meta?.fileName || (mediaType === 'VIDEO' ? '视频' : '音频');
+            const isLocalMedia = mediaUrl && !mediaUrl.startsWith('http://') && !mediaUrl.startsWith('https://');
+            const playableUrl = isLocalMedia && !mediaUrl.startsWith('file://') ? `file://${mediaUrl}` : mediaUrl;
+
+            if (mediaType === 'VIDEO') {
+                return (
+                    <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                        <View style={style.mediaBlock}>
+                            <View style={style.videoPreviewContainer}>
+                                <View style={style.videoPlaceholder}>
+                                    <CompassIcon name='video-outline' size={48} color={theme.buttonBg}/>
+                                </View>
+                                {playableUrl ? (
+                                    <TouchableOpacity
+                                        style={style.playButtonOverlay}
+                                        onPress={() => onPlayMedia?.(playableUrl, 'video')}
+                                    >
+                                        <View style={style.playButton}>
+                                            <CompassIcon name='play' size={32} color='#FFFFFF'/>
+                                        </View>
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                            <View style={style.mediaInfo}>
+                                <CompassIcon name='video-outline' size={20} color={theme.buttonBg}/>
+                                <View style={style.mediaTextInfo}>
+                                    <Text style={style.mediaLabel} numberOfLines={1}>{displayName}</Text>
+                                    {block.meta?.size ? (
+                                        <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                                    ) : null}
+                                </View>
+                            </View>
+                        </View>
+                        {editable && isSelected && (
+                            <BlockActions
+                                onDelete={() => onDelete(index)}
+                                onAddAfter={() => onAddAfter(index)}
+                                onMoveUp={() => onMoveUp(index)}
+                                onMoveDown={() => onMoveDown(index)}
+                                isFirst={isFirst}
+                                isLast={isLast}
+                                theme={theme}
+                            />
+                        )}
+                    </TouchableOpacity>
+                );
+            }
+
+            // AUDIO
+            return (
+                <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                    <View style={style.mediaBlock}>
+                        <View style={style.audioCard}>
+                            <View style={style.mediaIconContainer}>
+                                <CompassIcon name='microphone-outline' size={32} color={theme.buttonBg}/>
+                            </View>
+                            <View style={style.mediaTextInfo}>
+                                <Text style={style.mediaLabel} numberOfLines={1}>{displayName}</Text>
+                                {block.meta?.size ? (
+                                    <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                                ) : null}
+                                {block.meta?.duration ? (
+                                    <Text style={style.mediaMeta}>{formatDuration(block.meta.duration)}</Text>
+                                ) : null}
+                            </View>
+                            {playableUrl ? (
+                                <TouchableOpacity
+                                    style={style.audioPlayButton}
+                                    onPress={() => onPlayMedia?.(playableUrl, 'audio')}
+                                >
+                                    <CompassIcon name='play-circle-outline' size={36} color={theme.buttonBg}/>
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    </View>
+                    {editable && isSelected && (
+                        <BlockActions
+                            onDelete={() => onDelete(index)}
+                            onAddAfter={() => onAddAfter(index)}
+                            onMoveUp={() => onMoveUp(index)}
+                            onMoveDown={() => onMoveDown(index)}
+                            isFirst={isFirst}
+                            isLast={isLast}
+                            theme={theme}
+                        />
+                    )}
+                </TouchableOpacity>
+            );
+        }
+
+        // ── 普通图片块 ──
+        if (!block.content) return null;
+        const isLocalPath = !block.content.startsWith('http://') && !block.content.startsWith('https://');
+        const imageUri = isLocalPath && !block.content.startsWith('file://') ? `file://${block.content}` : block.content;
 
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
@@ -233,158 +347,16 @@ const BlockItem = ({
                         source={{uri: imageUri}}
                         style={style.imagePreview}
                         resizeMode='cover'
-                        onError={() => {
-                            // 图片加载失败时的处理
-                        }}
+                        onError={() => {}}
                     />
                     <View style={style.mediaInfo}>
                         <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
                         <Text style={style.mediaLabel} numberOfLines={1}>
-                            {block.meta?.caption || '图片'}
+                            {block.meta?.fileName || caption || '图片'}
                         </Text>
-                        {isLocal && (
-                            <View style={style.localBadge}>
-                                <Text style={style.localBadgeText}>本地</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
-        );
-    }
-
-    if (block.type === 'video' && block.content) {
-        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
-        const videoUri = isLocal && !block.content.startsWith('file://') ? `file://${block.content}` : block.content;
-
-        return (
-            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                <View style={style.mediaBlock}>
-                    {/* 视频预览区域 */}
-                    <View style={style.videoPreviewContainer}>
-                        {isLocal ? (
-                            // 本地视频：显示第一帧缩略图
-                            <Image
-                                source={{uri: videoUri}}
-                                style={style.videoThumbnail}
-                                resizeMode='cover'
-                            />
-                        ) : (
-                            // 远程视频：也可以显示缩略图（如果有）
-                            <View style={style.videoPlaceholder}>
-                                <CompassIcon name='video-outline' size={48} color={theme.buttonBg}/>
-                            </View>
-                        )}
-                        {/* 播放按钮覆盖层 */}
-                        <TouchableOpacity
-                            style={style.playButtonOverlay}
-                            onPress={() => {
-                                // 播放视频
-                                if (onPlayMedia) {
-                                    onPlayMedia(videoUri, 'video');
-                                }
-                            }}
-                        >
-                            <View style={style.playButton}>
-                                <CompassIcon name='play' size={32} color='#FFFFFF'/>
-                            </View>
-                        </TouchableOpacity>
-                        {/* 视频时长 */}
-                        {block.meta?.duration && (
-                            <View style={style.durationBadge}>
-                                <Text style={style.durationText}>
-                                    {formatDuration(block.meta.duration)}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-                    {/* 视频信息 */}
-                    <View style={style.mediaInfo}>
-                        <CompassIcon name='video-outline' size={20} color={theme.buttonBg}/>
-                        <View style={style.mediaTextInfo}>
-                            <Text style={style.mediaLabel} numberOfLines={1}>
-                                {block.meta?.caption || '视频'}
-                            </Text>
-                            {block.meta?.size && (
-                                <Text style={style.mediaMeta}>
-                                    {formatFileSize(block.meta.size)}
-                                </Text>
-                            )}
-                        </View>
-                        {isLocal && (
-                            <View style={style.localBadge}>
-                                <Text style={style.localBadgeText}>本地</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
-        );
-    }
-
-    if (block.type === 'audio' && block.content) {
-        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
-
-        return (
-            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                <View style={style.mediaBlock}>
-                    <View style={style.audioCard}>
-                        <View style={style.mediaIconContainer}>
-                            <CompassIcon name='microphone-outline' size={32} color={theme.buttonBg}/>
-                        </View>
-                        <View style={style.mediaTextInfo}>
-                            <Text style={style.mediaLabel} numberOfLines={1}>
-                                {block.meta?.caption || '音频'}
-                            </Text>
-                            {block.meta?.size && (
-                                <Text style={style.mediaMeta}>
-                                    {formatFileSize(block.meta.size)}
-                                </Text>
-                            )}
-                            {block.meta?.duration && (
-                                <Text style={style.mediaMeta}>
-                                    {formatDuration(block.meta.duration)}
-                                </Text>
-                            )}
-                        </View>
-                        <TouchableOpacity
-                            style={style.audioPlayButton}
-                            onPress={() => {
-                                // 播放音频
-                                if (onPlayMedia) {
-                                    onPlayMedia(block.content, 'audio');
-                                }
-                            }}
-                        >
-                            <CompassIcon name='play-circle-outline' size={36} color={theme.buttonBg}/>
-                        </TouchableOpacity>
-                        {isLocal && (
-                            <View style={style.localBadge}>
-                                <Text style={style.localBadgeText}>本地</Text>
-                            </View>
-                        )}
+                        {block.meta?.size ? (
+                            <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                        ) : null}
                     </View>
                 </View>
                 {editable && isSelected && (
@@ -423,15 +395,13 @@ const BlockItem = ({
 
     // 渲染文件块（非媒体文件）
     if (block.type === 'file') {
-        debugLog('smartNotebook', `BlockItem render file block: type=${block.type}, content=${block.content}, hasContent=${Boolean(block.content)}`);
         if (!block.content) {
-            debugLog('smartNotebook', `WARNING: file block has no content, skipping render`);
             return null;
         }
-        const isLocal = block.meta?.isLocal || block.content.startsWith('file://') || block.content.startsWith('/');
-        const fileName = block.meta?.caption || '文件';
+
+        const fileName = block.meta?.fileName || block.meta?.caption || '文件';
+        const extension = block.meta?.extension || fileName.split('.').pop()?.toLowerCase() || '';
         const fileIcon = getFileIcon(fileName, block.meta?.mimeType);
-        debugLog('smartNotebook', `Rendering file block: fileName=${fileName}, isLocal=${isLocal}, icon=${fileIcon}`);
 
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
@@ -444,17 +414,12 @@ const BlockItem = ({
                             <Text style={style.mediaLabel} numberOfLines={1}>
                                 {fileName}
                             </Text>
-                            {block.meta?.size && (
+                            {block.meta?.size ? (
                                 <Text style={style.mediaMeta}>
                                     {formatFileSize(block.meta.size)}
                                 </Text>
-                            )}
+                            ) : null}
                         </View>
-                        {isLocal && (
-                            <View style={style.localBadge}>
-                                <Text style={style.localBadgeText}>本地</Text>
-                            </View>
-                        )}
                     </View>
                 </View>
                 {editable && isSelected && (
@@ -542,9 +507,22 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 };
 
 // ---- Main Block Editor Component ----
-const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
+const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+    // 同步光标位置给父组件
+    useEffect(() => {
+        onFocusedIndexChange?.(focusedIndex);
+    }, [focusedIndex, onFocusedIndexChange]);
+
+    // 处理外部请求的焦点定位
+    useEffect(() => {
+        if (pendingFocusIndex != null && pendingFocusIndex >= 0 && pendingFocusIndex < blocks.length) {
+            setFocusedIndex(pendingFocusIndex);
+            onFocusApplied?.();
+        }
+    }, [pendingFocusIndex, blocks.length, onFocusApplied]);
 
     // 媒体播放状态
     const [playingMedia, setPlayingMedia] = useState<{
@@ -626,7 +604,10 @@ const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
     }, []);
 
     const renderItem = useCallback(({item, index}: {item: SmartNoteBlock; index: number}) => {
-        debugLog('smartNotebook', `FlatList renderItem: index=${index}, type=${item.type}, content_len=${item.content?.length || 0}`);
+        debugLog('smartNotebook', `[BlockEditor.renderItem] index=${index}, id=${item.id}, type=${item.type}, content_len=${item.content?.length || 0}, hasContent=${Boolean(item.content)}`);
+        if (item.type === 'file' || item.type === 'image') {
+            debugLog('smartNotebook', `[BlockEditor.renderItem] Media block details: caption=${item.meta?.caption}, size=${item.meta?.size}, mimeType=${item.meta?.mimeType}, isLocal=${item.meta?.isLocal}`);
+        }
         return (
             <BlockItem
                 block={item}
@@ -642,10 +623,11 @@ const BlockEditor = ({blocks, onChange, theme, editable}: BlockEditorProps) => {
                 editable={editable}
                 isFirst={index === 0}
                 isLast={index === blocks.length - 1}
-                isSelected={focusedIndex === index} // 只有当前聚焦的块显示工具栏
+                isSelected={focusedIndex === index}
+                autoFocus={pendingFocusIndex === index}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex, pendingFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 

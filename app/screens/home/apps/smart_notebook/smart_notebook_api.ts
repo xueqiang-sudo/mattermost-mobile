@@ -12,7 +12,7 @@ const PLUGIN_BASE = '/plugins/com.mattermost.fact-extractor';
 
 export type SmartNoteBlock = {
     id: string;
-    type: 'paragraph' | 'heading' | 'bulleted-list' | 'numbered-list' | 'list-item' | 'checklist' | 'blockquote' | 'code-block' | 'image' | 'video' | 'audio' | 'file' | 'table' | 'divider' | 'horizontal-rule';
+    type: 'paragraph' | 'heading' | 'bulleted-list' | 'numbered-list' | 'list-item' | 'checklist' | 'blockquote' | 'code-block' | 'image' | 'file' | 'table' | 'divider' | 'horizontal-rule';
     content: string;
     order: number;
     meta?: Record<string, any>;
@@ -277,6 +277,7 @@ export function blocksToMarkdown(blocks: SmartNoteBlock[]): string {
 
     return blocks.map(block => {
         const content = cleanHtml(block.content || '');
+        const url = block.content || '';
 
         switch (block.type) {
             case 'heading': {
@@ -296,17 +297,27 @@ export function blocksToMarkdown(blocks: SmartNoteBlock[]): string {
                 const items = block.meta?.items || [content];
                 return items.map((item: string, i: number) => `${i + 1}. ${cleanHtml(item)}`).join('\n');
             }
-            case 'image':
-                return `![${block.meta?.caption || 'image'}](${content})`;
-            case 'video':
-                return `🎬 [video](${content})`;
-            case 'audio':
-                return `🎵 [audio](${content})`;
+            case 'image': {
+                // 对齐 webapp：检测 VIDEO/AUDIO caption 编码
+                const imgCaption = block.meta?.caption || '';
+                const mediaMatch = imgCaption.match(/^\[(VIDEO|AUDIO):([^\]]*)\](.*)$/);
+                if (mediaMatch) {
+                    const mediaType = mediaMatch[1];
+                    const mediaUrl = mediaMatch[2];
+                    const displayName = mediaMatch[3] || 'media';
+                    if (mediaType === 'VIDEO') {
+                        return `🎬 [${displayName}](${mediaUrl})`;
+                    }
+                    return `🎵 [${displayName}](${mediaUrl})`;
+                }
+                return `![${imgCaption || 'image'}](${url})`;
+            }
+            case 'file':
+                return `📄 [${block.meta?.fileName || block.meta?.caption || 'file'}](${url})`;
             case 'divider':
             case 'horizontal-rule':
                 return '---';
             case 'table':
-                // Tables are complex, just show content for now
                 return content;
             default:
                 return content;

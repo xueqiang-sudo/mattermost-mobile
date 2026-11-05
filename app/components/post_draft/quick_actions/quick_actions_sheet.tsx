@@ -129,12 +129,14 @@ export default function QuickActionsSheet({
     const wrapWithDismiss = useCallback((fn: () => void | Promise<void>) => {
         return async () => {
             try {
-                // 等待操作完成（异步函数会打开新窗口），再关闭 bottom sheet
-                // 这样新窗口已打开，dismiss 不会导致导航冲突
-                await fn();
+                // 先关闭 bottom sheet，再执行操作（打开新窗口/原生相机/文件选择器等）
+                // 避免在 bottom sheet 仍存在时打开新界面导致导航冲突或卡死
                 onDismiss().catch((error) => {
                     debugLog('quick_actions', `dismiss error: ${error instanceof Error ? error.message : String(error)}`);
                 });
+                // 等待一帧，确保导航队列中 dismiss 操作排在 showModal/原生相机之前
+                await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                await fn();
             } catch (error) {
                 debugLog('quick_actions', `wrapWithDismiss error: ${error instanceof Error ? error.message : String(error)}`);
             }

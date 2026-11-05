@@ -50,26 +50,35 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 // 生成唯一ID
 const generateId = () => `blk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// 根据文件扩展名识别类型
-function getFileType(fileName: string, mimeType: string): SmartNoteBlock['type'] {
+// 根据文件扩展名识别类型（对齐 webapp：视频/音频存为 image，通过 caption 编码区分）
+function getFileType(fileName: string, mimeType: string): 'image' | 'file' {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
     if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff'].includes(ext)) {
         return 'image';
     }
     if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(ext)) {
-        return 'video';
+        return 'image';
     }
     if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'].includes(ext)) {
-        return 'audio';
+        return 'image';
     }
 
-    // 根据 MIME 类型判断
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+        return 'image';
+    }
 
     return 'file';
+}
+
+function isVideo(fileName: string, mimeType: string): boolean {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    return ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(ext) || mimeType.startsWith('video/');
+}
+
+function isAudio(fileName: string, mimeType: string): boolean {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    return ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'].includes(ext) || mimeType.startsWith('audio/');
 }
 
 const SmartNotebookFilePicker = ({userId, onFilesSelected}: SmartNotebookFilePickerProps) => {
@@ -173,17 +182,31 @@ const SmartNotebookFilePicker = ({userId, onFilesSelected}: SmartNotebookFilePic
 
                 const blockType = getFileType(fileName, mimeType);
 
+                // 对齐 webapp：视频/音频存为 image + caption 编码
+                let content = fileUri;
+                let caption = fileName;
+                if (isVideo(fileName, mimeType)) {
+                    content = fileUri;
+                    caption = `[VIDEO:${fileUri}]${fileName}`;
+                } else if (isAudio(fileName, mimeType)) {
+                    content = '';
+                    caption = `[AUDIO:${fileUri}]${fileName}`;
+                }
+
                 const block: SmartNoteBlock = {
                     id: generateId(),
                     type: blockType,
-                    content: fileUri, // 使用本地路径
+                    content,
                     order: 0,
                     meta: {
-                        caption: fileName,
+                        url: content,
+                        fileName,
+                        extension: fileName.split('.').pop() || '',
+                        mmFileId: '',
+                        caption,
                         size: fileSize,
                         mimeType,
-                        isLocal: true, // 标记为本地文件
-                        extension: fileName.split('.').pop() || '',
+                        isLocal: true,
                     },
                 };
                 blocks.push(block);

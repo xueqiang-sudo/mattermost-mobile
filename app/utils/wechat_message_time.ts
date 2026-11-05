@@ -147,7 +147,7 @@ export function formatTimeSeparatorLabel(
  * 微信风格聊天列表右上角时间格式化（24小时制）
  * - 今天：HH:mm
  * - 昨天：昨天 HH:mm / 昨天 HH:mm / Yesterday HH:mm
- * - 本周内（含前天及7天内）：星期X HH:mm / 星期X HH:mm / Weekday HH:mm
+ * - 本周内（含前天及7天内）：星期X / 星期X / Weekday（不显示时间）
  * - 今年内（超过一周）：M月D日 HH:mm / M月D日 HH:mm / MMM D HH:mm
  * - 跨年：YYYY/M/D（不显示时间）
  */
@@ -177,7 +177,7 @@ export function formatChannelListTime(
         );
     }
 
-    // 本周内（前天~7天）：星期X HH:mm
+    // 本周内（前天~7天）：星期X（不显示时间）
     if (m.isSame(now, 'isoWeek') || m.isAfter(now.clone().subtract(7, 'days'))) {
         // 中文简/繁体使用"星期X"格式，其他语言使用 weekday 名称
         if (isChineseLocale(intl.locale)) {
@@ -188,13 +188,10 @@ export function formatChannelListTime(
             const weekday = isTraditionalChinese(intl.locale)
                 ? `星期${weekdays[dayOfWeek]}`
                 : `星期${weekdays[dayOfWeek]}`;
-            return `${weekday} ${timeStr}`;
+            return weekday;
         }
         const weekday = intl.formatDate(new Date(timestamp), {weekday: 'short', timeZone: zone});
-        return intl.formatMessage(
-            {id: 'channel_list_time.weekday_time', defaultMessage: '{weekday} {time}'},
-            {weekday, time: timeStr},
-        );
+        return weekday;
     }
 
     // 跨年：YYYY/M/D（不显示时间）

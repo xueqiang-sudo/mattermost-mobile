@@ -30,6 +30,7 @@ import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
 import {bottomSheet, dismissBottomSheet, popTopScreens, resetToLogin, resetToTeams, showModal, goToScreen} from '@screens/navigation';
+import {setCachedEmployee} from '@screens/home/contacts/employee_profile/employee_cache';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {showSnackBar} from '@utils/snack_bar';
@@ -491,10 +492,12 @@ const ContactsManage = ({
         const deptName = currentDepartmentName ?? intl.formatMessage({id: 'contacts.default_department', defaultMessage: 'Default Department'});
         const currentBreadcrumb = currentLevel?.breadcrumb ?? [];
         const departmentParentPath = currentBreadcrumb.length > 1 ? currentBreadcrumb.slice(0, -1).join('/') : undefined;
+        const closeBtnId = `close-employee-${safeEmployee.id}`;
+        setCachedEmployee(closeBtnId, safeEmployee);
         goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
-            `close-employee-${safeEmployee.id}`,
+            closeBtnId,
             {
                 employee: safeEmployee,
                 departmentName: deptName,
@@ -504,7 +507,7 @@ const ContactsManage = ({
                 companyId,
                 currentUserId,
                 fromManage: true,
-                closeButtonId: `close-employee-${safeEmployee.id}`,
+                closeButtonId: closeBtnId,
             },
             {useBackIcon: true},
         );
@@ -553,7 +556,7 @@ const ContactsManage = ({
             );
             return;
         }
-        const name = await modifyDeptNameInput.goToScreen({
+        const name = await modifyDeptNameInput.showModal({
             title: intl.formatMessage({id: 'contacts.modify_department_name', defaultMessage: 'Modify department name'}),
             placeholder: intl.formatMessage({id: 'contacts.department_name_placeholder', defaultMessage: 'Department name'}),
             defaultValue: currentDepartmentName,

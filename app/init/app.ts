@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {NativeModules, Platform} from 'react-native';
 import VoiceRecorder from '@mattermost/voice-recorder';
 
 import LocalConfig from '@assets/config.json';
@@ -121,6 +122,10 @@ export async function start() {
     // 检查是否已同意过隐私条款
     const agreed = await hasAcceptedAgreement();
     if (agreed) {
+        // 隐私合规：已同意过，解锁 React Native 传感器访问
+        if (Platform.OS === 'android' && NativeModules.PrivacyConsent) {
+            NativeModules.PrivacyConsent.allowSensorAccess();
+        }
         // 隐私合规：已同意过，初始化 JPush SDK（用户同意后才能初始化）
         JPushManager.init();
         // 已同意过，直接进入正常启动流程

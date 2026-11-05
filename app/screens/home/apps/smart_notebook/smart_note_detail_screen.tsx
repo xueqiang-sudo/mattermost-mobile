@@ -51,25 +51,42 @@ import {
 const generateId = () => `blk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 // 根据文件扩展名识别类型
-function getFileType(fileName: string, mimeType: string): SmartNoteBlock['type'] {
+/**
+ * 获取文件的媒体类型（对齐 webapp：视频/音频存为 image，通过 caption 编码区分）
+ * 返回值：'image' 表示图片或视频或音频（media block），'file' 表示普通文件
+ */
+function getMediaType(fileName: string, mimeType: string): 'image' | 'file' {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
+    // 图片
     if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'ico', 'tiff'].includes(ext)) {
         return 'image';
     }
+    // 视频/音频也返回 image（存为 image 块，通过 caption 编码区分）
     if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(ext)) {
-        return 'video';
+        return 'image';
     }
     if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'].includes(ext)) {
-        return 'audio';
+        return 'image';
     }
 
-    // 根据 MIME 类型判断
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+        return 'image';
+    }
 
     return 'file';
+}
+
+/** 检测文件是否为视频 */
+function isVideo(fileName: string, mimeType: string): boolean {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    return ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'wmv', 'm4v'].includes(ext) || mimeType.startsWith('video/');
+}
+
+/** 检测文件是否为音频 */
+function isAudio(fileName: string, mimeType: string): boolean {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    return ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'wma'].includes(ext) || mimeType.startsWith('audio/');
 }
 
 // ---- Types ----
@@ -111,6 +128,18 @@ const SmartNoteDetailScreen = () => {
         total: number;
         message: string;
     }>({visible: false, current: 0, total: 0, message: ''});
+
+    // 光标位置跟踪（用于在光标处插入文件）
+    const [focusedBlockIndex, setFocusedBlockIndex] = useState<number>(-1);
+    const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null);
+
+    const handleFocusedIndexChange = useCallback((index: number) => {
+        setFocusedBlockIndex(index);
+    }, []);
+
+    const handleFocusApplied = useCallback(() => {
+        setPendingFocusIndex(null);
+    }, []);
 
     // Check if content has changed
     const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== noteTitle;
@@ -206,39 +235,95 @@ const SmartNoteDetailScreen = () => {
     // ---- File picker handler ----
     // 处理文件选择器返回的文件
     const handleFilesSelected = useCallback((files: FileInfo[]) => {
-        debugLog('smartNotebook', `handleFilesSelected called with ${files.length} files`);
+        debugLog('smartNotebook', `[handleFilesSelected] called with ${files.length} files`);
         files.forEach((file, i) => {
-            debugLog('smartNotebook', `File ${i + 1}: name=${file.name}, uri=${file.uri}, mime=${file.mime_type}, size=${file.size}`);
+            debugLog('smartNotebook', `[handleFilesSelected] File ${i + 1}: name=${file.name}, uri=${file.uri}, id=${file.id}, mime=${file.mime_type}, size=${file.size}, source=${(file as any).source || 'unknown'}`);
         });
 
-        // 将选中的文件转换为 SmartNoteBlock
+        if (files.length === 0) {
+            return;
+        }
+
+        // 对齐 webapp 格式
         const newBlocks: SmartNoteBlock[] = files.map((file, index) => {
-            const blockType = getFileType(file.name || '', file.mime_type || '');
-            debugLog('smartNotebook', `Creating block: type=${blockType}, content=${file.uri}, caption=${file.name}`);
+            const fileName = file.name || '';
+            const mimeType = file.mime_type || '';
+            const blockType = getMediaType(fileName, mimeType);
+            const blockId = generateId();
+            const extension = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
+
+            // 解析文件 URL（本地路径或服务器 URL）
+            const hasLocalUri = Boolean(file.uri);
+            let fileUrl = '';
+            if (hasLocalUri) {
+                fileUrl = file.uri!;
+            } else if (file.id) {
+                fileUrl = `${serverUrl}/api/v4/files/${file.id}`;
+            }
+
+            // 对齐 webapp：视频/音频存为 image 类型，caption 编码实际 URL
+            let content = fileUrl;
+            let caption = fileName;
+
+            if (isVideo(fileName, mimeType)) {
+                content = fileUrl;
+                caption = `[VIDEO:${fileUrl}]${fileName}`;
+            } else if (isAudio(fileName, mimeType)) {
+                content = '';
+                caption = `[AUDIO:${fileUrl}]${fileName}`;
+            }
+
+            debugLog('smartNotebook', `[handleFilesSelected] Creating block: id=${blockId}, blockType=${blockType}, caption=${caption}`);
+
             return {
-                id: generateId(),
+                id: blockId,
                 type: blockType,
-                content: file.uri || '',  // 本地路径
+                content,
                 order: blocks.length + index,
                 meta: {
-                    caption: file.name || 'Unknown file',
+                    // webapp 兼容字段
+                    url: content,
+                    fileName,
+                    extension,
+                    mmFileId: file.id || '',
+                    caption,
+                    // mobile 额外字段
                     size: file.size || 0,
                     mimeType: file.mime_type || '',
-                    isLocal: true,  // 标记为本地文件
-                    fileId: file.id,
+                    isLocal: hasLocalUri,
                 },
             };
         });
 
-        debugLog('smartNotebook', `Adding ${newBlocks.length} blocks, current blocks count: ${blocks.length}`);
+        debugLog('smartNotebook', `[handleFilesSelected] Created ${newBlocks.length} blocks, inserting at cursor=${focusedBlockIndex}`);
 
-        // 添加到编辑器
+        // 在光标位置后面插入，而不是追加到末尾
         setBlocks(prev => {
-            const updated = [...prev, ...newBlocks];
-            debugLog('smartNotebook', `setBlocks: ${prev.length} -> ${updated.length} blocks`);
+            const insertAt = focusedBlockIndex >= 0 ? focusedBlockIndex + 1 : prev.length;
+            const updated = [...prev];
+
+            // 插入文件块
+            updated.splice(insertAt, 0, ...newBlocks);
+
+            // 在文件块下方添加一个空段落，方便用户继续输入
+            const emptyParagraph = createBlock('paragraph', '');
+            updated.splice(insertAt + newBlocks.length, 0, emptyParagraph);
+
+            // 更新 order
+            updated.forEach((b, i) => { b.order = i; });
+
+            // 插入后光标定位到新段落
+            const newCursorIndex = insertAt + newBlocks.length;
+            setTimeout(() => setPendingFocusIndex(newCursorIndex), 50);
+
             return updated;
         });
-    }, [blocks.length]);
+    }, [focusedBlockIndex, serverUrl]);
+
+    // Debug: Monitor blocks state changes
+    useEffect(() => {
+        debugLog('smartNotebook', `[smart_note_detail] blocks: ${blocks.length}, cursor=${focusedBlockIndex}`);
+    }, [blocks.length, focusedBlockIndex]);
 
     // ---- Add block of specific type ----
     const addBlock = useCallback((type: SmartNoteBlock['type'], meta?: Record<string, any>) => {
@@ -419,7 +504,12 @@ const SmartNoteDetailScreen = () => {
                 // 如果有上传失败的文件，提示用户
                 if (uploadResult.errors.length > 0) {
                     const failedNames = uploadResult.errors
-                        .map((e) => e.block.meta?.caption || '未知文件')
+                        .map((e) => {
+                            // 提取 VIDEO/AUDIO caption 中的文件名
+                            const cap = e.block.meta?.caption || '';
+                            const m = cap.match(/^\[(?:VIDEO|AUDIO):[^\]]*\](.*)$/);
+                            return m ? m[1] : (e.block.meta?.fileName || cap || '未知文件');
+                        })
                         .join(', ');
 
                     const result = await new Promise<boolean>((resolve) => {
@@ -741,6 +831,9 @@ const SmartNoteDetailScreen = () => {
                             onChange={handleBlocksChange}
                             theme={theme}
                             editable={true}
+                            onFocusedIndexChange={handleFocusedIndexChange}
+                            pendingFocusIndex={pendingFocusIndex}
+                            onFocusApplied={handleFocusApplied}
                         />
                     )}
                 </ScrollView>

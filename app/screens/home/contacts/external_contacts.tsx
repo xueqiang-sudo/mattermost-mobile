@@ -32,6 +32,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {goToScreen} from '@screens/navigation';
+import {setCachedEmployee} from '@screens/home/contacts/employee_profile/employee_cache';
 import {getContactDisplayName as getContactDisplayNameUtil} from '@utils/contact_section';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -402,10 +403,12 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                         ...contact.contact,
                     };
                     const title = getContactDisplayName(contact);
+                    const closeBtnId = `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`;
+                    setCachedEmployee(closeBtnId, safeEmployee as UserProfile);
                     goToScreen(
                         Screens.CONTACTS_EMPLOYEE_PROFILE,
                         title,
-                        `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`,
+                        closeBtnId,
                         {
                             componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
                             employee: safeEmployee,
@@ -416,6 +419,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                             currentUserId: ownerId || '',
                             companyId: '',
                             contactCompany: contact.company || '',
+                            closeButtonId: closeBtnId,
                         },
                     );
                 } catch (error) {
@@ -451,10 +455,12 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                         ...contact.contact,
                     };
                     const title = getContactDisplayName(contact);
+                    const closeBtnId = `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`;
+                    setCachedEmployee(closeBtnId, safeEmployee as UserProfile);
                     goToScreen(
                         Screens.CONTACTS_EMPLOYEE_PROFILE,
                         title,
-                        `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`,
+                        closeBtnId,
                         {
                             componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
                             employee: safeEmployee,
@@ -465,6 +471,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                             currentUserId: ownerId || '',
                             companyId: '',
                             contactCompany: contact.company || '',
+                            closeButtonId: closeBtnId,
                         },
                     );
                 } catch (error) {

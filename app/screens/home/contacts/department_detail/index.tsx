@@ -36,6 +36,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheet, dismissBottomSheet, dismissModal, dismissModals, goToScreen, popScreens, popToRoot, popTopScreen, resetToLogin, resetToTeams, showModal, showModalWithBackButton} from '@screens/navigation';
+import {setCachedEmployee} from '@screens/home/contacts/employee_profile/employee_cache';
 import {getContactListDisplayName} from '@utils/contact_section';
 import {getNavigationalPathView, NAV_PATH_MAX_VISIBLE} from '@utils/department_path';
 import {buildEnterpriseUserTagKeys, type EnterpriseUserTagKey} from '@utils/enterprise_user_tags';
@@ -638,10 +639,14 @@ const ContactsDepartmentDetail = ({
             keys: Object.keys(safeEmployee),
         });
 
+        // 存入模块级缓存，绕过 RNN passProps 序列化丢失复杂对象的问题
+        const closeBtnId = `close-employee-${safeEmployee.id}`;
+        setCachedEmployee(closeBtnId, safeEmployee);
+
         goToScreen(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
-            `close-employee-${safeEmployee.id}`,
+            closeBtnId,
             {
                 employee: safeEmployee,
                 departmentName: departmentId != null ? departmentName : undefined,
@@ -649,7 +654,7 @@ const ContactsDepartmentDetail = ({
                 companyName,
                 companyId,
                 fromManage: manageMode,
-                closeButtonId: `close-employee-${safeEmployee.id}`,
+                closeButtonId: closeBtnId,
             },
             {useBackIcon: true},
         );
@@ -750,7 +755,7 @@ const ContactsDepartmentDetail = ({
             return;
         }
         const currentName = enterpriseDisplayName ?? companyName ?? '';
-        const name = await modifyEnterpriseNameInput.goToScreen({
+        const name = await modifyEnterpriseNameInput.showModal({
             title: intl.formatMessage({id: 'contacts.modify_enterprise_name', defaultMessage: 'Modify enterprise name'}),
             placeholder: intl.formatMessage({id: 'contacts.enterprise_name_placeholder', defaultMessage: 'Enterprise name'}),
             defaultValue: currentName,
