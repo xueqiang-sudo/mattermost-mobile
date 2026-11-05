@@ -203,8 +203,6 @@ export async function transcribeAudio(
     // 确保文件名有正确的扩展名
     let fileName = file.name;
     const extension = fileName.split('.').pop()?.toLowerCase();
-
-    // 如果没有扩展名或扩展名不对，根据 MIME type 修正
     if (!extension || !['mp3', 'wav', 'amr', 'aac', 'm4a', 'ogg'].includes(extension)) {
         // 从 MIME type 推断扩展名
         const mimeToExt: Record<string, string> = {
@@ -249,19 +247,13 @@ export async function transcribeAudio(
             body: formData,
         });
 
-        console.log('[transcribeAudio] 响应:', resp);
-
         // doFetch returns {data: ...} or throws on error
         return resp?.data || resp;
     } catch (e: any) {
         // Extract error details
         const errorMessage = e?.message || String(e);
         const serverMessage = e?.server_error?.message || e?.details?.error || '';
-        console.error('[transcribeAudio] Error:', {
-            message: errorMessage,
-            serverMessage,
-            fullError: e,
-        });
+        console.log('[transcribeAudio] Error:', errorMessage, serverMessage);
         return {
             success: false,
             error: serverMessage || errorMessage || '语音转文字服务暂不可用',

@@ -7,7 +7,6 @@ import {
     ActivityIndicator,
     Alert,
     Clipboard,
-    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -134,18 +133,6 @@ const SmartNoteDetailScreen = () => {
     const [focusedBlockIndex, setFocusedBlockIndex] = useState<number>(-1);
     const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null);
 
-    // 键盘高度跟踪（用于浮动工具栏定位）
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
-    const scrollViewRef = useRef<ScrollView>(null);
-
-    // 文本选择状态（用于上下文感知工具栏）
-    const [selectedText, setSelectedText] = useState('');
-    const [selectionStart, setSelectionStart] = useState(0);
-    const [selectionEnd, setSelectionEnd] = useState(0);
-
-    // 复制/粘贴状态
-    const [copiedBlock, setCopiedBlock] = useState<SmartNoteBlock | null>(null);
-
     const handleFocusedIndexChange = useCallback((index: number) => {
         setFocusedBlockIndex(index);
     }, []);
@@ -153,19 +140,6 @@ const SmartNoteDetailScreen = () => {
     const handleFocusApplied = useCallback(() => {
         setPendingFocusIndex(null);
     }, []);
-
-    // Notion 风格：智能滚动到焦点块（屏幕中央偏上位置）
-    useEffect(() => {
-        if (focusedBlockIndex >= 0 && scrollViewRef.current) {
-            // 使用 setTimeout 确保布局完成后再滚动
-            setTimeout(() => {
-                scrollViewRef.current?.scrollTo({
-                    y: focusedBlockIndex * 60, // 估算每个块的高度
-                    animated: true,
-                });
-            }, 100);
-        }
-    }, [focusedBlockIndex]);
 
     // Check if content has changed
     const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== noteTitle;
@@ -196,26 +170,6 @@ const SmartNoteDetailScreen = () => {
             }
         };
         init();
-
-        // 监听键盘高度变化（Notion 风格浮动工具栏）
-        const keyboardShowListener = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-            (e) => {
-                setKeyboardHeight(e.endCoordinates.height);
-            },
-        );
-
-        const keyboardHideListener = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-            () => {
-                setKeyboardHeight(0);
-            },
-        );
-
-        return () => {
-            keyboardShowListener.remove();
-            keyboardHideListener.remove();
-        };
     }, [serverUrl, noteId, isNew]);
 
     // ---- Voice recording (direct transcription API) ----
@@ -401,93 +355,6 @@ const SmartNoteDetailScreen = () => {
         addBlock('code-block');
     }, [addBlock]);
 
-    // ---- 文本格式化（Notion 风格：选中文本后的格式操作） ----
-    const applyTextFormat = useCallback((format: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'code') => {
-        if (focusedBlockIndex < 0 || focusedBlockIndex >= blocks.length) return;
-
-        const block = blocks[focusedBlockIndex];
-        if (!block.content) return;
-
-        const before = block.content.substring(0, selectionStart);
-        const selected = block.content.substring(selectionStart, selectionEnd);
-        const after = block.content.substring(selectionEnd);
-
-        if (!selected) return;
-
-        let formatted = '';
-        switch (format) {
-            case 'bold':
-                formatted = `**${selected}**`;
-                break;
-            case 'italic':
-                formatted = `*${selected}*`;
-                break;
-            case 'underline':
-                formatted = `__${selected}__`;
-                break;
-            case 'strikethrough':
-                formatted = `~~${selected}~~`;
-                break;
-            case 'code':
-                formatted = `\`${selected}\``;
-                break;
-        }
-
-        const newContent = before + formatted + after;
-        const newBlocks = [...blocks];
-        newBlocks[focusedBlockIndex] = { ...block, content: newContent };
-        setBlocks(newBlocks);
-
-        // 清除选择
-        setSelectedText('');
-        setSelectionStart(0);
-        setSelectionEnd(0);
-    }, [focusedBlockIndex, blocks, selectionStart, selectionEnd]);
-
-    // ---- 块选择变化处理 ----
-    const handleBlockSelectionChange = useCallback((index: number, start: number, end: number) => {
-        if (index < 0 || index >= blocks.length) return;
-        const block = blocks[index];
-        if (!block.content) return;
-
-        const selected = block.content.substring(start, end);
-        setSelectedText(selected);
-        setSelectionStart(start);
-        setSelectionEnd(end);
-    }, [blocks]);
-
-    // ---- 复制块 ----
-    const handleCopyBlock = useCallback((index: number) => {
-        if (index < 0 || index >= blocks.length) return;
-        setCopiedBlock(blocks[index]);
-        Alert.alert(
-            intl.formatMessage({id: 'smart_notebook.block_copied', defaultMessage: '块已复制'}),
-        );
-    }, [blocks, intl]);
-
-    // ---- 粘贴块 ----
-    const handlePasteBlock = useCallback((index: number) => {
-        if (!copiedBlock) {
-            Alert.alert(
-                intl.formatMessage({id: 'smart_notebook.no_copied_block', defaultMessage: '没有复制的块'}),
-            );
-            return;
-        }
-
-        // 在当前位置插入复制的块
-        const newBlock = {
-            ...copiedBlock,
-            id: generateId(), // 生成新ID
-        };
-
-        setBlocks(prev => {
-            const newBlocks = [...prev];
-            newBlocks.splice(index + 1, 0, newBlock);
-            newBlocks.forEach((b, i) => { b.order = i; });
-            return newBlocks;
-        });
-    }, [copiedBlock, intl]);
-
     // ---- Upload image ----
     const uploadImage = useCallback(async () => {
         if (!userId) return;
@@ -610,12 +477,17 @@ const SmartNoteDetailScreen = () => {
 
                 // 上传所有本地文件
                 const {uploadAllLocalBlocks} = await import('./smart_notebook_upload');
+                debugLog('[SmartNotebook] handleSave: 开始上传本地文件', {
+                    localBlocksCount: localBlocks.length,
+                    totalBlocksCount: blocks.length,
+                });
                 const uploadResult = await uploadAllLocalBlocks(
                     serverUrl,
                     userId,
                     blocks,
                     (current, total) => {
                         // 更新进度
+                        debugLog('[SmartNotebook] handleSave: 上传进度', {current, total});
                         setSaveProgress({
                             visible: true,
                             current,
@@ -630,6 +502,12 @@ const SmartNoteDetailScreen = () => {
                         });
                     },
                 );
+
+                debugLog('[SmartNotebook] handleSave: 上传完成', {
+                    success: uploadResult.success,
+                    errorsCount: uploadResult.errors.length,
+                    blocksCount: uploadResult.blocks.length,
+                });
 
                 // 隐藏上传进度
                 setSaveProgress({visible: false, current: 0, total: 0, message: ''});
@@ -700,19 +578,46 @@ const SmartNoteDetailScreen = () => {
             // 保存笔记
             const noteTitle = title.trim() || extractTitleFromBlocks(blocksToSave);
 
-            if (isNew) {
-                const createdNote = await createNote(serverUrl, userId, noteTitle, 'private');
-                if (createdNote?.id) {
-                    await updateNote(serverUrl, userId, createdNote.id, {
+            debugLog('[SmartNotebook] handleSave: 开始保存', {
+                isNew,
+                noteId,
+                userId,
+                title: noteTitle,
+                blocksCount: blocksToSave.length,
+            });
+
+            try {
+                if (isNew) {
+                    debugLog('[SmartNotebook] handleSave: 创建新笔记');
+                    const createdNote = await createNote(serverUrl, userId, noteTitle, 'private');
+                    debugLog('[SmartNotebook] handleSave: 创建笔记结果', {createdNote});
+                    if (createdNote?.id) {
+                        debugLog('[SmartNotebook] handleSave: 更新新笔记内容', {noteId: createdNote.id});
+                        await updateNote(serverUrl, userId, createdNote.id, {
+                            title: noteTitle,
+                            blocks: blocksToSave,
+                        });
+                        debugLog('[SmartNotebook] handleSave: 更新新笔记成功');
+                    } else {
+                        debugLog('[SmartNotebook] handleSave: 创建笔记失败', {createdNote});
+                        throw new Error('创建笔记失败');
+                    }
+                } else {
+                    debugLog('[SmartNotebook] handleSave: 更新现有笔记', {noteId});
+                    await updateNote(serverUrl, userId, noteId, {
                         title: noteTitle,
                         blocks: blocksToSave,
                     });
+                    debugLog('[SmartNotebook] handleSave: 更新笔记成功');
                 }
-            } else {
-                await updateNote(serverUrl, userId, noteId, {
-                    title: noteTitle,
-                    blocks: blocksToSave,
+            } catch (saveError) {
+                debugLog('[SmartNotebook] handleSave: 保存失败', {
+                    isNew,
+                    noteId,
+                    error: saveError instanceof Error ? saveError.message : String(saveError),
+                    stack: saveError instanceof Error ? saveError.stack : undefined,
                 });
+                throw saveError;
             }
 
             // 隐藏保存进度
@@ -730,6 +635,11 @@ const SmartNoteDetailScreen = () => {
         } catch (e) {
             // 隐藏进度对话框
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
+
+            debugLog('[SmartNotebook] handleSave: catch block', {
+                error: e instanceof Error ? e.message : String(e),
+                stack: e instanceof Error ? e.stack : undefined,
+            });
 
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
@@ -936,12 +846,7 @@ const SmartNoteDetailScreen = () => {
                 </View>
 
                 {/* Content Area */}
-                <ScrollView
-                    ref={scrollViewRef}
-                    style={style.editorContainer}
-                    keyboardShouldPersistTaps='handled'
-                    contentContainerStyle={{ paddingBottom: keyboardHeight > 0 ? 60 : 0 }}
-                >
+                <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
                     {mode === 'viewing' ? (
                         // Read-only view with Block Editor (non-editable)
                         <TouchableOpacity
@@ -972,19 +877,6 @@ const SmartNoteDetailScreen = () => {
                             onFocusedIndexChange={handleFocusedIndexChange}
                             pendingFocusIndex={pendingFocusIndex}
                             onFocusApplied={handleFocusApplied}
-                            scrollToBlock={(index) => {
-                                // Notion 风格：智能滚动到指定块
-                                if (scrollViewRef.current) {
-                                    scrollViewRef.current.scrollTo({
-                                        y: index * 60,
-                                        animated: true,
-                                    });
-                                }
-                            }}
-                            toolbarVisible={keyboardHeight > 0}
-                            onCopyBlock={handleCopyBlock}
-                            onPasteBlock={handlePasteBlock}
-                            onSelectionChange={handleBlockSelectionChange}
                         />
                     )}
                 </ScrollView>
@@ -1007,114 +899,47 @@ const SmartNoteDetailScreen = () => {
                     </View>
                 )}
 
-                {/* Floating Toolbar - Notion Style (紧贴键盘上方) */}
-                {mode !== 'viewing' && keyboardHeight > 0 && (
-                    <View style={[style.floatingToolbar, { bottom: keyboardHeight }]}>
-                        {selectedText ? (
-                            // 上下文感知：选中文本时显示格式工具
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={style.floatingToolbarContent}
-                            >
-                                <TouchableOpacity onPress={() => applyTextFormat('bold')} style={style.toolbarBtn}>
-                                    <Text style={style.toolbarText}>B</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => applyTextFormat('italic')} style={style.toolbarBtn}>
-                                    <Text style={[style.toolbarText, {fontStyle: 'italic'}]}>I</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => applyTextFormat('underline')} style={style.toolbarBtn}>
-                                    <Text style={[style.toolbarText, {textDecorationLine: 'underline'}]}>U</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => applyTextFormat('strikethrough')} style={style.toolbarBtn}>
-                                    <Text style={[style.toolbarText, {textDecorationLine: 'line-through'}]}>S</Text>
-                                </TouchableOpacity>
-                                <View style={style.toolbarDivider}/>
-                                <TouchableOpacity onPress={() => applyTextFormat('code')} style={style.toolbarBtn}>
-                                    <Text style={style.toolbarText}>&lt;/&gt;</Text>
-                                </TouchableOpacity>
-                                <View style={style.toolbarDivider}/>
-                                <TouchableOpacity onPress={() => {/* TODO: 添加链接 */}} style={style.toolbarBtn}>
-                                    <CompassIcon name='link-variant' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-                            </ScrollView>
-                        ) : (
-                            // 默认工具栏
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={style.floatingToolbarContent}
-                            >
-                                {/* 添加新块 */}
-                                <TouchableOpacity onPress={() => addBlock('paragraph')} style={style.toolbarBtnPrimary}>
-                                    <CompassIcon name='plus' size={20} color={theme.buttonBg}/>
-                                </TouchableOpacity>
-
-                                {/* 分隔线 */}
-                                <View style={style.toolbarDivider}/>
-
-                                {/* 标题 */}
-                                <TouchableOpacity onPress={insertHeading} style={style.toolbarBtn}>
-                                    <Text style={style.toolbarText}>H1</Text>
-                                </TouchableOpacity>
-
-                                {/* 列表 */}
-                                <TouchableOpacity onPress={insertBulletList} style={style.toolbarBtn}>
-                                    <CompassIcon name='format-list-bulleted' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={insertNumberedList} style={style.toolbarBtn}>
-                                    <CompassIcon name='format-list-numbered' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-
-                                {/* 分隔线 */}
-                                <View style={style.toolbarDivider}/>
-
-                                {/* 引用和代码 */}
-                                <TouchableOpacity onPress={insertQuote} style={style.toolbarBtn}>
-                                    <CompassIcon name='format-quote-open' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={insertCode} style={style.toolbarBtn}>
-                                    <Text style={style.toolbarText}>&lt;/&gt;</Text>
-                                </TouchableOpacity>
-
-                                {/* 分隔线 */}
-                                <View style={style.toolbarDivider}/>
-
-                                {/* 插入文件 */}
-                                <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
-                                    <CompassIcon name='file-outline' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-
-                                {/* 插入图片 */}
-                                <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
-                                    <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-
-                                {/* 插入视频 */}
-                                <TouchableOpacity onPress={uploadVideo} style={style.toolbarBtn}>
-                                    <CompassIcon name='video-outline' size={20} color={theme.centerChannelColor}/>
-                                </TouchableOpacity>
-
-                                {/* 分隔线 */}
-                                <View style={style.toolbarDivider}/>
-
-                                {/* 语音录制 */}
-                                {voiceProcessing ? (
-                                    <View style={style.toolbarBtn}>
-                                        <ActivityIndicator size='small' color={theme.buttonBg}/>
-                                    </View>
-                                ) : voiceState === 'recording' ? (
-                                    <TouchableOpacity onPress={stopRecordingAndSend} style={[style.toolbarBtn, style.toolbarBtnActive]}>
-                                        <CompassIcon name='microphone' size={20} color={theme.dndIndicator}/>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <TouchableOpacity onPress={startRecording} style={style.toolbarBtn}>
-                                        <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
-                                    </TouchableOpacity>
-                                )}
-                            </ScrollView>
-                        )}
-                    </View>
+                {/* Toolbar - only show in edit mode */}
+                {mode !== 'viewing' && (
+                <View style={style.toolbar}>
+                    <TouchableOpacity onPress={insertHeading} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>H1</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertBulletList} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>•</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertNumberedList} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>1.</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertQuote} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>"</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertCode} style={style.toolbarBtn}>
+                        <Text style={style.toolbarText}>&lt;/&gt;</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
+                        <CompassIcon name='folder-outline' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={uploadImage} style={style.toolbarBtn}>
+                        <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={uploadVideo} style={style.toolbarBtn}>
+                        <CompassIcon name='video-outline' size={20} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
+                    {voiceProcessing ? (
+                        <View style={style.toolbarBtn}>
+                            <ActivityIndicator size='small' color={theme.buttonBg}/>
+                        </View>
+                    ) : voiceState === 'recording' ? (
+                        <TouchableOpacity onPress={stopRecordingAndSend} style={[style.toolbarBtn, style.toolbarBtnActive]}>
+                            <CompassIcon name='microphone' size={20} color={theme.dndIndicator}/>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity onPress={startRecording} style={style.toolbarBtn}>
+                            <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
+                        </TouchableOpacity>
+                    )}
+                </View>
                 )}
 
                 {/* Save Progress Dialog */}
@@ -1252,50 +1077,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.02),
     },
-    // Notion 风格浮动工具栏
-    floatingToolbar: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        height: 48,
-        backgroundColor: theme.centerChannelBg,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.15),
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.05),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 5,
-        zIndex: 1000,
-    },
-    floatingToolbarContent: {
-        paddingHorizontal: 8,
-        alignItems: 'center',
-    },
-    toolbarBtnPrimary: {
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginHorizontal: 4,
-    },
-    toolbarDivider: {
-        width: 1,
-        height: 24,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.1),
-        marginHorizontal: 6,
-    },
     toolbarBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginHorizontal: 2,
+        padding: 8,
+        borderRadius: 4,
     },
     toolbarBtnActive: {
         backgroundColor: changeOpacity(theme.dndIndicator, 0.15),

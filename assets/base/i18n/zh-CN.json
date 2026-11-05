@@ -2836,5 +2836,16 @@
   "warehouse_inout.scan_success": "扫描成功",
 
   "channel_list_time.yesterday_time": "昨天 {time}",
-  "channel_list_time.weekday_time": "{weekday} {time}"
+  "channel_list_time.weekday_time": "{weekday} {time}",
+
+  "upload_progress.title": "上传文件",
+  "upload_progress.total": "总计: {completed}/{total} 个文件",
+  "upload_progress.uploading": "上传中 {count}",
+  "upload_progress.failed": "失败 {count}",
+  "upload_progress.status.completed": "已完成",
+  "upload_progress.status.failed": "失败",
+  "upload_progress.status.uploading": "上传中...",
+  "upload_progress.status.pending": "等待中",
+  "upload_progress.retry": "重试",
+  "upload_progress.done": "完成"
 }

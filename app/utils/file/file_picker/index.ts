@@ -535,10 +535,23 @@ export default class FilePickerUtil {
     };
 
     private handleVisionCameraVideoRecorded = async (video: VideoFile) => {
+        console.log('[FilePickerUtil] handleVisionCameraVideoRecorded called', {
+            videoPath: video.path,
+            videoDuration: video.duration,
+            videoWidth: video.width,
+            videoHeight: video.height,
+        });
         const asset = this.visionVideoToAsset(video);
+        console.log('[FilePickerUtil] visionVideoToAsset result', {
+            uri: asset.uri,
+            type: asset.type,
+            fileName: asset.fileName,
+        });
 
         // Always direct upload (auto-send), same as photo capture
+        console.log('[FilePickerUtil] calling prepareFileUpload for video');
         await this.prepareFileUpload([asset], undefined, true);
+        console.log('[FilePickerUtil] prepareFileUpload completed');
     };
 
     /**
@@ -594,9 +607,16 @@ export default class FilePickerUtil {
         }
 
         if (hasCameraPermission && hasWriteToStoragePermission) {
+            console.log('[FilePickerUtil] showing draft video recorder modal');
             showDraftVideoRecorderModal({
                 onVideoRecorded: (video) => {
-                    Promise.resolve(this.handleVisionCameraVideoRecorded(video)).catch(() => undefined);
+                    console.log('[FilePickerUtil] onVideoRecorded callback called', {
+                        videoPath: video.path,
+                        videoDuration: video.duration,
+                    });
+                    Promise.resolve(this.handleVisionCameraVideoRecorded(video)).catch((error) => {
+                        console.error('[FilePickerUtil] handleVisionCameraVideoRecorded error:', error);
+                    });
                 },
             });
         }

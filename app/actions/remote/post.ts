@@ -217,16 +217,27 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         debugLog('POST', `[createPost] server returned pending_files: ${JSON.stringify(pendingFilesFromServer)}`);
     }
 
-    // If we have pending files and server returned file_ids, use them
+    // If we have pending files and server returned valid file_ids, use them
     // Otherwise fall back to using local pending file ids
     if (files.length > 0 && pendingFilesFromServer && pendingFilesFromServer.length > 0) {
-        // Use server-generated file_ids
-        const serverFileIds = pendingFilesFromServer.map(pf => pf.file_id);
-        created = {
-            ...created,
-            file_ids: serverFileIds,
-        };
-        debugLog('POST', `[createPost] using server file_ids: ${JSON.stringify(serverFileIds)}`);
+        // Use server-generated file_ids (only if they are valid)
+        const serverFileIds = pendingFilesFromServer.map(pf => pf.file_id).filter(id => id != null);
+        if (serverFileIds.length > 0 && serverFileIds.length === files.length) {
+            // Server returned valid file_ids for all files
+            created = {
+                ...created,
+                file_ids: serverFileIds,
+            };
+            debugLog('POST', `[createPost] using server file_ids: ${JSON.stringify(serverFileIds)}`);
+        } else {
+            // Server returned null/undefined file_ids, fall back to local pending ids
+            const pendingFileIds = files.map((file) => file.id);
+            created = {
+                ...created,
+                file_ids: pendingFileIds,
+            };
+            debugLog('POST', `[createPost] server file_ids are null, falling back to local pending file_ids: ${JSON.stringify(pendingFileIds)}`);
+        }
     } else if (files.length > 0) {
         // Fall back to local pending file ids
         const pendingFileIds = files.map((file) => file.id);

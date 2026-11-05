@@ -2837,5 +2837,16 @@
   "warehouse_inout.scan_success": "Scan successful",
 
   "channel_list_time.yesterday_time": "Yesterday {time}",
-  "channel_list_time.weekday_time": "{weekday} {time}"
+  "channel_list_time.weekday_time": "{weekday} {time}",
+
+  "upload_progress.title": "Upload Files",
+  "upload_progress.total": "Total: {completed}/{total} files",
+  "upload_progress.uploading": "Uploading {count}",
+  "upload_progress.failed": "Failed {count}",
+  "upload_progress.status.completed": "Completed",
+  "upload_progress.status.failed": "Failed",
+  "upload_progress.status.uploading": "Uploading...",
+  "upload_progress.status.pending": "Pending",
+  "upload_progress.retry": "Retry",
+  "upload_progress.done": "Done"
 }

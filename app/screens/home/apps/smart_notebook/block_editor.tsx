@@ -5,12 +5,9 @@ import React, {useCallback, useRef, useState, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {
     Alert,
-    Animated,
-    Clipboard,
     FlatList,
     Image,
     Modal,
-    PanResponder,
     Platform,
     StyleSheet,
     Text,
@@ -37,11 +34,6 @@ type BlockEditorProps = {
     onFocusedIndexChange?: (index: number) => void;
     pendingFocusIndex?: number | null;
     onFocusApplied?: () => void;
-    scrollToBlock?: (index: number) => void; // 请求滚动到指定块
-    toolbarVisible?: boolean; // 工具栏是否可见
-    onCopyBlock?: (index: number) => void; // 复制块
-    onPasteBlock?: (index: number) => void; // 粘贴块
-    onSelectionChange?: (index: number, start: number, end: number) => void; // 文本选择变化
 };
 
 type BlockItemProps = {
@@ -54,16 +46,11 @@ type BlockItemProps = {
     onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
-    onLongPress?: (index: number) => void; // 长按回调
-    onSelectionChange?: (index: number, start: number, end: number) => void; // 文本选择变化
-    onDragStart?: (index: number) => void; // 拖拽开始
-    onDragEnd?: (index: number, toIndex: number) => void; // 拖拽结束
     theme: Theme;
     editable: boolean;
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean; // 当前是否被选中
-    isDragging?: boolean; // 是否正在拖拽
     autoFocus?: boolean; // 是否自动聚焦 TextInput
 };
 
@@ -161,149 +148,16 @@ const BlockItem = ({
     onMoveDown,
     onFocus,
     onPlayMedia,
-    onLongPress,
-    onSelectionChange,
-    onDragStart,
-    onDragEnd,
     theme,
     editable,
     isFirst,
     isLast,
     isSelected,
-    isDragging,
     autoFocus,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);
     const textInputRef = useRef<TextInput>(null);
-    const fadeAnim = useRef(new Animated.Value(1)).current;
-    const slideAnim = useRef(new Animated.Value(0)).current;
-    const dragAnim = useRef(new Animated.Value(0)).current;
-    const [isDraggingLocal, setIsDraggingLocal] = useState(false);
-
-    // 长按手势处理（Notion 风格）
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => false,
-            onMoveShouldSetPanResponder: (evt, gestureState) => {
-                // 只在水平滑动时触发
-                return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 10;
-            },
-            onPanResponderMove: (evt, gestureState) => {
-                // 左滑为负，右滑为正
-                slideAnim.setValue(gestureState.dx);
-            },
-            onPanResponderRelease: (evt, gestureState) => {
-                const { dx, dy } = gestureState;
-
-                // 左滑超过阈值：删除
-                if (dx < -80) {
-                    Animated.timing(slideAnim, {
-                        toValue: -500,
-                        duration: 200,
-                        useNativeDriver: true,
-                    }).start(() => {
-                        onDelete(index);
-                        slideAnim.setValue(0);
-                    });
-                }
-                // 右滑超过阈值：插入新块
-                else if (dx > 80) {
-                    Animated.timing(slideAnim, {
-                        toValue: 500,
-                        duration: 200,
-                        useNativeDriver: true,
-                    }).start(() => {
-                        onAddAfter(index);
-                        slideAnim.setValue(0);
-                    });
-                }
-                // 否则回弹
-                else {
-                    Animated.spring(slideAnim, {
-                        toValue: 0,
-                        useNativeDriver: true,
-                    }).start();
-                }
-            },
-        })
-    ).current;
-
-    // 长按显示操作菜单
-    const handleLongPress = useCallback(() => {
-        if (!editable) return;
-
-        onLongPress?.(index);
-
-        // 显示操作菜单
-        Alert.alert(
-            intl.formatMessage({id: 'smart_notebook.block_actions', defaultMessage: '块操作'}),
-            '',
-            [
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.copy_block', defaultMessage: '复制块'}),
-                    onPress: () => {
-                        // 复制块内容
-                        Clipboard.setString(JSON.stringify(block));
-                        Alert.alert(intl.formatMessage({id: 'smart_notebook.block_copied', defaultMessage: '块已复制'}));
-                    },
-                },
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.paste_block', defaultMessage: '粘贴块'}),
-                    onPress: async () => {
-                        try {
-                            const content = await Clipboard.getString();
-                            if (!content) {
-                                Alert.alert(intl.formatMessage({id: 'smart_notebook.clipboard_empty', defaultMessage: '剪贴板为空'}));
-                                return;
-                            }
-                            const pastedBlock = JSON.parse(content);
-                            if (!pastedBlock.type) {
-                                Alert.alert(intl.formatMessage({id: 'smart_notebook.invalid_block', defaultMessage: '无效的块数据'}));
-                                return;
-                            }
-                            // 在当前位置后插入
-                            onAddAfter(index);
-                            // TODO: 需要替换新插入的块内容
-                            Alert.alert(intl.formatMessage({id: 'smart_notebook.block_pasted', defaultMessage: '块已粘贴'}));
-                        } catch (e) {
-                            Alert.alert(intl.formatMessage({id: 'smart_notebook.paste_failed', defaultMessage: '粘贴失败'}));
-                        }
-                    },
-                },
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.delete', defaultMessage: '删除'}),
-                    style: 'destructive',
-                    onPress: () => onDelete(index),
-                },
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.move_up', defaultMessage: '上移'}),
-                    onPress: () => onMoveUp(index),
-                },
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.move_down', defaultMessage: '下移'}),
-                    onPress: () => onMoveDown(index),
-                },
-                {
-                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
-                    style: 'cancel',
-                },
-            ],
-        );
-    }, [editable, index, block, onDelete, onMoveUp, onMoveDown, onLongPress, onAddAfter, intl]);
-
-    // 文本选择变化监听
-    const handleSelectionChange = useCallback((e: any) => {
-        const { start, end } = e.nativeEvent.selection;
-        onSelectionChange?.(index, start, end);
-    }, [index, onSelectionChange]);
-
-    // 拖拽手柄按下
-    const handleDragHandlePress = useCallback(() => {
-        if (!editable) return;
-        setIsDraggingLocal(true);
-        onDragStart?.(index);
-    }, [editable, index, onDragStart]);
 
     // 自动聚焦 TextInput（用于插入块后光标移动到新位置）
     useEffect(() => {
@@ -588,63 +442,35 @@ const BlockItem = ({
     const blockStyle = getBlockTextStyle();
 
     return (
-        <Animated.View
-            style={[
-                style.blockContainer,
-                {
-                    transform: [{ translateX: slideAnim }],
-                },
-            ]}
-            {...(editable ? panResponder.panHandlers : {})}
-        >
-            <TouchableOpacity
-                onPress={handlePress}
-                onLongPress={handleLongPress}
-                delayLongPress={300}
-                style={[
-                    style.blockTouchable,
-                    isSelected && style.blockSelected,
-                ]}
-            >
-                {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
-                <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
-                    {/* 拖拽手柄（Notion 风格：左侧 ⋮⋮ 图标） */}
-                    {editable && (
-                        <TouchableOpacity
-                            onPress={handleDragHandlePress}
-                            style={[style.dragHandle, isDragging && style.dragHandleActive]}
-                        >
-                            <Text style={style.dragHandleText}>⋮⋮</Text>
-                        </TouchableOpacity>
-                    )}
-                    {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
-                    <TextInput
-                        ref={textInputRef}
-                        style={[style.textInput, blockStyle]}
-                        value={block.content}
-                        onChangeText={handleContentChange}
-                        onFocus={handleFocus}
-                        onSelectionChange={handleSelectionChange}
-                        placeholder={getPlaceholder()}
-                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                        multiline
-                        editable={editable}
-                        textAlignVertical='top'
-                    />
-                </View>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+            {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
+            <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
+                {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
+                <TextInput
+                    ref={textInputRef}
+                    style={[style.textInput, blockStyle]}
+                    value={block.content}
+                    onChangeText={handleContentChange}
+                    onFocus={handleFocus}
+                    placeholder={getPlaceholder()}
+                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                    multiline
+                    editable={editable}
+                    textAlignVertical='top'
+                />
+            </View>
+            {editable && isSelected && (
+                <BlockActions
+                    onDelete={() => onDelete(index)}
+                    onAddAfter={() => onAddAfter(index)}
+                    onMoveUp={() => onMoveUp(index)}
+                    onMoveDown={() => onMoveDown(index)}
+                    isFirst={isFirst}
+                    isLast={isLast}
+                    theme={theme}
+                />
+            )}
+        </TouchableOpacity>
     );
 };
 
@@ -681,11 +507,9 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 };
 
 // ---- Main Block Editor Component ----
-const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, scrollToBlock, toolbarVisible, onCopyBlock, onPasteBlock, onSelectionChange}: BlockEditorProps) => {
+const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
-    const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-    const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
     // 同步光标位置给父组件
     useEffect(() => {
@@ -697,74 +521,8 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
         if (pendingFocusIndex != null && pendingFocusIndex >= 0 && pendingFocusIndex < blocks.length) {
             setFocusedIndex(pendingFocusIndex);
             onFocusApplied?.();
-            // 请求滚动到该块
-            scrollToBlock?.(pendingFocusIndex);
         }
-    }, [pendingFocusIndex, blocks.length, onFocusApplied, scrollToBlock]);
-
-    // 处理复制块
-    const handleCopyBlock = useCallback((index: number) => {
-        if (index < 0 || index >= blocks.length) return;
-        const block = blocks[index];
-        // 复制块内容到剪贴板
-        Clipboard.setString(JSON.stringify(block));
-        Alert.alert('已复制块');
-    }, [blocks]);
-
-    // 处理粘贴块
-    const handlePasteBlock = useCallback(async (index: number) => {
-        try {
-            const content = await Clipboard.getString();
-            if (!content) {
-                Alert.alert('剪贴板为空');
-                return;
-            }
-
-            const block = JSON.parse(content);
-            if (!block.type) {
-                Alert.alert('无效的块数据');
-                return;
-            }
-
-            // 在当前位置插入新块
-            const newBlocks = [...blocks];
-            const pastedBlock = {
-                ...block,
-                id: generateId(), // 生成新ID
-            };
-            newBlocks.splice(index + 1, 0, pastedBlock);
-            newBlocks.forEach((b, i) => { b.order = i; });
-            onChange(newBlocks);
-        } catch (e) {
-            Alert.alert('粘贴失败');
-        }
-    }, [blocks, onChange]);
-
-    // 处理拖拽开始
-    const handleDragStart = useCallback((index: number) => {
-        setDraggingIndex(index);
-    }, []);
-
-    // 处理拖拽结束
-    const handleDragEnd = useCallback((fromIndex: number, toIndex: number) => {
-        if (fromIndex === toIndex) return;
-        if (toIndex < 0 || toIndex >= blocks.length) return;
-
-        const newBlocks = [...blocks];
-        const [movedBlock] = newBlocks.splice(fromIndex, 1);
-        newBlocks.splice(toIndex, 0, movedBlock);
-        newBlocks.forEach((b, i) => { b.order = i; });
-        onChange(newBlocks);
-
-        setDraggingIndex(null);
-        setDragOverIndex(null);
-    }, [blocks, onChange]);
-
-    // 处理选择变化
-    const handleSelectionChange = useCallback((index: number, start: number, end: number) => {
-        // 通知父组件文本选择状态
-        onSelectionChange?.(index, start, end);
-    }, [onSelectionChange]);
+    }, [pendingFocusIndex, blocks.length, onFocusApplied]);
 
     // 媒体播放状态
     const [playingMedia, setPlayingMedia] = useState<{
@@ -861,20 +619,15 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
                 onPlayMedia={handlePlayMedia}
-                onLongPress={handleFocus} // 长按时也触发焦点
-                onSelectionChange={handleSelectionChange}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
                 theme={theme}
                 editable={editable}
                 isFirst={index === 0}
                 isLast={index === blocks.length - 1}
                 isSelected={focusedIndex === index}
-                isDragging={draggingIndex === index}
                 autoFocus={pendingFocusIndex === index}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, handleSelectionChange, handleDragStart, handleDragEnd, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, draggingIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex, pendingFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
@@ -955,43 +708,14 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 8,
     },
     blockContainer: {
-        marginBottom: 8,
-        borderRadius: 4,
-    },
-    blockTouchable: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        borderRadius: 4,
-        // Notion 风格：无边框，聚焦时有轻微背景色变化
-    },
-    blockSelected: {
-        backgroundColor: changeOpacity(theme.buttonBg, 0.05),
-        // Notion 风格：聚焦块轻微背景色
+        marginBottom: 8,
     },
     textBlock: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'flex-start',
-    },
-    // 拖拽手柄样式（Notion 风格：左侧 ⋮⋮ 图标）
-    dragHandle: {
-        width: 24,
-        height: 36,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 4,
-        borderRadius: 4,
-        opacity: 0.3,
-    },
-    dragHandleActive: {
-        opacity: 1,
-        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
-    },
-    dragHandleText: {
-        ...typography('Body', 200, 'Regular'),
-        color: theme.centerChannelColor,
-        fontSize: 16,
-        lineHeight: 20,
     },
     textInput: {
         flex: 1,

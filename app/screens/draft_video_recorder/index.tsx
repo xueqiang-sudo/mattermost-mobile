@@ -469,11 +469,20 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                 logError('[DraftVideoRecorder] recording error', error);
             },
             onRecordingFinished: (video: VideoFile) => {
+                console.log('[DraftVideoRecorder] onRecordingFinished called', {
+                    videoPath: video.path,
+                    videoDuration: video.duration,
+                    videoWidth: video.width,
+                    videoHeight: video.height,
+                });
                 setIsRecording(false);
                 setTorchOn(false);
                 void (async () => {
+                    console.log('[DraftVideoRecorder] popping top screen');
                     await popTopScreen(componentId);
+                    console.log('[DraftVideoRecorder] calling onVideoRecorded callback');
                     onVideoRecorded(video);
+                    console.log('[DraftVideoRecorder] onVideoRecorded callback completed');
                 })();
             },
         });
@@ -500,9 +509,13 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
 
     const handleClosePress = useCallback(() => {
         if (isRecording) {
-            void cancelRecording();
+            // 如果在录制中，先取消录制，然后关闭窗口
+            void cancelRecording().then(() => {
+                void closeModal();
+            });
             return;
         }
+        // 如果未在录制，直接关闭窗口
         void closeModal();
     }, [cancelRecording, closeModal, isRecording]);
 
