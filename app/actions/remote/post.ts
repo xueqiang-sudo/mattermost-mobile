@@ -308,7 +308,6 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         }
 
         return {data: {postId: pendingPostId}};
-    }
     } finally {
         // 清除标记，允许后续 WebSocket 事件正常处理
         EphemeralStore.unsetCreatingPost(pendingPostId);
