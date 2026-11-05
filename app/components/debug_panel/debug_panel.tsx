@@ -3,6 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Dimensions, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -115,6 +116,22 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => ({
         lineHeight: 15,
         fontWeight: '600',
         color: changeOpacity(theme.centerChannelColor, 0.6),
+    },
+    copyAllBtn: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        marginRight: 8,
+    },
+    copyAllBtnText: {
+        fontSize: 12,
+        lineHeight: 16,
+        color: theme.buttonBg,
+        fontWeight: '600',
+    },
+    copyAllSuccess: {
+        color: theme.onlineIndicator,
     },
 }));
 
@@ -279,6 +296,34 @@ const DebugPanel = () => {
         }
     }, [activeTab]);
 
+    const [copiedAll, setCopiedAll] = useState(false);
+
+    const handleCopyAll = useCallback(() => {
+        let textToCopy = '';
+
+        if (activeTab === 'console') {
+            textToCopy = consoleLogs.map(log =>
+                `[${new Date(log.timestamp).toISOString()}] [${log.level.toUpperCase()}] ${log.message}`
+            ).join('\n');
+        } else if (activeTab === 'network') {
+            textToCopy = networkLogs.map(log =>
+                `[${new Date(log.timestamp).toISOString()}] [${log.method}] ${log.url}\n` +
+                `Status: ${log.status} (${log.duration}ms)\n` +
+                `Request Headers: ${JSON.stringify(log.requestHeaders, null, 2)}\n` +
+                `Request Body: ${log.requestBody || '(empty)'}\n` +
+                `Response: ${log.responseBody}`
+            ).join('\n\n---\n\n');
+        } else if (activeTab === 'logcat') {
+            textToCopy = logcatLogs.map(log =>
+                `[${new Date(log.timestamp).toISOString()}] ${log.line}`
+            ).join('\n');
+        }
+
+        Clipboard.setString(textToCopy);
+        setCopiedAll(true);
+        setTimeout(() => setCopiedAll(false), 2000);
+    }, [activeTab, consoleLogs, networkLogs, logcatLogs]);
+
     const currentLogs = activeTab === 'console' ? consoleLogs :
         activeTab === 'network' ? networkLogs : logcatLogs;
     const logCount = currentLogs.length;
@@ -336,6 +381,15 @@ const DebugPanel = () => {
                     <View style={styles.countBadge}>
                         <Text style={styles.countBadgeText}>{logCount}</Text>
                     </View>
+                    <TouchableOpacity
+                        style={styles.copyAllBtn}
+                        onPress={handleCopyAll}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.copyAllBtnText, copiedAll && styles.copyAllSuccess]}>
+                            {copiedAll ? '✓ 已复制' : '📋 复制全部'}
+                        </Text>
+                    </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.closeBtn}
                         onPress={closePanel}

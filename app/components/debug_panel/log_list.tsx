@@ -3,7 +3,6 @@
 
 import {FlashList, type ListRenderItemInfo} from '@shopify/flash-list';
 import React, {useCallback, useMemo, useState} from 'react';
-import Clipboard from '@react-native-clipboard/clipboard';
 import {Platform, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -250,10 +249,6 @@ const LogItem = React.memo(({entry, styles, theme}: ItemProps) => {
     const summary = getSummaryText(entry);
     const detail = getDetailText(entry);
 
-    const handleLongPress = useCallback(() => {
-        Clipboard.setString(detail);
-    }, [detail]);
-
     const statusCode = isNetworkEntry(entry) ? entry.status : null;
     const duration = isNetworkEntry(entry) ? entry.duration : null;
 
@@ -261,7 +256,6 @@ const LogItem = React.memo(({entry, styles, theme}: ItemProps) => {
         <TouchableOpacity
             style={[styles.item, expanded && styles.itemExpanded]}
             onPress={() => setExpanded((v) => !v)}
-            onLongPress={handleLongPress}
             activeOpacity={0.7}
         >
             <View style={styles.itemHeader}>
@@ -292,7 +286,7 @@ const LogItem = React.memo(({entry, styles, theme}: ItemProps) => {
                     >
                         {detail}
                     </Text>
-                    <Text style={styles.copyHint}>长按条目可复制</Text>
+                    <Text style={styles.copyHint}>可选中文字后复制</Text>
                 </View>
             )}
         </TouchableOpacity>
