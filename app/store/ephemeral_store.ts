@@ -39,6 +39,7 @@ class EphemeralStoreSingleton {
     private acknowledgingPost = new Set<string>();
     private unacknowledgingPost = new Set<string>();
     private creatingPosts = new Set<string>();  // 跟踪正在创建的 post（防止 WebSocket 和 HTTP 响应重复处理）
+    private creatingServerPosts = new Set<string>();  // 跟踪正在创建的服务端 post ID（WebSocket 事件可能剥离 pending_post_id）
     private currentThreadId = '';
     private notificationTapped = false;
     private enablingCRT = false;
@@ -315,16 +316,27 @@ class EphemeralStoreSingleton {
     };
 
     // 跟踪正在创建的 post（防止 WebSocket 和 HTTP 响应重复处理）
-    setCreatingPost = (pendingPostId: string) => {
+    // 同时追踪 pending_post_id 和 server_post_id，因为 WebSocket 事件可能剥离 pending_post_id
+    setCreatingPost = (pendingPostId: string, serverPostId?: string) => {
         this.creatingPosts.add(pendingPostId);
+        if (serverPostId) {
+            this.creatingServerPosts.add(serverPostId);
+        }
     };
 
-    unsetCreatingPost = (pendingPostId: string) => {
+    unsetCreatingPost = (pendingPostId: string, serverPostId?: string) => {
         this.creatingPosts.delete(pendingPostId);
+        if (serverPostId) {
+            this.creatingServerPosts.delete(serverPostId);
+        }
     };
 
     isCreatingPost = (pendingPostId: string) => {
         return this.creatingPosts.has(pendingPostId);
+    };
+
+    isCreatingServerPost = (serverPostId: string) => {
+        return this.creatingServerPosts.has(serverPostId);
     };
 
     getChannelPlaybooksSynced = (serverUrl: string, channelId: string) => {

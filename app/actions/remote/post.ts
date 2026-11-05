@@ -11,7 +11,7 @@ import {addPostAcknowledgement, removePost, removePostAcknowledgement, storePost
 import {addRecentReaction} from '@actions/local/reactions';
 import {createThreadFromNewPost} from '@actions/local/thread';
 import {fetchChannelStats} from '@actions/remote/channel';
-import {ActionType, General, Post, ServerErrors} from '@constants';
+import {ActionType, General, MM_TABLES, Post, ServerErrors} from '@constants';
 import DatabaseManager from '@database/manager';
 import {sanitizeLikeString} from '@helpers/database';
 import {filterPostsInOrderedArray} from '@helpers/api/post';
@@ -39,6 +39,7 @@ import {forceLogoutIfNecessary} from './session';
 
 import type {Client} from '@client/rest';
 import type Model from '@nozbe/watermelondb/Model';
+import type FileModel from '@typings/database/models/servers/file';
 import type PostModel from '@typings/database/models/servers/post';
 
 type PostsRequest = {
@@ -166,6 +167,11 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         debugLog('POST', `[createPost] calling server API with pending_post_id=${newPost.pending_post_id}`);
         created = await client.createPost({...newPost, create_at: 0});
         debugLog('POST', `[createPost] server returned post id=${created.id}, pending_post_id=${created.pending_post_id || 'none'}, file_ids=${JSON.stringify(created.file_ids || [])}`);
+
+        // 【关键修复】服务端返回后，同时追踪 server_post_id，防止 WebSocket 事件（可能剥离 pending_post_id）重复处理
+        if (created.id) {
+            EphemeralStore.setCreatingPost(pendingPostId, created.id);
+        }
         if (!created.metadata && newPost.metadata) {
             created = {
                 ...created,
@@ -208,10 +214,15 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             await operator.batchRecords(models, 'createPost - failure');
         }
 
+        // 【修复】错误路径也要清除标记，防止后续 WebSocket 事件重复处理
+        EphemeralStore.unsetCreatingPost(pendingPostId);
         return {data: {postId: pendingPostId}};
     } finally {
-        // 清除标记，允许后续 WebSocket 事件正常处理
-        EphemeralStore.unsetCreatingPost(pendingPostId);
+        // 【修复】不在这里清除 pendingPostId 标记，统一在函数末尾清除
+        // 原因：finally 块在 HTTP 响应返回后立即执行，但后续的 handlePosts、handleFiles
+        // 等操作还需要时间。如果在这里清除，WebSocket 事件可能在这个窗口期进入并通过
+        // pending_post_id 检查，导致 post 和 file 被创建两次。
+        // 现在统一在函数末尾（第 348 行左右）清除 pendingPostId 和 serverPostId。
     }
 
     // Extract pending_files from server response (contains server-generated file_ids)
@@ -260,6 +271,18 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         ...created,
         pending_post_id: pendingPostId,
     };
+
+    // 【关键修复】清除 metadata.files，防止 handlePosts 内部重复创建 File 记录
+    // handlePosts 会从 metadata.files 提取文件并调用 handleFiles，
+    // 但 createPost 后面也会调用 handleFiles，导致 File 记录被创建两次。
+    // 这里清除 metadata.files，让 createPost 独自控制 File 记录的创建。
+    if (postForHandlePosts.metadata?.files) {
+        debugLog('POST', `[createPost] clearing metadata.files (${postForHandlePosts.metadata.files.length} files) to prevent duplicate File creation in handlePosts`);
+        const metadataCopy = {...postForHandlePosts.metadata};
+        delete metadataCopy.files;
+        postForHandlePosts.metadata = metadataCopy;
+    }
+
     debugLog('POST', `[createPost] calling handlePosts with post id=${postForHandlePosts.id}, pending_post_id=${postForHandlePosts.pending_post_id}, will delete pending post if exists`);
 
     const models = await operator.handlePosts({
@@ -274,6 +297,15 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     // Files are passed with post_id: '' (empty), so we set it to the real post ID
     if (files.length > 0) {
         debugLog('POST', `[createPost] creating ${files.length} file records for post ${created.id}`);
+
+        // 【调试日志】检查数据库中是否已存在 File 记录
+        const existingFiles = await database.get<FileModel>(MM_TABLES.SERVER.FILE).query(
+            Q.where('post_id', created.id),
+        ).fetch();
+        if (existingFiles.length > 0) {
+            debugLog('POST', `[createPost] ⚠️ WARNING: ${existingFiles.length} File records already exist for post ${created.id}:`, existingFiles.map(f => ({id: f.id, post_id: f.postId})));
+        }
+
         // If server returned file_ids, use those for the local File records
         const filesWithPostId = files.map((f, idx) => {
             const serverFileId = pendingFilesFromServer?.[idx]?.file_id;
@@ -282,13 +314,19 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
             return {
                 ...f,
                 post_id: created.id,
-                // If server generated a file_id, use it; otherwise keep local id
+                // If server generates a file_id, use it; otherwise keep local id
                 id: finalFileId,
             };
         });
         const fileModels = await operator.handleFiles({files: filesWithPostId, prepareRecordsOnly: true});
         debugLog('POST', `[createPost] handleFiles returned ${fileModels.length} file models`);
         models.push(...fileModels);
+
+        // 【调试日志】最终检查 File 记录数量
+        const finalFiles = await database.get<FileModel>(MM_TABLES.SERVER.FILE).query(
+            Q.where('post_id', created.id),
+        ).fetch();
+        debugLog('POST', `[createPost] ✅ Final File count for post ${created.id}: ${finalFiles.length}`);
     }
 
     const isCrtReply = isCRTEnabled && created.root_id !== '';
@@ -309,6 +347,17 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     debugLog('POST', `[createPost] completed successfully, post id=${created.id}, pending_post_id=${pendingPostId}`);
 
     newPost = created;
+
+    // 【修复】统一清除 pendingPostId 和 serverPostId 标记，允许后续 WebSocket 事件正常处理
+    // 必须同时清除两个标记，因为：
+    // 1. pendingPostId: 防止 WebSocket 事件携带 pending_post_id 时重复处理
+    // 2. serverPostId: 防止 WebSocket 事件剥离 pending_post_id 后通过 post.id 重复处理
+    if (created.id) {
+        EphemeralStore.unsetCreatingPost(pendingPostId, created.id);
+    } else {
+        // 异常情况：服务端未返回 post.id，只清除 pendingPostId
+        EphemeralStore.unsetCreatingPost(pendingPostId);
+    }
 
     debugLog('POST', `[createPost] ✅ 成功：server_post_id=${created.id}, pending_post_id=${pendingPostId}, file_ids=${JSON.stringify(created.file_ids || [])}`);
     return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};

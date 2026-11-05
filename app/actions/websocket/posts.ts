@@ -82,8 +82,20 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
     // 【关键修复】检查这个 post 是否正在通过 createPost API 创建中
     // 如果是，跳过 WebSocket 处理，让 HTTP 响应先处理完
     // 这样可以避免 WebSocket 和 HTTP 响应同时处理导致 post 渲染两次
+    // 同时检查 pending_post_id 和 server post.id（因为 WebSocket 事件可能剥离 pending_post_id）
     if (post.pending_post_id && EphemeralStore.isCreatingPost(post.pending_post_id)) {
-        debugLog('[WS:handleNewPostEvent] ⏭️ 跳过：post 正在通过 HTTP 创建中', {
+        debugLog('[WS:handleNewPostEvent] ⏭️ 跳过：post 正在通过 HTTP 创建中（pending_post_id 匹配）', {
+            pending_post_id: post.pending_post_id,
+            post_id: post.id,
+            has_files: !!post.file_ids?.length,
+        });
+        return;
+    }
+
+    // 【新增检查】服务端可能在 WebSocket 事件中剥离 pending_post_id，但 post.id 仍然存在
+    // 如果 server post.id 正在创建中，也要跳过，避免重复处理
+    if (post.id && EphemeralStore.isCreatingServerPost(post.id)) {
+        debugLog('[WS:handleNewPostEvent] ⏭️ 跳过：post 正在通过 HTTP 创建中（server post.id 匹配）', {
             pending_post_id: post.pending_post_id,
             post_id: post.id,
             has_files: !!post.file_ids?.length,
@@ -95,6 +107,7 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
         post_id: post.id,
         pending_post_id: post.pending_post_id,
         isCreatingPost: post.pending_post_id ? EphemeralStore.isCreatingPost(post.pending_post_id) : false,
+        isCreatingServerPost: post.id ? EphemeralStore.isCreatingServerPost(post.id) : false,
         has_files: !!post.file_ids?.length,
         file_count: post.file_ids?.length || 0,
     });
@@ -435,8 +448,10 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
 }
 
 export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage) {
+    debugLog('[WS:handlePostEdited] ===== 开始处理 post 编辑事件 =====');
     const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
     if (!operator) {
+        debugLog('[WS:handlePostEdited] ❌ 未找到 operator');
         return;
     }
     const {database} = operator;
@@ -445,6 +460,39 @@ export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage)
     try {
         post = JSON.parse(msg.data.post);
     } catch {
+        debugLog('[WS:handlePostEdited] ❌ 解析 post JSON 失败');
+        return;
+    }
+
+    debugLog('[WS:handlePostEdited] 📨 收到 post 编辑事件:', {
+        id: post.id,
+        pending_post_id: post.pending_post_id,
+        channel_id: post.channel_id,
+        user_id: post.user_id,
+        file_ids: post.file_ids,
+    });
+
+    // 【关键修复】检查这个 post 是否正在通过 createPost API 创建中
+    // 当用户发送带文件的帖子时，流程是：
+    //   1. createPost (pending) → 服务器发送 "posted" 事件
+    //   2. 文件上传完成 → patchPost 添加 file_ids → 服务器发送 "post_edited" 事件
+    // 如果 "post_edited" 事件在 createPost 流程还未完成时到达，会导致重复更新
+    // 因此需要检查 EphemeralStore，如果帖子正在创建中，跳过此编辑事件
+    if (post.pending_post_id && EphemeralStore.isCreatingPost(post.pending_post_id)) {
+        debugLog('[WS:handlePostEdited] ⏭️ 跳过：post 正在通过 HTTP 创建中（pending_post_id 匹配）', {
+            pending_post_id: post.pending_post_id,
+            post_id: post.id,
+        });
+        return;
+    }
+
+    // 【新增检查】服务端可能在 WebSocket 事件中剥离 pending_post_id，但 post.id 仍然存在
+    // 如果 server post.id 正在创建中，也要跳过，避免重复处理
+    if (post.id && EphemeralStore.isCreatingServerPost(post.id)) {
+        debugLog('[WS:handlePostEdited] ⏭️ 跳过：post 正在通过 HTTP 创建中（server post.id 匹配）', {
+            pending_post_id: post.pending_post_id,
+            post_id: post.id,
+        });
         return;
     }
 
