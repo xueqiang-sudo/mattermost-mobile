@@ -490,19 +490,8 @@ const SmartNoteDetailScreen = () => {
         return intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'});
     }, [intl]);
 
-    const handleSave = useCallback(async () => {
+    const performSave = useCallback(async (overrideTitle?: string) => {
         if (!userId || saving) return;
-
-        // 检查是否有 H1 标题
-        const hasH1Title = blocks.some(block =>
-            block.type === 'heading' && block.meta?.level === 1 && block.content?.trim()
-        );
-
-        // 如果没有 H1 标题且用户没有手动输入标题，显示对话框
-        if (!hasH1Title && !title.trim()) {
-            setShowTitleDialog(true);
-            return;
-        }
 
         setSaving(true);
 
@@ -627,8 +616,8 @@ const SmartNoteDetailScreen = () => {
                 }),
             });
 
-            // 保存笔记
-            const noteTitle = title.trim() || extractTitleFromBlocks(blocksToSave);
+            // 保存笔记 - 使用 overrideTitle（从对话框传入）或当前 title 状态
+            const noteTitle = overrideTitle || title.trim() || extractTitleFromBlocks(blocksToSave);
 
             debugLog('[SmartNotebook] handleSave: 开始保存', {
                 isNew,
@@ -704,6 +693,23 @@ const SmartNoteDetailScreen = () => {
             setSaving(false);
         }
     }, [userId, saving, title, blocks, isNew, serverUrl, noteId, intl, extractTitleFromBlocks, mode]);
+
+    const handleSave = useCallback(async () => {
+        if (!userId || saving) return;
+
+        // 检查是否有 H1 标题
+        const hasH1Title = blocks.some(block =>
+            block.type === 'heading' && block.meta?.level === 1 && block.content?.trim()
+        );
+
+        // 如果没有 H1 标题且用户没有手动输入标题，显示对话框
+        if (!hasH1Title && !title.trim()) {
+            setShowTitleDialog(true);
+            return;
+        }
+
+        await performSave();
+    }, [userId, saving, title, blocks, performSave]);
 
     // ---- Enter edit mode ----
     const handleEdit = useCallback(() => {
@@ -1063,6 +1069,83 @@ const SmartNoteDetailScreen = () => {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Title Input Dialog */}
+                <Modal
+                    visible={showTitleDialog}
+                    transparent={true}
+                    animationType='fade'
+                    statusBarTranslucent={true}
+                    onRequestClose={() => {
+                        setShowTitleDialog(false);
+                        setTitleInput('');
+                    }}
+                >
+                    <View style={style.titleDialogOverlay}>
+                        <View style={style.titleDialogContainer}>
+                            <Text style={style.titleDialogTitle}>
+                                {intl.formatMessage({
+                                    id: 'smart_notebook.enter_title',
+                                    defaultMessage: '请输入标题',
+                                })}
+                            </Text>
+                            <Text style={style.titleDialogMessage}>
+                                {intl.formatMessage({
+                                    id: 'smart_notebook.enter_title_message',
+                                    defaultMessage: '您的笔记还没有标题，请输入一个标题：',
+                                })}
+                            </Text>
+                            <TextInput
+                                style={style.titleDialogInput}
+                                value={titleInput}
+                                onChangeText={setTitleInput}
+                                placeholder={intl.formatMessage({
+                                    id: 'smart_notebook.untitled',
+                                    defaultMessage: '无标题',
+                                })}
+                                autoFocus
+                            />
+                            <View style={style.titleDialogButtons}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowTitleDialog(false);
+                                        setTitleInput('');
+                                    }}
+                                    style={[style.titleDialogBtn, style.titleDialogBtnCancel]}
+                                >
+                                    <Text style={style.titleDialogBtnTextCancel}>
+                                        {intl.formatMessage({
+                                            id: 'smart_notebook.cancel',
+                                            defaultMessage: '取消',
+                                        })}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={async () => {
+                                        setShowTitleDialog(false);
+                                        const newTitle = titleInput.trim() || intl.formatMessage({
+                                            id: 'smart_notebook.untitled',
+                                            defaultMessage: '无标题',
+                                        });
+                                        setTitleInput('');
+                                        setTitle(newTitle);
+
+                                        // 直接调用 performSave 并传入新标题
+                                        await performSave(newTitle);
+                                    }}
+                                    style={[style.titleDialogBtn, style.titleDialogBtnConfirm]}
+                                >
+                                    <Text style={style.titleDialogBtnTextConfirm}>
+                                        {intl.formatMessage({
+                                            id: 'smart_notebook.save',
+                                            defaultMessage: '保存',
+                                        })}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -1237,6 +1320,68 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.6),
         textAlign: 'center',
+    },
+
+    // Title Dialog Styles
+    titleDialogOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    titleDialogContainer: {
+        width: '80%',
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 12,
+        padding: 20,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    titleDialogTitle: {
+        ...typography('Heading', 400, 'SemiBold'),
+        color: theme.centerChannelColor,
+        marginBottom: 8,
+    },
+    titleDialogMessage: {
+        ...typography('Body', 200, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+        marginBottom: 16,
+    },
+    titleDialogInput: {
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.2),
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        ...typography('Body', 200, 'Regular'),
+        color: theme.centerChannelColor,
+    },
+    titleDialogButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+    },
+    titleDialogBtn: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        marginLeft: 8,
+    },
+    titleDialogBtnCancel: {
+        backgroundColor: 'transparent',
+    },
+    titleDialogBtnConfirm: {
+        backgroundColor: theme.buttonBg,
+    },
+    titleDialogBtnTextCancel: {
+        ...typography('Body', 200, 'Medium'),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+    },
+    titleDialogBtnTextConfirm: {
+        ...typography('Body', 200, 'SemiBold'),
+        color: theme.buttonColor,
     },
 }));
 
