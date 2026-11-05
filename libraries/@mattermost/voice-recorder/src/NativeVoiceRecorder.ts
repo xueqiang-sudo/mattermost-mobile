@@ -17,6 +17,8 @@ export type StartRecordingOptions = Readonly<{
   prefix?: string;
 }>
 
+export type AudioChunkCallback = (chunkBase64: string) => void;
+
 /** Native `promise.reject` code when `RECORD_AUDIO` / microphone permission is not granted. */
 export const VOICE_RECORDER_PERMISSION_DENIED_CODE = 'PERMISSION_DENIED' as const;
 
@@ -38,6 +40,21 @@ export interface Spec extends TurboModule {
   deleteRecordingFile: (filePath: string) => Promise<boolean>;
 
   cleanExpiredRecordingFiles: (prefix: string, maxAgeMs: number) => Promise<number>;
+
+  /**
+   * Starts real-time recording with audio chunk callbacks.
+   * Used for live transcription (e.g., smart notebook).
+   * Does not affect the regular startRecording/stopRecording methods.
+   */
+  startRealtimeRecording: (
+    options: StartRecordingOptions,
+    onChunkReady: AudioChunkCallback
+  ) => Promise<boolean>;
+
+  /**
+   * Stops real-time recording.
+   */
+  stopRealtimeRecording: () => Promise<void>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('VoiceRecorder');

@@ -172,44 +172,6 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
                 metadata: newPost.metadata,
             };
         }
-    } catch (error) {
-        logDebug('Error sending a post', getFullErrorMessage(error));
-        const errorPost = {
-            ...newPost,
-            id: pendingPostId,
-            props: {
-                ...newPost.props,
-                failed: true,
-            },
-            update_at: Date.now(),
-        };
-
-        // If the failure was because: the root post was deleted or
-        // TownSquareIsReadOnly=true then remove the post
-        if (isServerError(error) && (
-            error.server_error_id === ServerErrors.DELETED_ROOT_POST_ERROR ||
-            error.server_error_id === ServerErrors.TOWN_SQUARE_READ_ONLY_ERROR ||
-            error.server_error_id === ServerErrors.PLUGIN_DISMISSED_POST_ERROR
-        )) {
-            await removePost(serverUrl, databasePost);
-        } else {
-            const models = await operator.handlePosts({
-                actionType: ActionType.POSTS.RECEIVED_NEW,
-                order: [errorPost.id],
-                posts: [errorPost],
-                prepareRecordsOnly: true,
-            });
-            if (isCRTEnabled) {
-                const {models: threadModels} = await createThreadFromNewPost(serverUrl, errorPost, true);
-                if (threadModels?.length) {
-                    models.push(...threadModels);
-                }
-            }
-            await operator.batchRecords(models, 'createPost - failure');
-        }
-
-        return {data: {postId: pendingPostId}};
-    }
 
     // Extract pending_files from server response (contains server-generated file_ids)
     // This is used for batch file uploads where FileInfo records are pre-created with metadata
@@ -308,6 +270,45 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
     newPost = created;
 
     return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};
+
+    } catch (error) {
+        logDebug('Error sending a post', getFullErrorMessage(error));
+        const errorPost = {
+            ...newPost,
+            id: pendingPostId,
+            props: {
+                ...newPost.props,
+                failed: true,
+            },
+            update_at: Date.now(),
+        };
+
+        // If the failure was because: the root post was deleted or
+        // TownSquareIsReadOnly=true then remove the post
+        if (isServerError(error) && (
+            error.server_error_id === ServerErrors.DELETED_ROOT_POST_ERROR ||
+            error.server_error_id === ServerErrors.TOWN_SQUARE_READ_ONLY_ERROR ||
+            error.server_error_id === ServerErrors.PLUGIN_DISMISSED_POST_ERROR
+        )) {
+            await removePost(serverUrl, databasePost);
+        } else {
+            const models = await operator.handlePosts({
+                actionType: ActionType.POSTS.RECEIVED_NEW,
+                order: [errorPost.id],
+                posts: [errorPost],
+                prepareRecordsOnly: true,
+            });
+            if (isCRTEnabled) {
+                const {models: threadModels} = await createThreadFromNewPost(serverUrl, errorPost, true);
+                if (threadModels?.length) {
+                    models.push(...threadModels);
+                }
+            }
+            await operator.batchRecords(models, 'createPost - failure');
+        }
+
+        return {data: {postId: pendingPostId}};
+    }
     } finally {
         // 清除标记，允许后续 WebSocket 事件正常处理
         EphemeralStore.unsetCreatingPost(pendingPostId);

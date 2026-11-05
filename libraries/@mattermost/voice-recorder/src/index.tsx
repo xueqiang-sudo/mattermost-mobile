@@ -29,4 +29,16 @@ const VoiceRecorder = VoiceRecorderModule || new Proxy(
 export type RecordingResultType = RecordingResult;
 export type StartRecordingOptionsType = StartRecordingOptions;
 
+// 新增：实时录音 API
+export function startRealtimeRecording(
+  onAudioChunk: (chunkBase64: string) => void,
+  options?: StartRecordingOptions
+): Promise<boolean> {
+  return VoiceRecorder.startRealtimeRecording(options || {}, onAudioChunk);
+}
+
+export function stopRealtimeRecording(): Promise<void> {
+  return VoiceRecorder.stopRealtimeRecording();
+}
+
 export default VoiceRecorder;

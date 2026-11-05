@@ -2,10 +2,14 @@ package com.mattermost.voicerecorder
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.util.Base64
 import android.util.Log
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Callback
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
@@ -35,6 +39,11 @@ class VoiceRecorderModuleImpl(
     private var mediaRecorder: MediaRecorder? = null
     private var recordingFilePath: String? = null
     private var recordingStartTime: Long = 0
+
+    // Real-time recording fields (新增)
+    private var audioRecord: AudioRecord? = null
+    private var isRealtimeRecording = false
+    private var realtimeRecordingThread: Thread? = null
 
     fun getTypedExportedConstants(): MutableMap<String, Any> {
         return mutableMapOf()
@@ -329,5 +338,177 @@ class VoiceRecorderModuleImpl(
         val path = recordingFilePath ?: return
         deleteFileAtPath(path)
         recordingFilePath = null
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 新增：实时录音方法（用于智能笔记本语音转文本）
+    // 不影响现有的 startRecording / stopRecording
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 开始实时录音，通过回调持续返回音频块
+     * 使用 AudioRecord API（不同于 MediaRecorder）
+     */
+    fun startRealtimeRecording(options: ReadableMap?, onChunkReady: Callback, promise: Promise) {
+        Log.d(TAG, "========== 开始实时录音 ==========")
+
+        coroutineScope.launch {
+            // 检查权限
+            if (!hasRecordPermission()) {
+                Log.e(TAG, "RECORD_AUDIO permission not granted")
+                withContext(Dispatchers.Main) {
+                    promise.reject("PERMISSION_DENIED", "Microphone permission not granted")
+                }
+                return@launch
+            }
+
+            try {
+                // 防止重复启动
+                if (isRealtimeRecording) {
+                    Log.w(TAG, "实时录音已在进行中")
+                    withContext(Dispatchers.Main) {
+                        promise.resolve(true)
+                    }
+                    return@launch
+                }
+
+                // 配置 AudioRecord（PCM 格式，适合流式传输）
+                val sampleRate = 16000  // 16kHz 采样率（腾讯云 ASR 推荐）
+                val channelConfig = AudioFormat.CHANNEL_IN_MONO
+                val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+                val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+                if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
+                    Log.e(TAG, "无法获取有效的缓冲区大小: $bufferSize")
+                    withContext(Dispatchers.Main) {
+                        promise.reject("RECORD_ERROR", "Invalid buffer size: $bufferSize")
+                    }
+                    return@launch
+                }
+
+                // 创建 AudioRecord 实例
+                audioRecord = AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    sampleRate,
+                    channelConfig,
+                    audioFormat,
+                    bufferSize * 2  // 使用双倍缓冲区以提高稳定性
+                )
+
+                if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                    Log.e(TAG, "AudioRecord 初始化失败")
+                    audioRecord?.release()
+                    audioRecord = null
+                    withContext(Dispatchers.Main) {
+                        promise.reject("RECORD_ERROR", "AudioRecord initialization failed")
+                    }
+                    return@launch
+                }
+
+                isRealtimeRecording = true
+                Log.d(TAG, "AudioRecord 初始化成功，采样率: ${sampleRate}Hz, 缓冲区: ${bufferSize * 2} bytes")
+
+                // 启动后台线程进行录音
+                realtimeRecordingThread = Thread {
+                    try {
+                        val buffer = ByteArray(bufferSize)
+                        audioRecord?.startRecording()
+                        Log.d(TAG, "========== 实时录音已启动 ==========")
+
+                        var chunkCount = 0
+                        while (isRealtimeRecording) {
+                            val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+
+                            if (readSize > 0) {
+                                // 复制音频块
+                                val chunk = buffer.copyOf(readSize)
+
+                                // 编码为 base64
+                                val base64Chunk = Base64.encodeToString(chunk, Base64.NO_WRAP)
+
+                                // 通过回调发送给 JS
+                                onChunkReady.invoke(base64Chunk)
+
+                                chunkCount++
+                                if (chunkCount % 10 == 0) {  // 每10个块打印一次日志
+                                    Log.d(TAG, "已发送 $chunkCount 个音频块，总计 ${chunkCount * readSize} bytes")
+                                }
+                            } else if (readSize < 0) {
+                                Log.e(TAG, "读取音频数据失败: $readSize")
+                                break
+                            }
+                        }
+
+                        Log.d(TAG, "实时录音线程结束，共发送 $chunkCount 个音频块")
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "实时录音线程异常", e)
+                    } finally {
+                        // 停止并释放 AudioRecord
+                        try {
+                            audioRecord?.stop()
+                        } catch (e: IllegalStateException) {
+                            Log.e(TAG, "AudioRecord.stop() 失败", e)
+                        }
+                        audioRecord?.release()
+                        audioRecord = null
+                        Log.d(TAG, "AudioRecord 已释放")
+                    }
+                }.apply {
+                    name = "RealtimeRecordingThread"
+                    start()
+                }
+
+                withContext(Dispatchers.Main) {
+                    promise.resolve(true)
+                }
+
+            } catch (e: SecurityException) {
+                Log.e(TAG, "实时录音 SecurityException", e)
+                withContext(Dispatchers.Main) {
+                    promise.reject("PERMISSION_DENIED", e.message)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "实时录音启动失败", e)
+                withContext(Dispatchers.Main) {
+                    promise.reject("RECORD_ERROR", e.message)
+                }
+            }
+        }
+    }
+
+    /**
+     * 停止实时录音
+     */
+    fun stopRealtimeRecording(promise: Promise) {
+        Log.d(TAG, "========== 停止实时录音 ==========")
+
+        coroutineScope.launch {
+            try {
+                isRealtimeRecording = false
+
+                // 等待录音线程结束
+                realtimeRecordingThread?.let { thread ->
+                    try {
+                        thread.join(1000)  // 等待最多1秒
+                    } catch (e: InterruptedException) {
+                        Log.w(TAG, "等待录音线程结束时被中断", e)
+                    }
+                }
+                realtimeRecordingThread = null
+
+                Log.d(TAG, "========== 实时录音已停止 ==========")
+
+                withContext(Dispatchers.Main) {
+                    promise.resolve()
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "停止实时录音失败", e)
+                withContext(Dispatchers.Main) {
+                    promise.reject("STOP_ERROR", e.message)
+                }
+            }
+        }
     }
 }

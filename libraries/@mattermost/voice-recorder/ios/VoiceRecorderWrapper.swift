@@ -237,4 +237,116 @@ import os.log
         audioRecorder = nil
         recordingStartTime = nil
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 新增：实时录音方法（用于智能笔记本语音转文本）
+    // 使用 AVAudioEngine 实现流式音频捕获
+    // 不影响现有的 startRecording / stopRecording
+    // ═══════════════════════════════════════════════════════════════
+
+    private var audioEngine: AVAudioEngine?
+    private var isRealtimeRecording = false
+
+    @objc(startRealtimeRecording:onChunkReady:completion:)
+    public func startRealtimeRecording(_ options: [String: Any]?,
+                                       onChunkReady: @escaping (String) -> Void,
+                                       completion: @escaping (Bool, NSString?) -> Void) {
+        log("========== iOS 开始实时录音 ==========")
+
+        let session = AVAudioSession.sharedInstance()
+
+        // 检查权限
+        switch session.recordPermission {
+        case .undetermined:
+            session.requestRecordPermission { [weak self] granted in
+                self?.runOnMain {
+                    guard let self else { return }
+                    if granted {
+                        self.beginRealtimeRecording(options: options, onChunkReady: onChunkReady, completion: completion)
+                    } else {
+                        completion(false, "PERMISSION_DENIED")
+                    }
+                }
+            }
+        case .denied:
+            completion(false, "PERMISSION_DENIED")
+        case .granted:
+            beginRealtimeRecording(options: options, onChunkReady: onChunkReady, completion: completion)
+        @unknown default:
+            completion(false, "PERMISSION_DENIED")
+        }
+    }
+
+    private func beginRealtimeRecording(options: [String: Any]?,
+                                        onChunkReady: @escaping (String) -> Void,
+                                        completion: @escaping (Bool, NSString?) -> Void) {
+        let audioSession = AVAudioSession.sharedInstance()
+
+        do {
+            // 配置音频会话
+            try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try audioSession.setActive(true)
+
+            // 创建 AVAudioEngine
+            let engine = AVAudioEngine()
+            let inputNode = engine.inputNode
+
+            // 配置录音格式（PCM 16kHz 单声道，适合流式传输）
+            let recordingFormat = AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: 16000.0,
+                channels: 1,
+                interleaved: true
+            )!
+
+            // 安装音频tap，捕获实时音频
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, time in
+                guard let self = self, self.isRealtimeRecording else { return }
+
+                // 将音频数据转换为 base64
+                let audioData = buffer.audioBufferList.pointee.mBuffers
+                if let data = Data(bytes: audioData.mData!, count: Int(audioData.mDataByteSize)) {
+                    let base64String = data.base64EncodedString()
+
+                    // 回调给JS
+                    self.runOnMain {
+                        onChunkReady(base64String)
+                    }
+                }
+            }
+
+            // 启动引擎
+            try engine.start()
+
+            audioEngine = engine
+            isRealtimeRecording = true
+
+            log("========== iOS 实时录音已启动 ==========")
+            completion(true, nil)
+
+        } catch {
+            log("实时录音启动失败: \(error.localizedDescription)", type: .error)
+            completion(false, "RECORD_ERROR")
+        }
+    }
+
+    @objc(stopRealtimeRecordingWithCompletion:)
+    public func stopRealtimeRecording(completion: @escaping () -> Void) {
+        log("========== iOS 停止实时录音 ==========")
+
+        isRealtimeRecording = false
+
+        // 停止音频引擎
+        audioEngine?.stop()
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine = nil
+
+        // 释放音频会话
+        try? AVAudioSession.sharedInstance().setActive(false)
+
+        log("========== iOS 停止实时录音完成 ==========")
+        runOnMain {
+            completion()
+        }
+    }
 }

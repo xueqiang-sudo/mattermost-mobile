@@ -105,3 +105,53 @@ RCT_EXPORT_METHOD(cleanExpiredRecordingFiles:(NSString *)prefix
 }
 
 @end
+
+// ═══════════════════════════════════════════════════════════════
+// 新增：实时录音方法（用于智能笔记本语音转文本）
+// 不影响现有的 startRecording / stopRecording
+// ═══════════════════════════════════════════════════════════════
+
+RCT_EXPORT_METHOD(startRealtimeRecording:(NSDictionary *)options
+                  onChunkReady:(RCTResponseSenderBlock)onChunkReady
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSLog(@"========== iOS 开始实时录音 ==========");
+    NSLog(@"请求参数 - options: %@", options);
+
+    // 创建音频块回调
+    void (^chunkCallback)(NSString *) = ^(NSString *base64Chunk) {
+        // 在JS线程调用回调
+        dispatch_async(dispatch_get_main_queue(), ^{
+            onChunkReady(@[base64Chunk]);
+        });
+    };
+
+    [[self recorderWrapper] startRealtimeRecording:options
+                                    onChunkReady:chunkCallback
+                                      completion:^(BOOL success, NSString *_Nullable errorCode) {
+        if (success) {
+            NSLog(@"========== iOS 实时录音启动成功 ==========");
+            resolve(@(success));
+            return;
+        }
+        NSLog(@"========== iOS 实时录音启动失败 ==========");
+        if (errorCode != nil && [errorCode isEqualToString:@"PERMISSION_DENIED"]) {
+            reject(@"PERMISSION_DENIED", @"Microphone permission not granted", nil);
+        } else {
+            reject(@"RECORD_ERROR", @"Failed to start realtime recording", nil);
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(stopRealtimeRecording:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSLog(@"========== iOS 停止实时录音 ==========");
+
+    [[self recorderWrapper] stopRealtimeRecordingWithCompletion:^{
+        NSLog(@"========== iOS 停止实时录音完成 ==========");
+        resolve(nil);
+    }];
+}
+@end

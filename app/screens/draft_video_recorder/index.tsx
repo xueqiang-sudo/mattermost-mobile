@@ -363,8 +363,9 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
 
     const closeModal = useCallback(async () => {
         setTorchOn(false);
-        await popTopScreen(componentId);
-    }, [componentId]);
+        // 修复：使用 dismissModal 而不是 popTopScreen，因为这个页面是 Modal
+        await dismissModal();
+    }, []);
 
     const closeModalRef = useRef(closeModal);
     closeModalRef.current = closeModal;
@@ -477,13 +478,22 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                 });
                 setIsRecording(false);
                 setTorchOn(false);
-                void (async () => {
-                    console.log('[DraftVideoRecorder] popping top screen');
-                    await popTopScreen(componentId);
-                    console.log('[DraftVideoRecorder] calling onVideoRecorded callback');
+
+                // 修复：先调用回调发送视频，然后再关闭页面
+                // 之前的顺序是先关闭页面，可能导致回调丢失
+                try {
+                    console.log('[DraftVideoRecorder] calling onVideoRecorded callback first');
                     onVideoRecorded(video);
                     console.log('[DraftVideoRecorder] onVideoRecorded callback completed');
-                })();
+                } catch (error) {
+                    console.error('[DraftVideoRecorder] onVideoRecorded callback failed', error);
+                }
+
+                // 延迟关闭页面，确保回调完成
+                setTimeout(() => {
+                    console.log('[DraftVideoRecorder] dismissing modal after delay');
+                    void dismissModal();
+                }, 100);
             },
         });
     }, [closeModal, componentId, onVideoRecorded]);

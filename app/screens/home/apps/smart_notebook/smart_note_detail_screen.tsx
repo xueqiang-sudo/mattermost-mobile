@@ -26,6 +26,8 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
+import {useVoiceStream} from '@hooks/use_voice_stream';
+import {getServerCredentials} from '@init/credentials';
 import {getCurrentUserId} from '@queries/servers/system';
 import {showSmartNotebookFilePicker} from '@screens/file_picker/show_modal';
 import {debugLog} from '@store/debug_log';
@@ -44,6 +46,7 @@ import {
     type SmartNote,
     type SmartNoteBlock,
 } from './smart_notebook_api';
+import {useVoiceStreamTranscription} from './voice_stream_transcription';
 
 // ---- Utility Functions ----
 
@@ -115,6 +118,7 @@ const SmartNoteDetailScreen = () => {
 
     const textInputRef = useRef<TextInput>(null);
     const [userId, setUserId] = useState('');
+    const [bearerToken, setBearerToken] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
     const [blocks, setBlocks] = useState<SmartNoteBlock[]>([createBlock('paragraph', '')]);
     const [originalBlocks, setOriginalBlocks] = useState<SmartNoteBlock[]>([]); // For cancel comparison
@@ -132,6 +136,16 @@ const SmartNoteDetailScreen = () => {
     // 光标位置跟踪（用于在光标处插入文件）
     const [focusedBlockIndex, setFocusedBlockIndex] = useState<number>(-1);
     const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null);
+
+    // Real-time voice stream hook (for smart notebook live transcription)
+    // This is independent from useVoiceRecorder and does not affect chat window voice messages
+    const {
+        state: voiceStreamState,
+        result: voiceStreamResult,
+        startStreaming,
+        stopStreaming,
+        cancelStreaming,
+    } = useVoiceStream(serverUrl, bearerToken);
 
     const handleFocusedIndexChange = useCallback((index: number) => {
         setFocusedBlockIndex(index);
@@ -151,6 +165,12 @@ const SmartNoteDetailScreen = () => {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const uid = await getCurrentUserId(database);
                 setUserId(uid);
+
+                // Get bearer token for WebSocket connection (real-time voice)
+                const credentials = await getServerCredentials(serverUrl);
+                if (credentials?.token) {
+                    setBearerToken(credentials.token);
+                }
 
                 if (!isNew) {
                     const note = await getNote(serverUrl, uid, noteId);
@@ -231,6 +251,17 @@ const SmartNoteDetailScreen = () => {
         stopRecordingAndSend,
         cancelRecording,
     } = useVoiceRecorder(handleVoiceRecorded, handleVoiceError);
+
+    // ---- Real-time voice stream transcription ----
+    // This automatically inserts transcribed text into the editor at cursor position
+    // Independent from chat window voice messages
+    useVoiceStreamTranscription({
+        voiceStreamState,
+        voiceStreamResult,
+        focusedBlockIndex,
+        setBlocks,
+        createBlock,
+    });
 
     // ---- Blocks change handler ----
     const handleBlocksChange = useCallback((newBlocks: SmartNoteBlock[]) => {
@@ -895,6 +926,28 @@ const SmartNoteDetailScreen = () => {
                         </Text>
                     </View>
                 )}
+                {/* Real-time voice stream indicator - shows live transcription */}
+                {voiceStreamState === 'recording' && (
+                    <View style={style.recordingBanner}>
+                        <CompassIcon name='microphone' size={16} color={theme.dndIndicator}/>
+                        <Text style={style.recordingText}>
+                            {intl.formatMessage({id: 'smart_notebook.realtime_recording', defaultMessage: '实时转录中...说出你想写的内容'})}
+                        </Text>
+                        {voiceStreamResult.partialText ? (
+                            <Text style={[style.recordingText, {marginTop: 4, fontStyle: 'italic'}]} numberOfLines={2}>
+                                "{voiceStreamResult.partialText}"
+                            </Text>
+                        ) : null}
+                    </View>
+                )}
+                {voiceStreamState === 'connecting' && (
+                    <View style={style.recordingBanner}>
+                        <ActivityIndicator size='small' color={theme.buttonBg}/>
+                        <Text style={style.recordingText}>
+                            {intl.formatMessage({id: 'smart_notebook.connecting_voice', defaultMessage: '正在连接语音服务...'})}
+                        </Text>
+                    </View>
+                )}
                 {voiceProcessing && (
                     <View style={style.recordingBanner}>
                         <ActivityIndicator size='small' color={theme.buttonBg}/>
@@ -931,16 +984,34 @@ const SmartNoteDetailScreen = () => {
                     <TouchableOpacity onPress={uploadVideo} style={style.toolbarBtn}>
                         <CompassIcon name='video-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
-                    {voiceProcessing ? (
+                    {/* Real-time voice stream button - independent from chat window voice messages */}
+                    {voiceStreamState === 'connecting' || voiceProcessing ? (
                         <View style={style.toolbarBtn}>
                             <ActivityIndicator size='small' color={theme.buttonBg}/>
                         </View>
-                    ) : voiceState === 'recording' ? (
-                        <TouchableOpacity onPress={stopRecordingAndSend} style={[style.toolbarBtn, style.toolbarBtnActive]}>
+                    ) : voiceStreamState === 'recording' ? (
+                        <TouchableOpacity
+                            onPress={async () => {
+                                const finalText = await stopStreaming();
+                                console.log('[SmartNote] Voice stopped, final text:', finalText);
+                            }}
+                            style={[style.toolbarBtn, style.toolbarBtnActive]}
+                        >
                             <CompassIcon name='microphone' size={20} color={theme.dndIndicator}/>
                         </TouchableOpacity>
                     ) : (
-                        <TouchableOpacity onPress={startRecording} style={style.toolbarBtn}>
+                        <TouchableOpacity
+                            onPress={async () => {
+                                const started = await startStreaming();
+                                if (!started) {
+                                    Alert.alert(
+                                        intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
+                                        voiceStreamResult.error || '启动失败',
+                                    );
+                                }
+                            }}
+                            style={style.toolbarBtn}
+                        >
                             <CompassIcon name='microphone-outline' size={20} color={theme.centerChannelColor}/>
                         </TouchableOpacity>
                     )}

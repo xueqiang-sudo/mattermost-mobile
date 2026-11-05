@@ -1,5 +1,6 @@
 package com.mattermost.voicerecorder
 
+import com.facebook.react.bridge.Callback
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
@@ -59,5 +60,23 @@ class VoiceRecorderModule(context: ReactApplicationContext) :
      */
     override fun cleanExpiredRecordingFiles(prefix: String, maxAgeMs: Double, promise: Promise) {
         implementation.cleanExpiredRecordingFiles(prefix, maxAgeMs, promise)
+    }
+
+    /**
+     * 开始实时录音（新增，用于智能笔记本）
+     * @param options - 录音配置选项
+     * @param onChunkReady - 音频块回调（base64编码）
+     * @param promise - Promise 回调
+     */
+    override fun startRealtimeRecording(options: ReadableMap?, onChunkReady: Callback, promise: Promise) {
+        implementation.startRealtimeRecording(options, onChunkReady, promise)
+    }
+
+    /**
+     * 停止实时录音（新增）
+     * @param promise - Promise 回调
+     */
+    override fun stopRealtimeRecording(promise: Promise) {
+        implementation.stopRealtimeRecording(promise)
     }
 }
