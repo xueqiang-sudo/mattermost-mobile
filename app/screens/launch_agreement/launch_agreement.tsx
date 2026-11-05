@@ -19,7 +19,7 @@ import {useTheme} from '@context/theme';
 import {setAcceptedAgreement} from '@init/agreement';
 import JPushManager from '@init/jpush';
 import {initialLaunch} from '@init/launch';
-import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {dismissModal, goToScreen, popTopScreen, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -112,15 +112,22 @@ const LaunchAgreement = ({componentId}: Props) => {
     }, [componentId]);
 
     const handleAgree = useCallback(async () => {
-        await setAcceptedAgreement();
-        // 隐私合规：用户同意后才允许 React Native 读取传感器列表
-        if (Platform.OS === 'android' && NativeModules.PrivacyConsent) {
-            NativeModules.PrivacyConsent.allowSensorAccess();
+        try {
+            await setAcceptedAgreement();
+            // 隐私合规：用户同意后才允许 React Native 读取传感器列表
+            if (Platform.OS === 'android' && NativeModules.PrivacyConsent) {
+                NativeModules.PrivacyConsent.allowSensorAccess();
+            }
+            await popTopScreen(componentId);
+            // 隐私合规：用户同意后才初始化 JPush SDK
+            JPushManager.init();
+            await initialLaunch();
+        } catch (error) {
+            console.error('[LaunchAgreement] handleAgree failed:', error);
+            // 即使出错也要尝试关闭弹窗并启动应用
+            await popTopScreen(componentId).catch(() => {});
+            await initialLaunch().catch(() => {});
         }
-        await popTopScreen(componentId);
-        // 隐私合规：用户同意后才初始化 JPush SDK
-        JPushManager.init();
-        initialLaunch();
     }, [componentId]);
 
     const containerStyle = useMemo(() => {
