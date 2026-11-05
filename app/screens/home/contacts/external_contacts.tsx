@@ -31,7 +31,7 @@ import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {goToScreen} from '@screens/navigation';
+import {goToScreen, showModalWithBackButton} from '@screens/navigation';
 import {setCachedEmployee} from '@screens/home/contacts/employee_profile/employee_cache';
 import {getContactDisplayName as getContactDisplayNameUtil} from '@utils/contact_section';
 import {getLastPictureUpdate} from '@utils/user';
@@ -405,7 +405,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                     const title = getContactDisplayName(contact);
                     const closeBtnId = `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`;
                     setCachedEmployee(closeBtnId, safeEmployee as UserProfile);
-                    goToScreen(
+                    showModalWithBackButton(
                         Screens.CONTACTS_EMPLOYEE_PROFILE,
                         title,
                         closeBtnId,
@@ -457,7 +457,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
                     const title = getContactDisplayName(contact);
                     const closeBtnId = `close-${Screens.CONTACTS_EMPLOYEE_PROFILE}`;
                     setCachedEmployee(closeBtnId, safeEmployee as UserProfile);
-                    goToScreen(
+                    showModalWithBackButton(
                         Screens.CONTACTS_EMPLOYEE_PROFILE,
                         title,
                         closeBtnId,

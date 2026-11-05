@@ -200,10 +200,42 @@ export async function transcribeAudio(
 ): Promise<{success: boolean; text?: string; error?: string}> {
     const client = NetworkManager.getClient(serverUrl);
 
+    // 确保文件名有正确的扩展名
+    let fileName = file.name;
+    const extension = fileName.split('.').pop()?.toLowerCase();
+
+    // 如果没有扩展名或扩展名不对，根据 MIME type 修正
+    if (!extension || !['mp3', 'wav', 'amr', 'aac', 'm4a', 'ogg'].includes(extension)) {
+        // 从 MIME type 推断扩展名
+        const mimeToExt: Record<string, string> = {
+            'audio/mpeg': 'mp3',
+            'audio/wav': 'wav',
+            'audio/x-wav': 'wav',
+            'audio/amr': 'amr',
+            'audio/aac': 'aac',
+            'audio/mp4': 'm4a',
+            'audio/x-m4a': 'm4a',
+            'audio/ogg': 'ogg',
+        };
+        const correctExt = mimeToExt[file.type] || 'aac'; // 默认使用 aac
+        if (!extension) {
+            fileName = `${fileName}.${correctExt}`;
+        } else {
+            fileName = `${fileName.substring(0, fileName.lastIndexOf('.'))}.${correctExt}`;
+        }
+    }
+
+    console.log('[transcribeAudio] 发送文件:', {
+        originalName: file.name,
+        finalName: fileName,
+        mimeType: file.type,
+        uri: file.uri,
+    });
+
     const formData = new FormData();
     formData.append('audio', {
         uri: file.uri,
-        name: file.name,
+        name: fileName,
         type: file.type,
     } as any);
 
@@ -217,13 +249,19 @@ export async function transcribeAudio(
             body: formData,
         });
 
+        console.log('[transcribeAudio] 响应:', resp);
+
         // doFetch returns {data: ...} or throws on error
         return resp?.data || resp;
     } catch (e: any) {
         // Extract error details
         const errorMessage = e?.message || String(e);
         const serverMessage = e?.server_error?.message || e?.details?.error || '';
-        console.log('[transcribeAudio] Error:', errorMessage, serverMessage);
+        console.error('[transcribeAudio] Error:', {
+            message: errorMessage,
+            serverMessage,
+            fullError: e,
+        });
         return {
             success: false,
             error: serverMessage || errorMessage || '语音转文字服务暂不可用',

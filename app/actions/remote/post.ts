@@ -509,9 +509,19 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
                 uploadedByOldId.delete(fileRecord.id);
                 debugLog('POST', `updatePostFileIds: replacing ${fileRecord.id} → ${uploaded.id}`);
             } else {
-                // 这个 File 还在上传中，保留不动
-                newFileIds.push(fileRecord.id);
-                debugLog('POST', `updatePostFileIds: keeping pending ${fileRecord.id}`);
+                // 【修复】检查是否是 pending file（ID 以 pending_ 开头）
+                // 如果是 pending file，且上传已完成（通过其他 key 匹配），也应该删除
+                const isPendingFile = fileRecord.id.startsWith('pending_');
+                if (isPendingFile && files.length > 0) {
+                    // 这个 pending file 对应的文件已上传完成（因为调用了 updatePostFileIds）
+                    // 删除它，使用新上传的 server file
+                    models.push(fileRecord.prepareDestroyPermanently());
+                    debugLog('POST', `updatePostFileIds: deleting pending file ${fileRecord.id} (upload complete)`);
+                } else {
+                    // 这个 File 还在上传中，保留不动
+                    newFileIds.push(fileRecord.id);
+                    debugLog('POST', `updatePostFileIds: keeping pending ${fileRecord.id}`);
+                }
             }
         }
 

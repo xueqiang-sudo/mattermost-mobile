@@ -4,7 +4,7 @@
 import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
 import {Screens} from '@constants';
-import {showModal} from '@screens/navigation';
+import {goToScreen} from '@screens/navigation';
 
 import type {VideoFile} from 'react-native-vision-camera';
 

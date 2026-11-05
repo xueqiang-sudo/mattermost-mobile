@@ -2,9 +2,8 @@
 // See LICENSE.txt for license information.
 
 import {Screens} from '@constants';
-import {showModal, dismissModal} from '@screens/navigation';
+import {showModal, dismissModal, getThemeFromState} from '@screens/navigation';
 import CompassIcon from '@components/compass_icon';
-import {getThemeFromState} from '@context/theme';
 import {Platform} from 'react-native';
 import Navigation from 'react-native-navigation';
 

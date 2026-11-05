@@ -643,7 +643,7 @@ const ContactsDepartmentDetail = ({
         const closeBtnId = `close-employee-${safeEmployee.id}`;
         setCachedEmployee(closeBtnId, safeEmployee);
 
-        goToScreen(
+        showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
             closeBtnId,

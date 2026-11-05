@@ -29,7 +29,7 @@ import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
 import {usePreventDoubleTap} from '@hooks/utils';
 import NetworkManager from '@managers/network_manager';
-import {bottomSheet, dismissBottomSheet, popTopScreens, resetToLogin, resetToTeams, showModal, goToScreen} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet, popTopScreens, resetToLogin, resetToTeams, showModal, goToScreen, showModalWithBackButton} from '@screens/navigation';
 import {setCachedEmployee} from '@screens/home/contacts/employee_profile/employee_cache';
 import {QR_SCAN_CONTEXT_JOIN_ENTERPRISE, showQrScannerModal} from '@screens/qr_scanner/show_modal';
 import {bottomSheetSnapPoint} from '@utils/helpers';
@@ -494,7 +494,7 @@ const ContactsManage = ({
         const departmentParentPath = currentBreadcrumb.length > 1 ? currentBreadcrumb.slice(0, -1).join('/') : undefined;
         const closeBtnId = `close-employee-${safeEmployee.id}`;
         setCachedEmployee(closeBtnId, safeEmployee);
-        goToScreen(
+        showModalWithBackButton(
             Screens.CONTACTS_EMPLOYEE_PROFILE,
             title,
             closeBtnId,
