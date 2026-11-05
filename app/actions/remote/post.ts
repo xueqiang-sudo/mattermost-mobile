@@ -172,106 +172,6 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
                 metadata: newPost.metadata,
             };
         }
-
-        // Extract pending_files from server response (contains server-generated file_ids)
-        // This is used for batch file uploads where FileInfo records are pre-created with metadata
-        let pendingFilesFromServer: BatchFileMeta[] | undefined;
-        if (created.props?.pending_files && Array.isArray(created.props.pending_files)) {
-            pendingFilesFromServer = created.props.pending_files as BatchFileMeta[];
-            debugLog('POST', `[createPost] server returned pending_files: ${JSON.stringify(pendingFilesFromServer)}`);
-        }
-
-        // If we have pending files and server returned valid file_ids, use them
-        // Otherwise fall back to using local pending file ids
-        if (files.length > 0 && pendingFilesFromServer && pendingFilesFromServer.length > 0) {
-            // Use server-generated file_ids (only if they are valid)
-            const serverFileIds = pendingFilesFromServer.map(pf => pf.file_id).filter(id => id != null);
-            if (serverFileIds.length > 0 && serverFileIds.length === files.length) {
-                // Server returned valid file_ids for all files
-                created = {
-                    ...created,
-                    file_ids: serverFileIds,
-                };
-                debugLog('POST', `[createPost] using server file_ids: ${JSON.stringify(serverFileIds)}`);
-            } else {
-                // Server returned null/undefined file_ids, fall back to local pending ids
-                const pendingFileIds = files.map((file) => file.id);
-                created = {
-                    ...created,
-                    file_ids: pendingFileIds,
-                };
-                debugLog('POST', `[createPost] server file_ids are null, falling back to local pending file_ids: ${JSON.stringify(pendingFileIds)}`);
-            }
-        } else if (files.length > 0) {
-            // Fall back to local pending file ids
-            const pendingFileIds = files.map((file) => file.id);
-            created = {
-                ...created,
-                file_ids: pendingFileIds,
-            };
-            debugLog('POST', `[createPost] using local pending file_ids: ${JSON.stringify(pendingFileIds)}`);
-        }
-
-        // 【关键修复】手动添加 pending_post_id 到服务端返回的 post
-        // 服务端 SanitizeInput 会移除 pending_post_id，导致 handlePosts 无法识别并删除 pending post
-        // 这里手动添加回去，确保 handlePosts 能正确删除 pending post，避免重复显示
-        const postForHandlePosts = {
-            ...created,
-            pending_post_id: pendingPostId,
-        };
-        debugLog('POST', `[createPost] calling handlePosts with post id=${postForHandlePosts.id}, pending_post_id=${postForHandlePosts.pending_post_id}, will delete pending post if exists`);
-
-        const models = await operator.handlePosts({
-            actionType: ActionType.POSTS.RECEIVED_NEW,
-            order: [postForHandlePosts.id],
-            posts: [postForHandlePosts],
-            prepareRecordsOnly: true,
-        });
-        debugLog('POST', `[createPost] handlePosts returned ${models.length} models`);
-
-        // Create file records with the real post ID
-        // Files are passed with post_id: '' (empty), so we set it to the real post ID
-        if (files.length > 0) {
-            debugLog('POST', `[createPost] creating ${files.length} file records for post ${created.id}`);
-            // If server returned file_ids, use those for the local File records
-            const filesWithPostId = files.map((f, idx) => {
-                const serverFileId = pendingFilesFromServer?.[idx]?.file_id;
-                const finalFileId = serverFileId || f.id;
-                debugLog('POST', `[createPost] file ${idx + 1}: pending_id=${f.id}, server_id=${serverFileId || 'none'}, final_id=${finalFileId}`);
-                return {
-                    ...f,
-                    post_id: created.id,
-                    // If server generated a file_id, use it; otherwise keep local id
-                    id: finalFileId,
-                };
-            });
-            const fileModels = await operator.handleFiles({files: filesWithPostId, prepareRecordsOnly: true});
-            debugLog('POST', `[createPost] handleFiles returned ${fileModels.length} file models`);
-            models.push(...fileModels);
-        }
-
-        const isCrtReply = isCRTEnabled && created.root_id !== '';
-        if (!isCrtReply) {
-            const {member} = await updateLastPostAt(serverUrl, created.channel_id, created.create_at, true);
-            if (member) {
-                models.push(member);
-            }
-        }
-        if (isCRTEnabled) {
-            const {models: threadModels} = await createThreadFromNewPost(serverUrl, created, true);
-            if (threadModels?.length) {
-                models.push(...threadModels);
-            }
-        }
-        debugLog('POST', `[createPost] saving ${models.length} models to database (skipPendingPostCreation=${skipPendingPostCreation})`);
-        await operator.batchRecords(models, 'createPost - success');
-        debugLog('POST', `[createPost] completed successfully, post id=${created.id}, pending_post_id=${pendingPostId}`);
-
-        newPost = created;
-
-        debugLog('POST', `[createPost] ✅ 成功：server_post_id=${created.id}, pending_post_id=${pendingPostId}, file_ids=${JSON.stringify(created.file_ids || [])}`);
-        return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};
-
     } catch (error) {
         logDebug('Error sending a post', getFullErrorMessage(error));
         const errorPost = {
@@ -313,6 +213,105 @@ export async function createPost(serverUrl: string, post: Partial<Post>, files: 
         // 清除标记，允许后续 WebSocket 事件正常处理
         EphemeralStore.unsetCreatingPost(pendingPostId);
     }
+
+    // Extract pending_files from server response (contains server-generated file_ids)
+    // This is used for batch file uploads where FileInfo records are pre-created with metadata
+    let pendingFilesFromServer: BatchFileMeta[] | undefined;
+    if (created.props?.pending_files && Array.isArray(created.props.pending_files)) {
+        pendingFilesFromServer = created.props.pending_files as BatchFileMeta[];
+        debugLog('POST', `[createPost] server returned pending_files: ${JSON.stringify(pendingFilesFromServer)}`);
+    }
+
+    // If we have pending files and server returned valid file_ids, use them
+    // Otherwise fall back to using local pending file ids
+    if (files.length > 0 && pendingFilesFromServer && pendingFilesFromServer.length > 0) {
+        // Use server-generated file_ids (only if they are valid)
+        const serverFileIds = pendingFilesFromServer.map(pf => pf.file_id).filter(id => id != null);
+        if (serverFileIds.length > 0 && serverFileIds.length === files.length) {
+            // Server returned valid file_ids for all files
+            created = {
+                ...created,
+                file_ids: serverFileIds,
+            };
+            debugLog('POST', `[createPost] using server file_ids: ${JSON.stringify(serverFileIds)}`);
+        } else {
+            // Server returned null/undefined file_ids, fall back to local pending ids
+            const pendingFileIds = files.map((file) => file.id);
+            created = {
+                ...created,
+                file_ids: pendingFileIds,
+            };
+            debugLog('POST', `[createPost] server file_ids are null, falling back to local pending file_ids: ${JSON.stringify(pendingFileIds)}`);
+        }
+    } else if (files.length > 0) {
+        // Fall back to local pending file ids
+        const pendingFileIds = files.map((file) => file.id);
+        created = {
+            ...created,
+            file_ids: pendingFileIds,
+        };
+        debugLog('POST', `[createPost] using local pending file_ids: ${JSON.stringify(pendingFileIds)}`);
+    }
+
+    // 【关键修复】手动添加 pending_post_id 到服务端返回的 post
+    // 服务端 SanitizeInput 会移除 pending_post_id，导致 handlePosts 无法识别并删除 pending post
+    // 这里手动添加回去，确保 handlePosts 能正确删除 pending post，避免重复显示
+    const postForHandlePosts = {
+        ...created,
+        pending_post_id: pendingPostId,
+    };
+    debugLog('POST', `[createPost] calling handlePosts with post id=${postForHandlePosts.id}, pending_post_id=${postForHandlePosts.pending_post_id}, will delete pending post if exists`);
+
+    const models = await operator.handlePosts({
+        actionType: ActionType.POSTS.RECEIVED_NEW,
+        order: [postForHandlePosts.id],
+        posts: [postForHandlePosts],
+        prepareRecordsOnly: true,
+    });
+    debugLog('POST', `[createPost] handlePosts returned ${models.length} models`);
+
+    // Create file records with the real post ID
+    // Files are passed with post_id: '' (empty), so we set it to the real post ID
+    if (files.length > 0) {
+        debugLog('POST', `[createPost] creating ${files.length} file records for post ${created.id}`);
+        // If server returned file_ids, use those for the local File records
+        const filesWithPostId = files.map((f, idx) => {
+            const serverFileId = pendingFilesFromServer?.[idx]?.file_id;
+            const finalFileId = serverFileId || f.id;
+            debugLog('POST', `[createPost] file ${idx + 1}: pending_id=${f.id}, server_id=${serverFileId || 'none'}, final_id=${finalFileId}`);
+            return {
+                ...f,
+                post_id: created.id,
+                // If server generated a file_id, use it; otherwise keep local id
+                id: finalFileId,
+            };
+        });
+        const fileModels = await operator.handleFiles({files: filesWithPostId, prepareRecordsOnly: true});
+        debugLog('POST', `[createPost] handleFiles returned ${fileModels.length} file models`);
+        models.push(...fileModels);
+    }
+
+    const isCrtReply = isCRTEnabled && created.root_id !== '';
+    if (!isCrtReply) {
+        const {member} = await updateLastPostAt(serverUrl, created.channel_id, created.create_at, true);
+        if (member) {
+            models.push(member);
+        }
+    }
+    if (isCRTEnabled) {
+        const {models: threadModels} = await createThreadFromNewPost(serverUrl, created, true);
+        if (threadModels?.length) {
+            models.push(...threadModels);
+        }
+    }
+    debugLog('POST', `[createPost] saving ${models.length} models to database (skipPendingPostCreation=${skipPendingPostCreation})`);
+    await operator.batchRecords(models, 'createPost - success');
+    debugLog('POST', `[createPost] completed successfully, post id=${created.id}, pending_post_id=${pendingPostId}`);
+
+    newPost = created;
+
+    debugLog('POST', `[createPost] ✅ 成功：server_post_id=${created.id}, pending_post_id=${pendingPostId}, file_ids=${JSON.stringify(created.file_ids || [])}`);
+    return {data: {postId: created.id, pendingFiles: pendingFilesFromServer}};
 }
 
 /**
