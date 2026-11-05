@@ -104,8 +104,6 @@ RCT_EXPORT_METHOD(cleanExpiredRecordingFiles:(NSString *)prefix
     resolve(@(deletedCount));
 }
 
-@end
-
 // ═══════════════════════════════════════════════════════════════
 // 新增：实时录音方法（用于智能笔记本语音转文本）
 // 不影响现有的 startRecording / stopRecording
@@ -154,4 +152,5 @@ RCT_EXPORT_METHOD(stopRealtimeRecording:(RCTPromiseResolveBlock)resolve
         resolve(nil);
     }];
 }
+
 @end
