@@ -376,53 +376,56 @@ async function _handleNewPostEventInner(serverUrl: string, msg: WebSocketMessage
                 files: pendingFiles.map(pf => ({client_id: pf.client_id, name: pf.name})),
             });
 
-            // 检查本地是否已有 pending File 记录
+            // 检查本地是否已有 File 记录（本地发送的 post 已通过 createPost 创建了 File）
             const existingFiles = await database.get(FILE).query(
                 Q.where('post_id', post.id),
             ).fetch();
 
-            // 为每个 pending file 创建临时的 File 记录
-            const pendingFileInfos: FileInfo[] = [];
-            for (const pf of pendingFiles) {
-                const pendingId = `pending_${pf.client_id}`;
-
-                // 检查是否已存在
-                if (existingFiles.some(f => f.id === pendingId)) {
-                    debugLog('[WS:handleNewPostEvent] ⏭️ pending file 已存在，跳过:', {pendingId});
-                    continue;
-                }
-
-                const extension = pf.name.includes('.') ? pf.name.split('.').pop() || '' : '';
-                pendingFileInfos.push({
-                    id: pendingId,
-                    user_id: post.user_id,
-                    post_id: post.id,
-                    create_at: post.create_at || Date.now(),
-                    update_at: post.update_at || Date.now(),
-                    delete_at: 0,
-                    name: pf.name,
-                    extension,
-                    size: pf.size,
-                    mime_type: pf.mime_type,
-                    has_preview_image: pf.mime_type?.startsWith('image/') || false,
-                    mini_preview: '',
-                    link: '',
-                    localPath: '',
-                    pdfPreviewId: '',
-                    imageThumbnail: '',
-                } as FileInfo);
-            }
-
-            if (pendingFileInfos.length > 0) {
-                // 注入到 metadata.files，handlePosts 会创建 File 记录
-                if (!post.metadata) {
-                    post.metadata = {} as any;
-                }
-                post.metadata.files = [...(post.metadata.files || []), ...pendingFileInfos];
-                debugLog('[WS:handleNewPostEvent] 💉 已注入 pending files 到 metadata.files:', {
-                    count: pendingFileInfos.length,
+            // 【关键修复】如果 post 已有 File 记录，说明是本地发送的 post（createPost 已创建 File），
+            // 跳过 pending file 创建，避免 File 记录重复导致 UI 渲染 2 次
+            if (existingFiles.length > 0) {
+                debugLog('[WS:handleNewPostEvent] ⏭️ post 已有 File 记录，跳过 pending file 创建:', {
+                    existing_count: existingFiles.length,
+                    existing_ids: existingFiles.map(f => f.id),
                 });
-            }
+            } else {
+                // 为每个 pending file 创建临时的 File 记录（仅当 post 无任何 File 时）
+                const pendingFileInfos: FileInfo[] = [];
+                for (const pf of pendingFiles) {
+                    const pendingId = `pending_${pf.client_id}`;
+
+                    const extension = pf.name.includes('.') ? pf.name.split('.').pop() || '' : '';
+                    pendingFileInfos.push({
+                        id: pendingId,
+                        user_id: post.user_id,
+                        post_id: post.id,
+                        create_at: post.create_at || Date.now(),
+                        update_at: post.update_at || Date.now(),
+                        delete_at: 0,
+                        name: pf.name,
+                        extension,
+                        size: pf.size,
+                        mime_type: pf.mime_type,
+                        has_preview_image: pf.mime_type?.startsWith('image/') || false,
+                        mini_preview: '',
+                        link: '',
+                        localPath: '',
+                        pdfPreviewId: '',
+                        imageThumbnail: '',
+                    } as FileInfo);
+                }
+
+                if (pendingFileInfos.length > 0) {
+                    // 注入到 metadata.files，handlePosts 会创建 File 记录
+                    if (!post.metadata) {
+                        post.metadata = {} as any;
+                    }
+                    post.metadata.files = [...(post.metadata.files || []), ...pendingFileInfos];
+                    debugLog('[WS:handleNewPostEvent] 💉 已注入 pending files 到 metadata.files:', {
+                        count: pendingFileInfos.length,
+                    });
+                }
+            } // end of else (existingFiles.length === 0)
         } catch (pendingErr) {
             debugLog('[WS:handleNewPostEvent] ❌ 处理 pending files 失败:', pendingErr);
             logWarning('handleNewPostEvent: failed to handle pending files', pendingErr);
