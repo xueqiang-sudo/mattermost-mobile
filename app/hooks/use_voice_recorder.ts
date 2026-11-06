@@ -205,7 +205,13 @@ export function useVoiceRecorder(
             // 【增强重试】最多重试 3 次，每次间隔递增（处理音频服务初始化延迟）
             while (!success && retryCount < MAX_RETRIES) {
                 try {
-                    success = await VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
+                    // 【关键修复】添加超时保护（5秒），防止原生层卡死导致应用无响应
+                    const startPromise = VoiceRecorder.startRecording({format, prefix: CVA_FILE_PREFIX});
+                    const timeoutPromise = new Promise<boolean>((_, reject) => {
+                        setTimeout(() => reject(new Error('Recording start timeout (5s)')), 5000);
+                    });
+
+                    success = await Promise.race([startPromise, timeoutPromise]);
                 } catch (startErr) {
                     logError(`[useVoiceRecorder.startRecording] 尝试 ${retryCount + 1} 失败`, startErr);
                 }
@@ -268,7 +274,13 @@ export function useVoiceRecorder(
         let filePathToClean: string | null = null;
 
         try {
-            const result = await VoiceRecorder.stopRecording();
+            // 【关键修复】添加超时保护（3秒），防止 stopRecording 卡死
+            const stopPromise = VoiceRecorder.stopRecording();
+            const timeoutPromise = new Promise<{success: boolean; filePath?: string; durationMs?: number}>((resolve) => {
+                setTimeout(() => resolve({success: false}), 3000);
+            });
+
+            const result = await Promise.race([stopPromise, timeoutPromise]);
 
             // 停止录音后，立即更新 UI 状态
             setState('idle');

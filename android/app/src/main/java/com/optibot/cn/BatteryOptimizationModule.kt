@@ -1,7 +1,9 @@
 package com.optibot.cn
 
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -38,6 +40,29 @@ class BatteryOptimizationModule(
             promise.resolve(ignoring)
         } catch (e: Exception) {
             promise.reject("BATTERY_CHECK_FAILED", e.message, e)
+        }
+    }
+
+    /**
+     * 获取当前电池电量百分比（0-100）。
+     */
+    @ReactMethod
+    fun getBatteryLevel(promise: Promise) {
+        try {
+            val intentFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val batteryStatus = reactContext.registerReceiver(null, intentFilter)
+            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+
+            if (level == -1 || scale == -1 || scale == 0) {
+                promise.resolve(100) // 无法获取时默认返回 100
+                return
+            }
+
+            val batteryPct = (level.toFloat() / scale.toFloat() * 100f).toInt()
+            promise.resolve(batteryPct)
+        } catch (e: Exception) {
+            promise.reject("BATTERY_LEVEL_FAILED", e.message, e)
         }
     }
 

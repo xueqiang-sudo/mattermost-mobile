@@ -657,12 +657,21 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
             updatedMessage = realFileIds.map(id => `!{file:${id}}`).join('\n');
         }
 
-        await client.patchPost({
-            id: postId,
-            message: updatedMessage,
-            file_ids: realFileIds,
-            props: newProps,
-        });
+        // 【关键修复】在 patchPost 前设置 EphemeralStore，防止 handlePostEdited 重复处理
+        // patchPost 会触发 WebSocket "post_edited" 事件，如果不标记，会导致重复渲染
+        EphemeralStore.setCreatingPost(postId, postId);
+
+        try {
+            await client.patchPost({
+                id: postId,
+                message: updatedMessage,
+                file_ids: realFileIds,
+                props: newProps,
+            });
+        } finally {
+            // patchPost 完成后清理 EphemeralStore
+            EphemeralStore.unsetCreatingPost(postId, postId);
+        }
 
         return {data: true};
     } catch (error) {

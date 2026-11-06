@@ -45,19 +45,30 @@ export function useVoiceStream(serverUrl: string, token: string) {
     /**
      * Request microphone permission
      */
-    const requestPermission = useCallback(async (): Promise<boolean> => {
+    const requestPermission = useCallback(async (): Promise<{granted: boolean; wasFreshlyGranted: boolean}> => {
         try {
-            const result = await Permissions.request(
-                Platform.select({
-                    ios: Permissions.PERMISSIONS.IOS.MICROPHONE,
-                    android: Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO,
-                    default: Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO,
-                })
-            );
-            return result === Permissions.RESULTS.GRANTED;
+            // 先检查当前权限状态
+            const permission = Platform.select({
+                ios: Permissions.PERMISSIONS.IOS.MICROPHONE,
+                android: Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO,
+                default: Permissions.PERMISSIONS.ANDROID.RECORD_AUDIO,
+            });
+
+            const currentStatus = await Permissions.check(permission);
+
+            // 如果已经授予，直接返回（不是新授予）
+            if (currentStatus === Permissions.RESULTS.GRANTED) {
+                return {granted: true, wasFreshlyGranted: false};
+            }
+
+            // 请求权限
+            const result = await Permissions.request(permission);
+            const granted = result === Permissions.RESULTS.GRANTED;
+
+            return {granted, wasFreshlyGranted: granted};
         } catch (error) {
             console.error('[useVoiceStream] Permission request failed:', error);
-            return false;
+            return {granted: false, wasFreshlyGranted: false};
         }
     }, []);
 
@@ -103,8 +114,8 @@ export function useVoiceStream(serverUrl: string, token: string) {
 
             // Request permission
             debugLog('VOICE_STREAM', '[startStreaming] Step 4: Request microphone permission');
-            const hasPermission = await requestPermission();
-            debugLog('VOICE_STREAM', '[startStreaming] Permission result:', {hasPermission});
+            const {granted: hasPermission, wasFreshlyGranted} = await requestPermission();
+            debugLog('VOICE_STREAM', '[startStreaming] Permission result:', {hasPermission, wasFreshlyGranted});
 
             if (!hasPermission) {
                 debugLog('VOICE_STREAM', '[startStreaming] ❌ Permission denied');
@@ -120,6 +131,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 );
                 return false;
             }
+
+            // 【关键修复】权限刚授予后，等待系统初始化音频服务（防止原生层崩溃）
+            // 首次授权需要更长时间（iOS AVAudioSession / Android AudioRecord 初始化）
+            const initDelay = wasFreshlyGranted ? 1000 : 300;
+            debugLog('VOICE_STREAM', `[startStreaming] Step 4.5: Wait ${initDelay}ms for audio service initialization`, {wasFreshlyGranted});
+            await new Promise(resolve => setTimeout(resolve, initDelay));
 
             // Create WebSocket client with latest token
             debugLog('VOICE_STREAM', '[startStreaming] Step 5: Create VoiceStreamClient', {
@@ -173,15 +190,39 @@ export function useVoiceStream(serverUrl: string, token: string) {
 
             // Start real-time recording
             debugLog('VOICE_STREAM', '[startStreaming] Step 9: Start real-time recording');
-            const recordingStarted = await startRealtimeRecording(
-                (chunkBase64) => {
-                    // Audio chunk callback - send to server
-                    if (clientRef.current?.isConnected()) {
-                        clientRef.current.sendAudioChunk(chunkBase64);
-                    }
-                },
-                {format: 'pcm'}
-            );
+
+            // 【关键修复】包装 startRealtimeRecording 调用，捕获原生层崩溃
+            let recordingStarted = false;
+            try {
+                debugLog('VOICE_STREAM', '[startStreaming] Step 9.1: About to call startRealtimeRecording');
+
+                // 添加超时保护（5秒）
+                const recordingPromise = startRealtimeRecording(
+                    (chunkBase64) => {
+                        // Audio chunk callback - send to server
+                        if (clientRef.current?.isConnected()) {
+                            clientRef.current.sendAudioChunk(chunkBase64);
+                        }
+                    },
+                    {format: 'pcm'}
+                );
+
+                const timeoutPromise = new Promise<boolean>((resolve) => {
+                    setTimeout(() => {
+                        debugLog('VOICE_STREAM', '[startStreaming] ❌ startRealtimeRecording timeout (5s)');
+                        resolve(false);
+                    }, 5000);
+                });
+
+                recordingStarted = await Promise.race([recordingPromise, timeoutPromise]);
+                debugLog('VOICE_STREAM', '[startStreaming] Step 9.2: startRealtimeRecording returned:', {recordingStarted});
+            } catch (recordError) {
+                debugLog('VOICE_STREAM', '[startStreaming] ❌ startRealtimeRecording threw error:', {
+                    message: recordError instanceof Error ? recordError.message : String(recordError),
+                    stack: recordError instanceof Error ? recordError.stack : undefined,
+                });
+                recordingStarted = false;
+            }
 
             debugLog('VOICE_STREAM', '[startStreaming] Recording result:', {recordingStarted});
 
