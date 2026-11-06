@@ -174,15 +174,6 @@ const FilePreviewLoadingModal = ({
                         </Text>
                     </View>
 
-                    {fileName ? (
-                        <Text
-                            style={styles.fileName}
-                            numberOfLines={2}
-                        >
-                            {fileName}
-                        </Text>
-                    ) : null}
-
                     <ScrollView
                         style={styles.stepsContainer}
                         bounces={false}
@@ -209,6 +200,15 @@ const FilePreviewLoadingModal = ({
                             );
                         })}
                     </ScrollView>
+
+                    {fileName ? (
+                        <Text
+                            style={styles.fileName}
+                            numberOfLines={2}
+                        >
+                            {fileName}
+                        </Text>
+                    ) : null}
 
                     {canCancel && (
                         <Pressable
