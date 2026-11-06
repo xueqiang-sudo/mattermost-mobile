@@ -11,7 +11,8 @@ import {addPostAcknowledgement, removePost, removePostAcknowledgement, storePost
 import {addRecentReaction} from '@actions/local/reactions';
 import {createThreadFromNewPost} from '@actions/local/thread';
 import {fetchChannelStats} from '@actions/remote/channel';
-import {ActionType, General, MM_TABLES, Post, ServerErrors} from '@constants';
+import {ActionType, General, Post, ServerErrors} from '@constants';
+import {MM_TABLES} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {sanitizeLikeString} from '@helpers/database';
 import {filterPostsInOrderedArray} from '@helpers/api/post';
