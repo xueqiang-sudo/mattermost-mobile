@@ -35,6 +35,7 @@ type BlockEditorProps = {
     pendingFocusIndex?: number | null;
     onFocusApplied?: () => void;
     onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
+    onPreviewFile?: (fileInfo: FileInfo) => void; // 预览文件
 };
 
 type BlockItemProps = {
@@ -48,6 +49,7 @@ type BlockItemProps = {
     onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
+    onPreviewFile?: (fileInfo: FileInfo) => void; // 预览文件
     onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
     theme: Theme;
     editable: boolean;
@@ -152,6 +154,7 @@ const BlockItem = ({
     onMoveDown,
     onFocus,
     onPlayMedia,
+    onPreviewFile,
     onScrollToBlock,
     theme,
     editable,
@@ -200,34 +203,38 @@ const BlockItem = ({
         onFocus(index);
     }, [index, onFocus]);
 
-    // 处理回车键
-    // 对于列表块：创建新的列表项
-    // 对于其他块：块内换行（\n）
-    const handleKeyPress = useCallback((e: any) => {
+    // 处理回车键 - 对于列表块，在 items 数组中添加新项
+    const handleKeyPress = useCallback((e: any, itemIndex?: number) => {
         const key = e?.nativeEvent?.key;
         if (key !== 'Enter') {
             return;
         }
 
-        // 只有列表块才需要特殊处理回车键
-        if (block.type === 'bulleted-list' || block.type === 'numbered-list' || block.type === 'checklist') {
-            // 阻止默认行为（换行）
+        // 列表块：在 items 数组中添加新项
+        const isListBlock = block.type === 'bulleted-list' || block.type === 'numbered-list' || block.type === 'checklist';
+
+        if (isListBlock && itemIndex !== undefined) {
             e.preventDefault?.();
 
-            // 创建新的列表项的 meta
-            const newMeta = block.type === 'numbered-list' ? {
-                ...block.meta,
-                number: (block.meta?.number || 1) + 1,
-            } : block.type === 'checklist' ? {
-                ...block.meta,
-                checked: false,
-            } : undefined;
+            const items = [...(block.meta?.items || [])];
+            const newItem = block.type === 'checklist'
+                ? {text: '', checked: false}
+                : '';
 
-            // 在当前块后插入新块
-            onAddAfter(index, block.type, newMeta);
+            // 在当前项后面插入新项
+            items.splice(itemIndex + 1, 0, newItem);
+
+            onChange(index, {
+                ...block,
+                content: items.map((item: any) => typeof item === 'string' ? item : item.text).join('\n'),
+                meta: {
+                    ...block.meta,
+                    items,
+                },
+            });
         }
         // 其他块类型让系统默认处理（块内换行）
-    }, [block, index, onAddAfter]);
+    }, [block, index, onChange]);
 
     // Get appropriate style for block type
     const getBlockTextStyle = () => {
@@ -251,52 +258,13 @@ const BlockItem = ({
         }
     };
 
-    // Get prefix for list items
+    // Get prefix for list items (only used for non-list blocks now)
     const getPrefix = () => {
-        if (block.type === 'bulleted-list') {
-            return '• ';
-        }
-        if (block.type === 'numbered-list') {
-            const num = block.meta?.number || 1;
-            return `${num}. `;
-        }
-        // checklist 使用单独的复选框组件，不需要前缀文本
+        // 列表块（bulleted-list/numbered-list/checklist）使用特殊渲染路径
+        // 这里只处理其他类型的块
         return '';
     };
 
-    // Toggle checklist item checked state
-    const handleChecklistToggle = useCallback(() => {
-        const newChecked = !(block.meta?.checked || false);
-        onChange(index, {
-            ...block,
-            meta: {
-                ...block.meta,
-                checked: newChecked,
-            },
-        });
-    }, [block, index, onChange]);
-
-    // Render checklist checkbox
-    const renderCheckbox = () => {
-        if (block.type !== 'checklist') {
-            return null;
-        }
-
-        const checked = block.meta?.checked || false;
-        return (
-            <TouchableOpacity
-                onPress={handleChecklistToggle}
-                style={style.checkbox}
-                activeOpacity={0.7}
-            >
-                {checked ? (
-                    <CompassIcon name='check' size={20} color={theme.buttonBg}/>
-                ) : (
-                    <View style={style.checkboxEmpty}/>
-                )}
-            </TouchableOpacity>
-        );
-    };
 
     // Get placeholder
     const getPlaceholder = () => {
@@ -324,7 +292,9 @@ const BlockItem = ({
         if (mediaMatch) {
             const mediaType = mediaMatch[1]; // 'VIDEO' or 'AUDIO'
             const mediaUrl = mediaMatch[2];
-            const displayName = mediaMatch[3] || block.meta?.fileName || (mediaType === 'VIDEO' ? '视频' : '音频');
+            // 【关键修复】去除 HTML 标签（如<span>）
+            const rawDisplayName = mediaMatch[3] || block.meta?.fileName || (mediaType === 'VIDEO' ? '视频' : '音频');
+            const displayName = rawDisplayName.replace(/<[^>]*>/g, '').trim();
             const isLocalMedia = mediaUrl && !mediaUrl.startsWith('http://') && !mediaUrl.startsWith('https://');
             const playableUrl = isLocalMedia && !mediaUrl.startsWith('file://') ? `file://${mediaUrl}` : mediaUrl;
 
@@ -482,8 +452,30 @@ const BlockItem = ({
         const extension = block.meta?.extension || fileName.split('.').pop()?.toLowerCase() || '';
         const fileIcon = getFileIcon(fileName, block.meta?.mimeType);
 
+        // 【关键修复】构建 FileInfo 对象用于预览
+        const fileInfo: FileInfo = {
+            id: block.meta?.fileId || block.id || '',
+            name: fileName,
+            extension,
+            mime_type: block.meta?.mimeType || '',
+            size: block.meta?.size || 0,
+            user_id: '',
+            create_at: 0,
+            update_at: 0,
+            delete_at: 0,
+            post_id: '',
+            channel_id: '',
+            has_preview_image: false,
+            height: 0,
+            width: 0,
+            localPath: block.content,
+        };
+
         return (
-            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+            <TouchableOpacity
+                onPress={() => onPreviewFile?.(fileInfo)} // 添加点击预览
+                style={style.blockContainer}
+            >
                 <View style={style.mediaBlock}>
                     <View style={style.fileCard}>
                         <View style={style.mediaIconContainer}>
@@ -516,7 +508,115 @@ const BlockItem = ({
         );
     }
 
-    // Render text-based blocks
+    // 【关键修复】特殊渲染列表块（bulleted-list/numbered-list/checklist）
+    // 这些块使用 webapp 格式：单个 block 包含 items 数组
+    const isListBlock = block.type === 'bulleted-list' || block.type === 'numbered-list' || block.type === 'checklist';
+
+    if (isListBlock) {
+        const items = block.meta?.items || [];
+        const blockStyle = getBlockTextStyle();
+
+        return (
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                <View style={style.textBlock}>
+                    {items.map((item: any, itemIndex: number) => {
+                        // 获取项目文本
+                        const itemText = typeof item === 'string' ? item : (item.text || '');
+                        const itemChecked = typeof item === 'object' ? (item.checked || false) : false;
+
+                        // 获取前缀
+                        let prefix = '';
+                        if (block.type === 'bulleted-list') {
+                            prefix = '• ';
+                        } else if (block.type === 'numbered-list') {
+                            prefix = `${itemIndex + 1}. `;
+                        }
+                        // checklist 没有文本前缀，使用复选框
+
+                        // 处理项目内容变化
+                        const handleItemChange = (newText: string) => {
+                            const newItems = [...items];
+                            if (typeof item === 'string') {
+                                newItems[itemIndex] = newText;
+                            } else {
+                                newItems[itemIndex] = {...item, text: newText};
+                            }
+                            onChange(index, {
+                                ...block,
+                                content: newItems.map((i: any) => typeof i === 'string' ? i : i.text).join('\n'),
+                                meta: {
+                                    ...block.meta,
+                                    items: newItems,
+                                },
+                            });
+                        };
+
+                        // 处理 checklist 切换
+                        const handleToggleCheck = () => {
+                            if (block.type !== 'checklist') return;
+                            const newItems = [...items];
+                            newItems[itemIndex] = {
+                                ...item,
+                                checked: !itemChecked,
+                            };
+                            onChange(index, {
+                                ...block,
+                                content: newItems.map((i: any) => typeof i === 'string' ? i : i.text).join('\n'),
+                                meta: {
+                                    ...block.meta,
+                                    items: newItems,
+                                },
+                            });
+                        };
+
+                        return (
+                            <View key={itemIndex} style={style.listItemRow}>
+                                {block.type === 'checklist' && (
+                                    <TouchableOpacity
+                                        onPress={handleToggleCheck}
+                                        style={style.checkbox}
+                                        activeOpacity={0.7}
+                                    >
+                                        {itemChecked ? (
+                                            <CompassIcon name='check' size={20} color={theme.buttonBg}/>
+                                        ) : (
+                                            <View style={style.checkboxEmpty}/>
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                                {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
+                                <TextInput
+                                    style={[style.textInput, blockStyle, {flex: 1}]}
+                                    value={itemText}
+                                    onChangeText={handleItemChange}
+                                    onFocus={handleFocus}
+                                    onKeyPress={(e) => handleKeyPress(e, itemIndex)}
+                                    placeholder={itemIndex === 0 ? getPlaceholder() : ''}
+                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                                    multiline
+                                    editable={editable}
+                                    textAlignVertical='top'
+                                />
+                            </View>
+                        );
+                    })}
+                </View>
+                {editable && isSelected && (
+                    <BlockActions
+                        onDelete={() => onDelete(index)}
+                        onAddAfter={() => onAddAfter(index)}
+                        onMoveUp={() => onMoveUp(index)}
+                        onMoveDown={() => onMoveDown(index)}
+                        isFirst={isFirst}
+                        isLast={isLast}
+                        theme={theme}
+                    />
+                )}
+            </TouchableOpacity>
+        );
+    }
+
+    // Render text-based blocks (paragraph, heading, blockquote, code-block)
     const prefix = getPrefix();
     const blockStyle = getBlockTextStyle();
 
@@ -524,7 +624,6 @@ const BlockItem = ({
         <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
             {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
             <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
-                {renderCheckbox()}
                 {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
                 <TextInput
                     ref={textInputRef}
@@ -532,7 +631,7 @@ const BlockItem = ({
                     value={block.content}
                     onChangeText={handleContentChange}
                     onFocus={handleFocus}
-                    onKeyPress={handleKeyPress}
+                    onKeyPress={(e) => handleKeyPress(e)}
                     placeholder={getPlaceholder()}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
                     multiline
@@ -588,7 +687,7 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 };
 
 // ---- Main Block Editor Component ----
-const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied}: BlockEditorProps) => {
+const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
     const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
@@ -757,6 +856,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
                 onPlayMedia={handlePlayMedia}
+                onPreviewFile={onPreviewFile}
                 onScrollToBlock={onScrollToBlock}
                 theme={theme}
                 editable={editable}
@@ -766,7 +866,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
@@ -906,6 +1006,11 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 200, 'Regular'),
         color: theme.centerChannelColor,
         flex: 1,
+    },
+    listItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
     },
     listPrefix: {
         ...typography('Body', 200, 'Regular'),

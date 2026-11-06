@@ -12,7 +12,7 @@ const PLUGIN_BASE = '/plugins/com.mattermost.fact-extractor';
 
 export type SmartNoteBlock = {
     id: string;
-    type: 'paragraph' | 'heading' | 'bulleted-list' | 'numbered-list' | 'list-item' | 'checklist' | 'blockquote' | 'code-block' | 'image' | 'file' | 'table' | 'divider' | 'horizontal-rule';
+    type: 'paragraph' | 'heading' | 'bulleted-list' | 'numbered-list' | 'checklist' | 'blockquote' | 'code-block' | 'image' | 'file' | 'table' | 'divider' | 'horizontal-rule';
     content: string;
     order: number;
     meta?: Record<string, any>;

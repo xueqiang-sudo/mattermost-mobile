@@ -27,6 +27,7 @@ import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
+import {useDownloadFileAndPreview} from '@hooks/files';
 import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
 import {useVoiceStream} from '@hooks/use_voice_stream';
 import {getServerCredentials} from '@init/credentials';
@@ -54,6 +55,7 @@ import {useVoiceStreamTranscription} from './voice_stream_transcription';
 
 // 生成唯一ID
 const generateId = () => `blk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
 
 // 根据文件扩展名识别类型
 /**
@@ -143,6 +145,14 @@ const SmartNoteDetailScreen = () => {
             }
         }, 200); // 等待键盘动画和布局更新
     }, []);
+
+    // 【关键修复】文件预览功能
+    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(true);
+
+    const handlePreviewFile = useCallback((fileInfo: FileInfo) => {
+        debugLog('[SmartNote] Previewing file:', {name: fileInfo.name, id: fileInfo.id});
+        downloadAndPreviewFile(fileInfo);
+    }, [downloadAndPreviewFile]);
 
     const [userId, setUserId] = useState('');
     const [bearerToken, setBearerToken] = useState('');
@@ -484,15 +494,18 @@ const SmartNoteDetailScreen = () => {
     }, [addBlock]);
 
     const insertBulletList = useCallback(() => {
-        addBlock('bulleted-list');
+        // 使用 webapp 格式：单个 block，items 数组
+        addBlock('bulleted-list', {items: ['']});
     }, [addBlock]);
 
     const insertNumberedList = useCallback(() => {
-        addBlock('numbered-list', {number: 1});
+        // 使用 webapp 格式：单个 block，items 数组
+        addBlock('numbered-list', {items: ['']});
     }, [addBlock]);
 
     const insertChecklist = useCallback(() => {
-        addBlock('checklist', {checked: false});
+        // 使用 webapp 格式：单个 block，items 数组
+        addBlock('checklist', {items: [{text: '', checked: false}]});
     }, [addBlock]);
 
     const insertQuote = useCallback(() => {
@@ -1085,6 +1098,7 @@ const SmartNoteDetailScreen = () => {
                                     onChange={() => {}} // No-op for read-only
                                     theme={theme}
                                     editable={false}
+                                    onPreviewFile={handlePreviewFile}
                                 />
                             ) : (
                                 <Text style={style.readOnlyContent}>
@@ -1103,9 +1117,13 @@ const SmartNoteDetailScreen = () => {
                             pendingFocusIndex={pendingFocusIndex}
                             onFocusApplied={handleFocusApplied}
                             onScrollToBlock={handleScrollToBlock}
+                            onPreviewFile={handlePreviewFile}
                         />
                     )}
                 </ScrollView>
+
+                {/* 【关键修复】文件预览 Loading Modal */}
+                {PreviewLoadingModal}
 
                 {/* Recording indicator */}
                 {voiceState === 'recording' && (
