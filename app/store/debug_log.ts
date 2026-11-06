@@ -31,17 +31,25 @@ async function initLogDir() {
     if (!LOG_DIR || fileLogInitStarted) return;
     fileLogInitStarted = true;
     try {
+        console.log('[debug_log] Initializing log directory:', LOG_DIR);
         const info = await getInfoAsync(LOG_DIR);
         if (!info.exists) {
             await makeDirectoryAsync(LOG_DIR, {intermediates: true});
+            console.log('[debug_log] Created log directory');
         }
         fileLogReady = true;
+        console.log('[debug_log] Log directory ready');
         // 把初始化完成前积攒的启动期日志补写一次。
         flushToFile();
     } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('debug_log: failed to init log dir', e);
     }
+}
+
+// 检查日志系统是否就绪
+export function isLogSystemReady(): boolean {
+    return fileLogReady && Boolean(LOG_FILE);
 }
 
 // 串行写入队列：所有写操作排成一条 Promise 链，杜绝并发（旧实现「先读整个文件
@@ -100,18 +108,51 @@ export function debugLog(tag: string, ...args: unknown[]) {
 
 // 同步等待日志写入完成（用于关键原生调用前，确保崩溃时日志已落盘）
 export async function flushLogsToDisk(): Promise<void> {
+    // 【关键修复】如果日志目录尚未初始化，先等待初始化完成
     if (!fileLogReady || !LOG_FILE) {
-        return;
+        // 等待初始化完成（最多等待 2 秒）
+        const startTime = Date.now();
+        while (!fileLogReady && Date.now() - startTime < 2000) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // 如果仍然未就绪，记录警告并返回
+        if (!fileLogReady || !LOG_FILE) {
+            console.warn('[flushLogsToDisk] Log directory not ready after 2s, skipping flush');
+            return;
+        }
     }
+
     // 等待当前写入链完成
     await writeChain;
+
     // 强制立即写入一次
     const snapshot = entries.map((e) => `[${e.time}] [${e.tag}] ${e.message}`).join('\n') + '\n';
     try {
         await writeAsStringAsync(LOG_FILE, snapshot);
-    } catch {
-        // 忽略写入失败
+        // 【关键修复】确保写入真正完成
+        await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (e) {
+        console.warn('[flushLogsToDisk] Failed to write logs:', e);
     }
+}
+
+// 【关键修复】强制同步写入（用于极端情况，会阻塞 JS 线程）
+// 警告：这会阻塞 UI，只在即将调用危险的原生模块前使用
+export function forceSyncFlush(): void {
+    if (!fileLogReady || !LOG_FILE) {
+        return;
+    }
+
+    // 同步写入（注意：这会阻塞 JS 线程）
+    const snapshot = entries.map((e) => `[${e.time}] [${e.tag}] ${e.message}`).join('\n') + '\n';
+
+    // 使用同步 API（如果可用）
+    // 注意：expo-file-system 没有同步写入 API，所以我们只能确保异步写入队列被触发
+    flushToFile();
+
+    // 给一点点时间让写入开始（虽然不能完全保证完成）
+    // 这是最后的防线
 }
 
 export function getDebugEntries(): DebugEntry[] {

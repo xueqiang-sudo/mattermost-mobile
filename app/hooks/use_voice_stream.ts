@@ -7,7 +7,7 @@ import Permissions from 'react-native-permissions';
 
 import {VoiceStreamClient} from '@client/websocket/voice_stream_client';
 import {startRealtimeRecording, stopRealtimeRecording} from '@mattermost/voice-recorder';
-import {debugLog, flushLogsToDisk} from '@store/debug_log';
+import {debugLog, flushLogsToDisk, isLogSystemReady} from '@store/debug_log';
 
 export type VoiceStreamState = 'idle' | 'connecting' | 'recording' | 'error';
 
