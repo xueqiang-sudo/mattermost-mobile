@@ -659,7 +659,9 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
 
         // 【关键修复】在 patchPost 前设置 EphemeralStore，防止 handlePostEdited 重复处理
         // patchPost 会触发 WebSocket "post_edited" 事件，如果不标记，会导致重复渲染
+        debugLog('POST', `updatePostFileIds: setting EphemeralStore for postId=${postId}`);
         EphemeralStore.setCreatingPost(postId, postId);
+        debugLog('POST', `updatePostFileIds: EphemeralStore set, isCreatingServerPost(${postId})=${EphemeralStore.isCreatingServerPost(postId)}`);
 
         try {
             await client.patchPost({
@@ -668,8 +670,10 @@ export async function updatePostFileIds(serverUrl: string, postId: string, files
                 file_ids: realFileIds,
                 props: newProps,
             });
+            debugLog('POST', `updatePostFileIds: patchPost completed for postId=${postId}`);
         } finally {
             // patchPost 完成后清理 EphemeralStore
+            debugLog('POST', `updatePostFileIds: clearing EphemeralStore for postId=${postId}`);
             EphemeralStore.unsetCreatingPost(postId, postId);
         }
 

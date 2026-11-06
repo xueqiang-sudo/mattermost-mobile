@@ -478,6 +478,15 @@ export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage)
     //   2. 文件上传完成 → patchPost 添加 file_ids → 服务器发送 "post_edited" 事件
     // 如果 "post_edited" 事件在 createPost 流程还未完成时到达，会导致重复更新
     // 因此需要检查 EphemeralStore，如果帖子正在创建中，跳过此编辑事件
+    debugLog('[WS:handlePostEdited] 🔍 检查 EphemeralStore:', {
+        pending_post_id: post.pending_post_id,
+        pending_post_id_type: typeof post.pending_post_id,
+        pending_post_id_truthy: Boolean(post.pending_post_id),
+        post_id: post.id,
+        isCreatingPost_pending: post.pending_post_id ? EphemeralStore.isCreatingPost(post.pending_post_id) : 'N/A (empty)',
+        isCreatingServerPost_id: post.id ? EphemeralStore.isCreatingServerPost(post.id) : 'N/A (no id)',
+    });
+
     if (post.pending_post_id && EphemeralStore.isCreatingPost(post.pending_post_id)) {
         debugLog('[WS:handlePostEdited] ⏭️ 跳过：post 正在通过 HTTP 创建中（pending_post_id 匹配）', {
             pending_post_id: post.pending_post_id,
@@ -495,6 +504,8 @@ export async function handlePostEdited(serverUrl: string, msg: WebSocketMessage)
         });
         return;
     }
+
+    debugLog('[WS:handlePostEdited] ⚠️ 未匹配任何 EphemeralStore 检查，继续处理');
 
     const permalinkModels: Model[] = [];
     try {
