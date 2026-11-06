@@ -34,7 +34,7 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
 
     /// 直接发送音频数据（二进制，无 Base64 编码）
     func sendAudioData(_ data: Data) {
-        guard let task = webSocketTask, task.readyState == .running else { return }
+        guard let task = webSocketTask else { return }
 
         let message = URLSessionWebSocketTask.Message.data(data)
         task.send(message) { error in
@@ -46,7 +46,7 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
 
     /// 发送控制消息（JSON）
     func sendControlMessage(type: String, sessionId: String? = nil) {
-        guard let task = webSocketTask, task.readyState == .running else { return }
+        guard let task = webSocketTask else { return }
 
         var message: [String: Any] = ["type": type]
         if let sessionId = sessionId {
