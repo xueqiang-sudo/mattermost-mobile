@@ -463,6 +463,10 @@ const SmartNoteDetailScreen = () => {
         addBlock('numbered-list', {number: 1});
     }, [addBlock]);
 
+    const insertChecklist = useCallback(() => {
+        addBlock('checklist', {checked: false});
+    }, [addBlock]);
+
     const insertQuote = useCallback(() => {
         addBlock('blockquote');
     }, [addBlock]);
@@ -1103,6 +1107,9 @@ const SmartNoteDetailScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity onPress={insertNumberedList} style={style.toolbarBtn}>
                         <Text style={style.toolbarText}>1.</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={insertChecklist} style={style.toolbarBtn}>
+                        <CompassIcon name='playlist-check' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={insertQuote} style={style.toolbarBtn}>
                         <Text style={style.toolbarText}>"</Text>
