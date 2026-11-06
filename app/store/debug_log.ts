@@ -98,6 +98,22 @@ export function debugLog(tag: string, ...args: unknown[]) {
     flushToFile();
 }
 
+// 同步等待日志写入完成（用于关键原生调用前，确保崩溃时日志已落盘）
+export async function flushLogsToDisk(): Promise<void> {
+    if (!fileLogReady || !LOG_FILE) {
+        return;
+    }
+    // 等待当前写入链完成
+    await writeChain;
+    // 强制立即写入一次
+    const snapshot = entries.map((e) => `[${e.time}] [${e.tag}] ${e.message}`).join('\n') + '\n';
+    try {
+        await writeAsStringAsync(LOG_FILE, snapshot);
+    } catch {
+        // 忽略写入失败
+    }
+}
+
 export function getDebugEntries(): DebugEntry[] {
     return [...entries];
 }

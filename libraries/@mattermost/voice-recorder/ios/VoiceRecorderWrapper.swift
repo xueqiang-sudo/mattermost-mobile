@@ -280,16 +280,23 @@ import os.log
     private func beginRealtimeRecording(options: [String: Any]?,
                                         onChunkReady: @escaping (String) -> Void,
                                         completion: @escaping (Bool, NSString?) -> Void) {
+        log("========== 开始配置实时录音 ==========")
         let audioSession = AVAudioSession.sharedInstance()
 
         do {
-            // 配置音频会话
+            // 【关键修复】配置音频会话 - 添加详细日志
+            log("配置音频会话: category=.record, mode=.measurement")
             try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            log("音频会话 category 设置成功")
+
             try audioSession.setActive(true)
+            log("音频会话已激活")
 
             // 创建 AVAudioEngine
+            log("创建 AVAudioEngine...")
             let engine = AVAudioEngine()
             let inputNode = engine.inputNode
+            log("AVAudioEngine 创建成功，获取 inputNode")
 
             // 配置录音格式（PCM 16kHz 单声道，适合流式传输）
             guard let recordingFormat = AVAudioFormat(
@@ -305,66 +312,90 @@ import os.log
 
             // 【关键修复】检查 inputNode 是否支持该格式
             let hardwareFormat = inputNode.inputFormat(forBus: 0)
+            log("硬件格式: sampleRate=\(hardwareFormat.sampleRate), channels=\(hardwareFormat.channelCount), interleaved=\(hardwareFormat.isInterleaved)")
+
             if hardwareFormat.sampleRate == 0 || hardwareFormat.channelCount == 0 {
                 log("硬件音频格式无效: sampleRate=\(hardwareFormat.sampleRate), channels=\(hardwareFormat.channelCount)", type: .error)
                 completion(false, "RECORD_ERROR")
                 return
             }
 
-            // 【关键修复】如果请求的格式与硬件格式不匹配，使用硬件格式
-            let actualFormat = (hardwareFormat.sampleRate == recordingFormat.sampleRate &&
-                               hardwareFormat.channelCount == recordingFormat.channelCount)
-                ? recordingFormat
-                : hardwareFormat
+            // 【关键修复】使用硬件格式以确保兼容性
+            // installTap 必须使用 inputNode 原生支持的格式，否则会崩溃
+            let actualFormat = hardwareFormat
 
-            log("使用录音格式: sampleRate=\(actualFormat.sampleRate), channels=\(actualFormat.channelCount)")
+            log("使用录音格式: sampleRate=\(actualFormat.sampleRate), channels=\(actualFormat.channelCount), interleaved=\(actualFormat.isInterleaved)")
 
-            // 安装音频tap，捕获实时音频
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: actualFormat) { [weak self] buffer, time in
-                guard let self = self, self.isRealtimeRecording else { return }
-
-                // 【关键修复】添加 try-catch 保护整个回调处理
-                do {
-                    // 将音频数据转换为 base64
-                    let audioData = buffer.audioBufferList.pointee.mBuffers
-
-                    // 检查 mData 指针是否有效
-                    guard let mDataPointer = audioData.mData else {
-                        return
-                    }
-
-                    // 【关键修复】检查数据大小是否有效
-                    let dataSize = Int(audioData.mDataByteSize)
-                    if dataSize <= 0 || dataSize > 1024 * 1024 {  // 最大 1MB
-                        self.log("音频数据大小无效: \(dataSize)", type: .error)
-                        return
-                    }
-
-                    // Data(bytes:count:) 返回非 Optional 的 Data，直接使用
-                    let data = Data(bytes: mDataPointer, count: dataSize)
-
-                    // 【关键修复】检查数据是否为空
-                    if data.isEmpty {
-                        return
-                    }
-
-                    let base64String = data.base64EncodedString()
-
-                    // 【关键修复】回调给JS，添加错误处理
-                    self.runOnMain {
-                        do {
-                            onChunkReady(base64String)
-                        } catch {
-                            self.log("回调调用失败: \(error.localizedDescription)", type: .error)
-                        }
-                    }
-                } catch {
-                    self.log("音频处理异常: \(error.localizedDescription)", type: .error)
-                }
+            // 【关键修复】验证格式是否有效
+            guard actualFormat.sampleRate > 0 && actualFormat.channelCount > 0 else {
+                log("实际格式无效，无法启动录音", type: .error)
+                completion(false, "RECORD_ERROR")
+                return
             }
 
-            // 启动引擎
-            try engine.start()
+            // 【关键修复】安装音频tap，捕获实时音频 - 添加 try-catch 保护
+            do {
+                inputNode.installTap(onBus: 0, bufferSize: 1024, format: actualFormat) { [weak self] buffer, time in
+                    guard let self = self, self.isRealtimeRecording else { return }
+
+                    // 【关键修复】添加 try-catch 保护整个回调处理
+                    do {
+                        // 将音频数据转换为 base64
+                        let audioData = buffer.audioBufferList.pointee.mBuffers
+
+                        // 检查 mData 指针是否有效
+                        guard let mDataPointer = audioData.mData else {
+                            return
+                        }
+
+                        // 【关键修复】检查数据大小是否有效
+                        let dataSize = Int(audioData.mDataByteSize)
+                        if dataSize <= 0 || dataSize > 1024 * 1024 {  // 最大 1MB
+                            self.log("音频数据大小无效: \(dataSize)", type: .error)
+                            return
+                        }
+
+                        // Data(bytes:count:) 返回非 Optional 的 Data，直接使用
+                        let data = Data(bytes: mDataPointer, count: dataSize)
+
+                        // 【关键修复】检查数据是否为空
+                        if data.isEmpty {
+                            return
+                        }
+
+                        let base64String = data.base64EncodedString()
+
+                        // 【关键修复】回调给JS，添加错误处理
+                        self.runOnMain {
+                            do {
+                                onChunkReady(base64String)
+                            } catch {
+                                self.log("回调调用失败: \(error.localizedDescription)", type: .error)
+                            }
+                        }
+                    } catch {
+                        self.log("音频处理异常: \(error.localizedDescription)", type: .error)
+                    }
+                }
+                log("音频 tap 安装成功")
+            } catch {
+                log("安装音频 tap 失败: \(error.localizedDescription)", type: .error)
+                completion(false, "RECORD_ERROR")
+                return
+            }
+
+            // 【关键修复】启动引擎 - 添加详细的错误处理
+            log("准备启动音频引擎...")
+            do {
+                try engine.start()
+                log("音频引擎启动成功")
+            } catch {
+                log("音频引擎启动失败: \(error.localizedDescription)", type: .error)
+                // 清理 tap
+                inputNode.removeTap(onBus: 0)
+                completion(false, "RECORD_ERROR")
+                return
+            }
 
             audioEngine = engine
             isRealtimeRecording = true

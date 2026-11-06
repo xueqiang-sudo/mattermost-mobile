@@ -21,6 +21,7 @@ import Loading from '@components/loading';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {logError} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -362,14 +363,15 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
     }, [isRecording]);
 
     const closeModal = useCallback(async () => {
-        console.log('[DraftVideoRecorder] closeModal called');
+        debugLog('VIDEO_RECORDER', '[closeModal] called');
         setTorchOn(false);
         // 修复：使用 dismissModal 而不是 popTopScreen，因为这个页面是 Modal
         try {
             await dismissModal();
-            console.log('[DraftVideoRecorder] closeModal completed');
+            debugLog('VIDEO_RECORDER', '[closeModal] completed');
         } catch (error) {
-            console.error('[DraftVideoRecorder] closeModal error:', error);
+            debugLog('VIDEO_RECORDER', '[closeModal] error:', error);
+            logError('[DraftVideoRecorder] closeModal error', error);
         }
     }, []);
 
@@ -476,7 +478,7 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                 logError('[DraftVideoRecorder] recording error', error);
             },
             onRecordingFinished: (video: VideoFile) => {
-                console.log('[DraftVideoRecorder] onRecordingFinished called', {
+                debugLog('VIDEO_RECORDER', '[onRecordingFinished] called', {
                     videoPath: video.path,
                     videoDuration: video.duration,
                     videoWidth: video.width,
@@ -487,19 +489,24 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
 
                 // 修复：先关闭页面，然后在后台处理视频
                 // 之前的顺序是先处理视频再关闭页面，导致页面卡住不关闭
-                console.log('[DraftVideoRecorder] dismissing modal first');
-                void dismissModal();
+                debugLog('VIDEO_RECORDER', '[onRecordingFinished] dismissing modal first');
+                void dismissModal().then(() => {
+                    debugLog('VIDEO_RECORDER', '[onRecordingFinished] modal dismissed successfully');
+                }).catch((error) => {
+                    debugLog('VIDEO_RECORDER', '[onRecordingFinished] modal dismiss failed:', error);
+                });
 
                 // 在后台调用回调处理视频（不阻塞页面关闭）
                 setTimeout(() => {
                     try {
-                        console.log('[DraftVideoRecorder] calling onVideoRecorded callback');
+                        debugLog('VIDEO_RECORDER', '[onRecordingFinished] calling onVideoRecorded callback');
                         onVideoRecorded(video);
-                        console.log('[DraftVideoRecorder] onVideoRecorded callback completed');
+                        debugLog('VIDEO_RECORDER', '[onRecordingFinished] onVideoRecorded callback completed');
                     } catch (error) {
-                        console.error('[DraftVideoRecorder] onVideoRecorded callback failed', error);
+                        debugLog('VIDEO_RECORDER', '[onRecordingFinished] onVideoRecorded callback failed:', error);
+                        logError('[DraftVideoRecorder] onVideoRecorded callback failed', error);
                     }
-                }, 0);
+                }, 100);
             },
         });
     }, [closeModal, componentId, onVideoRecorded]);
@@ -524,18 +531,18 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
     }, []);
 
     const handleClosePress = useCallback(() => {
-        console.log('[DraftVideoRecorder] handleClosePress called, isRecording:', isRecording);
+        debugLog('VIDEO_RECORDER', '[handleClosePress] called, isRecording:', isRecording);
         if (isRecording) {
             // 如果在录制中，先取消录制，然后关闭窗口
-            console.log('[DraftVideoRecorder] canceling recording before close');
+            debugLog('VIDEO_RECORDER', '[handleClosePress] canceling recording before close');
             void cancelRecording().then(() => {
-                console.log('[DraftVideoRecorder] recording canceled, closing modal');
+                debugLog('VIDEO_RECORDER', '[handleClosePress] recording canceled, closing modal');
                 void closeModal();
             });
             return;
         }
         // 如果未在录制，直接关闭窗口
-        console.log('[DraftVideoRecorder] not recording, closing modal directly');
+        debugLog('VIDEO_RECORDER', '[handleClosePress] not recording, closing modal directly');
         void closeModal();
     }, [cancelRecording, closeModal, isRecording]);
 

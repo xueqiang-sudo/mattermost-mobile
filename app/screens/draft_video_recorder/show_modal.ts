@@ -4,7 +4,7 @@
 import {OptionsModalPresentationStyle} from 'react-native-navigation';
 
 import {Screens} from '@constants';
-import {goToScreen} from '@screens/navigation';
+import {showModal} from '@screens/navigation';
 
 import type {VideoFile} from 'react-native-vision-camera';
 
@@ -13,7 +13,7 @@ export type DraftVideoRecorderPassProps = {
 };
 
 export function showDraftVideoRecorderModal(passProps: DraftVideoRecorderPassProps) {
-    goToScreen(Screens.DRAFT_VIDEO_RECORDER, '', passProps, {
+    showModal(Screens.DRAFT_VIDEO_RECORDER, '', passProps, {
         modalPresentationStyle: OptionsModalPresentationStyle.fullScreen,
         layout: {
             backgroundColor: 'transparent',

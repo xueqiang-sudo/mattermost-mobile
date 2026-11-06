@@ -7,7 +7,7 @@ import Permissions from 'react-native-permissions';
 
 import {VoiceStreamClient} from '@client/websocket/voice_stream_client';
 import {startRealtimeRecording, stopRealtimeRecording} from '@mattermost/voice-recorder';
-import {debugLog} from '@store/debug_log';
+import {debugLog, flushLogsToDisk} from '@store/debug_log';
 
 export type VoiceStreamState = 'idle' | 'connecting' | 'recording' | 'error';
 
@@ -218,6 +218,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
             try {
                 debugLog('VOICE_STREAM', '[startStreaming] Step 9.1: About to call startRealtimeRecording');
                 debugLog('VOICE_STREAM', '[startStreaming] About to call native startRealtimeRecording');
+
+                // 【关键修复】在调用原生模块前，强制将日志写入磁盘
+                // 这样即使原生模块崩溃导致 JS 线程立即终止，日志也已保存
+                debugLog('VOICE_STREAM', '[startStreaming] Step 9.1.1: Flushing logs to disk before native call');
+                await flushLogsToDisk();
+                debugLog('VOICE_STREAM', '[startStreaming] Step 9.1.2: Logs flushed to disk');
 
                 // 添加超时保护（5秒）
                 const recordingPromise = startRealtimeRecording(

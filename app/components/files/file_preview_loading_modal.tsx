@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
@@ -161,58 +161,53 @@ const FilePreviewLoadingModal = ({
         >
             <View style={styles.overlay}>
                 <View style={styles.container}>
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={{paddingBottom: 8}}
-                    >
-                        <View style={styles.header}>
-                            <Text
-                                style={styles.headerTitle}
-                                numberOfLines={1}
-                            >
-                                正在处理文件
-                            </Text>
-                        </View>
-
+                    <View style={styles.header}>
                         <Text
-                            style={styles.fileName}
-                            numberOfLines={2}
+                            style={styles.headerTitle}
+                            numberOfLines={1}
                         >
-                            {fileName}
+                            正在处理文件
                         </Text>
+                    </View>
 
-                        <View style={styles.stepsContainer}>
-                            {steps.map((step) => {
-                                const status = getStepStatus(step);
-                                return (
-                                    <View
-                                        key={step}
-                                        style={styles.stepContainer}
-                                    >
-                                        <View style={styles.stepIconContainer}>
-                                            {renderStepIcon(status)}
-                                        </View>
-                                        <Text style={[
-                                            styles.stepLabel,
-                                            status === 'current' && styles.stepLabelCurrent,
-                                            status === 'completed' && styles.stepLabelCompleted,
-                                        ]}>
-                                            {STEP_LABELS[step]}
-                                        </Text>
+                    <Text
+                        style={styles.fileName}
+                        numberOfLines={2}
+                    >
+                        {fileName}
+                    </Text>
+
+                    <View style={styles.stepsContainer}>
+                        {steps.map((step) => {
+                            const status = getStepStatus(step);
+                            return (
+                                <View
+                                    key={step}
+                                    style={styles.stepContainer}
+                                >
+                                    <View style={styles.stepIconContainer}>
+                                        {renderStepIcon(status)}
                                     </View>
-                                );
-                            })}
-                        </View>
+                                    <Text style={[
+                                        styles.stepLabel,
+                                        status === 'current' && styles.stepLabelCurrent,
+                                        status === 'completed' && styles.stepLabelCompleted,
+                                    ]}>
+                                        {STEP_LABELS[step]}
+                                    </Text>
+                                </View>
+                            );
+                        })}
+                    </View>
 
-                        {canCancel && (
-                            <Pressable
-                                style={styles.cancelButton}
-                                onPress={onCancel}
-                            >
-                                <Text style={styles.cancelText}>取消</Text>
-                            </Pressable>
-                        )}
-                    </ScrollView>
+                    {canCancel && (
+                        <Pressable
+                            style={styles.cancelButton}
+                            onPress={onCancel}
+                        >
+                            <Text style={styles.cancelText}>取消</Text>
+                        </Pressable>
+                    )}
                 </View>
             </View>
         </Modal>

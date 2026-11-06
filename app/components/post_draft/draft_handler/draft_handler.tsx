@@ -182,8 +182,8 @@ export default function DraftHandler(props: Props) {
                     : undefined;
                 debugLog('DRAFT', `addFiles: batchId=${batchId ?? 'none (single file)'}, fileCount=${filesToUpload.length}`);
 
-                // Phase 0: Copy existing server files to get new file IDs (like webapp's forward)
-                debugLog('DRAFT', `addFiles: Phase 0 - detecting existing server files`);
+                // Phase 0: Copy existing server files and cloud drive files to get new file IDs (like webapp's forward)
+                debugLog('DRAFT', `addFiles: Phase 0 - detecting existing server files and cloud drive files`);
                 const existingServerFiles = filesToUpload.filter(file =>
                     Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_')
                 );
@@ -210,6 +210,37 @@ export default function DraftHandler(props: Props) {
                         }
                     });
                     debugLog('DRAFT', `addFiles: Phase 0 - skipping copy for ${preCopiedFileIds.size} pre-copied cloud drive files`);
+                }
+
+                // 【关键修复】检测云盘文件并先复制到频道
+                const cloudDriveFiles = filesToUpload.filter(f =>
+                    (f as FileInfo & {_needsCopyToChannel?: boolean})._needsCopyToChannel &&
+                    (f as FileInfo & {_cloudDriveFileId?: string})._cloudDriveFileId &&
+                    (f as FileInfo & {_cloudDriveTeamId?: string})._cloudDriveTeamId
+                );
+
+                if (cloudDriveFiles.length > 0) {
+                    debugLog('DRAFT', `addFiles: Phase 0 - copying ${cloudDriveFiles.length} cloud drive files to channel`);
+                    for (const cdFile of cloudDriveFiles) {
+                        const cdFileInfo = cdFile as FileInfo & {_cloudDriveFileId?: string; _cloudDriveTeamId?: string};
+                        try {
+                            debugLog('DRAFT', `addFiles: Phase 0 - copying cloud drive file: ${cdFile.name} (driveId=${cdFileInfo._cloudDriveFileId})`);
+                            const copied = await copyDriveFileToChannel(serverUrl, cdFileInfo._cloudDriveTeamId!, cdFileInfo._cloudDriveFileId!, channelId);
+                            if (copied && copied.id) {
+                                debugLog('DRAFT', `addFiles: Phase 0 - cloud drive file copied successfully: ${cdFile.name} -> ${copied.id}`);
+                                // Map the pending ID to the server file ID
+                                oldToNewIdMap[cdFile.id!] = copied.id;
+                                // Mark as existing server file so Phase 1 treats it correctly
+                                (cdFile as any)._copiedServerFileId = copied.id;
+                                (cdFile as any)._copiedServerFile = copied;
+                            } else {
+                                debugLog('DRAFT', `addFiles: Phase 0 - cloud drive copy returned no file ID`);
+                            }
+                        } catch (copyError) {
+                            debugLog('DRAFT', `addFiles: Phase 0 - cloud drive copy ERROR: ${copyError instanceof Error ? copyError.message : String(copyError)}`);
+                            // Continue with other files even if one fails
+                        }
+                    }
                 }
 
                 const filesToCopy = existingServerFiles.filter(f => !preCopiedFileIds.has(f.id!));
@@ -262,12 +293,14 @@ export default function DraftHandler(props: Props) {
 
                         // Detect existing server files (from group files tab) - they have a real server ID and post_id
                         // OR from channel source (聊天tab) where post_id might be empty but it's still a server file
+                        // OR cloud drive files that were copied in Phase 0
                         const isExistingServerFile =
                             (Boolean(file.post_id) && Boolean(file.id) && !file.id.startsWith('pending_')) ||
-                            ((file as any).source === 'channel' && Boolean(file.id) && !file.id.startsWith('pending_'));
+                            ((file as any).source === 'channel' && Boolean(file.id) && !file.id.startsWith('pending_')) ||
+                            Boolean((file as any)._copiedServerFileId);
 
                         if (isExistingServerFile) {
-                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: existing server file, id=${file.id}, source=${(file as any).source}`);
+                            debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: existing server file, id=${file.id}, source=${(file as any).source}, isCopied=${Boolean((file as any)._copiedServerFileId)}`);
                         } else {
                             debugLog('DRAFT', `addFiles: Phase 1 - file ${index + 1}: new local file (will upload), post_id=${file.post_id}, id=${file.id}, source=${(file as any).source}, isPending=${file.id?.startsWith('pending_')}`);
                         }
@@ -623,17 +656,13 @@ export default function DraftHandler(props: Props) {
 
                     startProgress(progressKey);
 
-                    // 云盘文件：后台调 copyDriveFileToChannel 把文件复制进频道（服务端到服务端），
-                    // 成功后用返回的真实频道 FileInfo 更新这条 post；失败则标记该 post 失败。
-                    const cdFile = file as FileInfo & {_needsCopyToChannel?: boolean; _cloudDriveFileId?: string; _cloudDriveTeamId?: string};
-                    if (cdFile._needsCopyToChannel && cdFile._cloudDriveFileId && cdFile._cloudDriveTeamId) {
-                        try {
-                            debugLog('DRAFT', `addFiles: cloud drive copy-to-channel for ${file.name} (driveId=${cdFile._cloudDriveFileId})`);
-                            const copied = await copyDriveFileToChannel(serverUrl, cdFile._cloudDriveTeamId, cdFile._cloudDriveFileId, channelId);
-                            debugLog('DRAFT', `addFiles: cloud drive copy-to-channel returned: ${JSON.stringify(copied)}`);
-                            if (!copied || !copied.id) {
-                                throw new Error('copyDriveFileToChannel returned no file');
-                            }
+                    // 云盘文件：检查是否已在 Phase 0 复制成功
+                    const cdFile = file as FileInfo & {_needsCopyToChannel?: boolean; _copiedServerFileId?: string; _copiedServerFile?: any};
+                    if (cdFile._needsCopyToChannel) {
+                        if (cdFile._copiedServerFileId && cdFile._copiedServerFile) {
+                            // Phase 0 已复制成功，使用已复制的文件
+                            debugLog('DRAFT', `addFiles: cloud drive file already copied in Phase 0: ${file.name} -> ${cdFile._copiedServerFileId}`);
+                            const copied = cdFile._copiedServerFile;
                             completeProgress(progressKey);
 
                             // 【关键修复】在 patchPost 前设置 EphemeralStore，防止 handlePostEdited 重复处理
@@ -647,7 +676,7 @@ export default function DraftHandler(props: Props) {
                                     message: `!{file:${copied.id}}`,
                                     file_ids: [copied.id],
                                 });
-                                debugLog('DRAFT', `addFiles: cloud drive file ${file.name} copied, post ${postId} updated with patchPost`);
+                                debugLog('DRAFT', `addFiles: cloud drive file ${file.name} post ${postId} updated with patchPost`);
 
                                 // 【关键修复】调用 updatePostFileIds 更新本地 File 记录
                                 // 把 pending File (id=pending_<uuid>) 替换为 server File (id=copied.id)
@@ -662,9 +691,10 @@ export default function DraftHandler(props: Props) {
                                 // 清理 EphemeralStore
                                 EphemeralStore.unsetCreatingPost(postId, postId);
                             }
-                        } catch (cdErr) {
-                            debugLog('DRAFT', `addFiles: cloud drive copy-to-channel ERROR: ${cdErr instanceof Error ? cdErr.message : String(cdErr)}`);
-                            logError('[addFiles cloudDriveCopy]', cdErr);
+                        } else {
+                            // Phase 0 复制失败，标记 post 失败
+                            debugLog('DRAFT', `addFiles: cloud drive file copy failed in Phase 0: ${file.name}`);
+                            logError('[addFiles cloudDriveCopy]', new Error('Cloud drive file copy failed in Phase 0'));
                             failProgress(progressKey);
                             await markPostUploadFailed(serverUrl, postId, file.name);
                         }
