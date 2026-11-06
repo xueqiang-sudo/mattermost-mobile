@@ -12,10 +12,12 @@ import {fetchProfilesInChannel} from '@actions/remote/user';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
 import {goToScreen, popTopScreen} from '@screens/navigation';
+import {getUserById} from '@queries/servers/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import {DangerSection, IdField, MemberGrid, SearchNavRow, ToggleRow} from './shared';
@@ -140,6 +142,52 @@ const ChannelInfoPublicPrivate = ({
         );
     }, [channelId, intl, serverUrl]);
 
+    const handleMemberPress = useCallback(async (userId: string) => {
+        try {
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const user = await getUserById(database, userId);
+
+            if (!user) {
+                return;
+            }
+
+            // Convert UserModel to UserProfile format expected by employee_profile
+            const employee: UserProfile = {
+                id: user.id,
+                username: user.username || '',
+                email: user.email || '',
+                first_name: user.firstName || '',
+                last_name: user.lastName || '',
+                nickname: user.nickname || '',
+                position: user.position || '',
+                create_at: user.createAt || 0,
+                update_at: user.updateAt || 0,
+                delete_at: user.deleteAt || 0,
+                roles: user.roles || '',
+                locale: user.locale || '',
+                timezone: user.timezone || {},
+                auth_data: user.authData || '',
+                auth_service: user.authService || '',
+                is_bot: user.isBot || false,
+                bot_description: user.botDescription || '',
+                last_activity_at: user.lastActivityAt || 0,
+                last_picture_update: user.lastPictureUpdate || 0,
+            };
+
+            const title = intl.formatMessage({id: 'contacts.employee_info', defaultMessage: 'Employee Info'});
+            goToScreen(
+                Screens.CONTACTS_EMPLOYEE_PROFILE,
+                title,
+                {
+                    employee,
+                    componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
+                },
+            );
+        } catch (error) {
+            console.error('[handleMemberPress] Failed to open user profile:', error);
+        }
+    }, [serverUrl, intl]);
+
     return (
         <View
             style={styles.flex}
@@ -183,6 +231,7 @@ const ChannelInfoPublicPrivate = ({
                             maxVisible={MAX_VISIBLE_MEMBERS}
                             onAddPress={handleInvitePeople}
                             onRemovePress={handleRemovePeople}
+                            onMemberPress={handleMemberPress}
                             testID='channel_info_public_private.member_grid'
                         />
                     </View>
