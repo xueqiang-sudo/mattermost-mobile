@@ -358,7 +358,37 @@ const SmartNoteDetailScreen = () => {
         // 对齐 webapp 格式
         const newBlocks: SmartNoteBlock[] = files.map((file, index) => {
             const fileName = file.name || '';
-            const mimeType = file.mime_type || '';
+
+            // 【关键修复】如果 MIME 类型为空，从文件扩展名推断
+            let mimeType = file.mime_type || '';
+            if (!mimeType || mimeType === '') {
+                const ext = fileName.split('.').pop()?.toLowerCase() || '';
+                const mimeMap: Record<string, string> = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'svg': 'image/svg+xml',
+                    'bmp': 'image/bmp',
+                    'mp4': 'video/mp4',
+                    'avi': 'video/x-msvideo',
+                    'mov': 'video/quicktime',
+                    'webm': 'video/webm',
+                    'mp3': 'audio/mpeg',
+                    'wav': 'audio/wav',
+                    'ogg': 'audio/ogg',
+                    'm4a': 'audio/mp4',
+                    'pdf': 'application/pdf',
+                    'doc': 'application/msword',
+                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'xls': 'application/vnd.ms-excel',
+                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'txt': 'text/plain',
+                };
+                mimeType = mimeMap[ext] || 'application/octet-stream';
+            }
+
             const blockType = getMediaType(fileName, mimeType);
             const blockId = generateId();
             const extension = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
@@ -398,6 +428,7 @@ const SmartNoteDetailScreen = () => {
                     extension,
                     mmFileId: file.id || '',
                     caption,
+                    fileId: file.id || '',  // 【关键修复】block_editor.tsx 读取此字段
                     // mobile 额外字段
                     size: file.size || 0,
                     mimeType: file.mime_type || '',
@@ -1098,6 +1129,7 @@ const SmartNoteDetailScreen = () => {
                                     onChange={() => {}} // No-op for read-only
                                     theme={theme}
                                     editable={false}
+                                    serverUrl={serverUrl}
                                     onPreviewFile={handlePreviewFile}
                                 />
                             ) : (
@@ -1113,6 +1145,7 @@ const SmartNoteDetailScreen = () => {
                             onChange={handleBlocksChange}
                             theme={theme}
                             editable={true}
+                            serverUrl={serverUrl}
                             onFocusedIndexChange={handleFocusedIndexChange}
                             pendingFocusIndex={pendingFocusIndex}
                             onFocusApplied={handleFocusApplied}

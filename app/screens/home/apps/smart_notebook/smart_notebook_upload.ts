@@ -122,7 +122,40 @@ export async function uploadLocalBlock(
 
     // 普通文件/图片上传
     const fileName = result.meta?.fileName || result.meta?.caption || 'file';
-    const mimeType = result.meta?.mimeType || 'application/octet-stream';
+
+    // 【关键修复】如果 MIME 类型为空，从文件扩展名推断
+    let mimeType = result.meta?.mimeType;
+    if (!mimeType || mimeType === '') {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        const mimeMap: Record<string, string> = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'svg': 'image/svg+xml',
+            'bmp': 'image/bmp',
+            'mp4': 'video/mp4',
+            'avi': 'video/x-msvideo',
+            'mov': 'video/quicktime',
+            'webm': 'video/webm',
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            'm4a': 'audio/mp4',
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed',
+        };
+        mimeType = mimeMap[ext] || 'application/octet-stream';
+    }
 
     let fileUri = block.content;
     if (fileUri.startsWith('file://')) {
@@ -130,6 +163,14 @@ export async function uploadLocalBlock(
     }
 
     try {
+        debugLog('[SmartNotebookUpload] Uploading file', {
+            fileName,
+            mimeType,
+            fileUri: fileUri.substring(0, 100),  // 避免日志过长
+            uriStartsWithSlash: fileUri.startsWith('/'),
+            uriLength: fileUri.length,
+        });
+
         const uploadResult = await uploadMedia(serverUrl, userId, {
             uri: fileUri,
             name: fileName,
@@ -140,15 +181,28 @@ export async function uploadLocalBlock(
             throw new Error('上传失败：未获得URL');
         }
 
+        debugLog('[SmartNotebookUpload] Upload successful', {
+            fileName,
+            url: uploadResult.url.substring(0, 100),
+            fileId: uploadResult.fileId,
+        });
+
         result.content = uploadResult.url;
         result.meta!.url = uploadResult.url;
         result.meta!.mmFileId = uploadResult.fileId || '';
+        result.meta!.fileId = uploadResult.fileId || '';  // 【关键修复】同步更新 fileId
         result.meta!.isLocal = false;
 
         onProgress?.(1);
         return result;
     } catch (error) {
         console.error('[SmartNotebookUpload] 上传失败:', fileName, error);
+        debugLog('[SmartNotebookUpload] Upload failed', {
+            fileName,
+            mimeType,
+            fileUri: fileUri.substring(0, 100),
+            error: error instanceof Error ? error.message : String(error),
+        });
         throw error;
     }
 }

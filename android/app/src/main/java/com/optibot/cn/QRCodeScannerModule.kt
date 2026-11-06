@@ -141,6 +141,14 @@ class QRCodeScannerModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun getAmbientLightLevel(promise: Promise) {
+        // 【隐私合规】检查用户是否已同意隐私政策
+        val consentModule = reactApplicationContext.getNativeModule(PrivacyConsentModule::class.java)
+        if (consentModule == null || !consentModule.hasConsent()) {
+            // 用户未同意隐私政策，拒绝访问传感器
+            promise.resolve(null)
+            return
+        }
+
         val sensorManager = reactApplicationContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         if (sensorManager == null) {
             promise.resolve(null)

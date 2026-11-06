@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {ActivityIndicator, Dimensions, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
@@ -38,11 +38,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         backgroundColor: theme.centerChannelBg,
         borderRadius: 16,
-        paddingVertical: 20,
+        paddingVertical: 24,
         paddingHorizontal: 24,
         minWidth: 280,
         maxWidth: 340,
-        height: Dimensions.get('window').height / 3,
+        maxHeight: Dimensions.get('window').height * 0.8,
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 4},
         shadowOpacity: 0.15,
@@ -64,11 +64,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     stepsContainer: {
         marginBottom: 12,
+        flexShrink: 1,
     },
     stepContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 6,
+        paddingVertical: 8,
     },
     stepIconContainer: {
         width: 28,
@@ -182,7 +183,11 @@ const FilePreviewLoadingModal = ({
                         </Text>
                     ) : null}
 
-                    <View style={styles.stepsContainer}>
+                    <ScrollView
+                        style={styles.stepsContainer}
+                        bounces={false}
+                        showsVerticalScrollIndicator={false}
+                    >
                         {displaySteps.map((step) => {
                             const status = getStepStatus(step);
                             return (
@@ -203,7 +208,7 @@ const FilePreviewLoadingModal = ({
                                 </View>
                             );
                         })}
-                    </View>
+                    </ScrollView>
 
                     {canCancel && (
                         <Pressable

@@ -285,12 +285,17 @@ import os.log
 
         do {
             // 【关键修复】配置音频会话 - 添加详细日志
-            log("配置音频会话: category=.record, mode=.measurement")
+            log("配置音频会话: category=.record, mode=.measurement, preferredSampleRate=16000")
+
+            // 【关键修复】设置首选采样率为 16kHz（服务端要求）
+            try audioSession.setPreferredSampleRate(16000.0)
+            log("首选采样率已设置: 16000Hz")
+
             try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
             log("音频会话 category 设置成功")
 
             try audioSession.setActive(true)
-            log("音频会话已激活")
+            log("音频会话已激活，实际采样率：\(audioSession.sampleRate)Hz")
 
             // 创建 AVAudioEngine
             log("创建 AVAudioEngine...")
@@ -310,7 +315,7 @@ import os.log
                 return
             }
 
-            // 【关键修复】检查 inputNode 是否支持该格式
+            // 【关键修复】检查 inputNode 的硬件格式
             let hardwareFormat = inputNode.inputFormat(forBus: 0)
             log("硬件格式: sampleRate=\(hardwareFormat.sampleRate), channels=\(hardwareFormat.channelCount), interleaved=\(hardwareFormat.isInterleaved)")
 
@@ -320,9 +325,27 @@ import os.log
                 return
             }
 
-            // 【关键修复】使用硬件格式以确保兼容性
-            // installTap 必须使用 inputNode 原生支持的格式，否则会崩溃
-            let actualFormat = hardwareFormat
+            // 【关键修复】优先使用 16kHz 录音格式（服务端要求）
+            // 如果硬件支持 16kHz，直接使用；否则使用硬件格式并依赖服务端处理
+            let actualFormat: AVAudioFormat
+            if hardwareFormat.sampleRate == 16000.0 {
+                // 硬件已经是 16kHz，直接使用
+                actualFormat = hardwareFormat
+                log("硬件已支持 16kHz，直接使用")
+            } else if let desiredFormat = AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: 16000.0,
+                channels: 1,
+                interleaved: true
+            ) {
+                // 使用 16kHz 格式（AVAudioEngine 会自动进行采样率转换）
+                actualFormat = desiredFormat
+                log("使用 16kHz 录音格式（将自动转换）")
+            } else {
+                // 回退到硬件格式
+                actualFormat = hardwareFormat
+                log("无法创建 16kHz 格式，使用硬件格式: \(hardwareFormat.sampleRate)Hz", type: .warning)
+            }
 
             log("使用录音格式: sampleRate=\(actualFormat.sampleRate), channels=\(actualFormat.channelCount), interleaved=\(actualFormat.isInterleaved)")
 

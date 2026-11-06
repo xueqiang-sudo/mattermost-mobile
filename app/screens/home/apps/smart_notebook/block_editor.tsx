@@ -31,6 +31,7 @@ type BlockEditorProps = {
     onChange: (blocks: SmartNoteBlock[]) => void;
     theme: Theme;
     editable: boolean;
+    serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
     onFocusedIndexChange?: (index: number) => void;
     pendingFocusIndex?: number | null;
     onFocusApplied?: () => void;
@@ -48,6 +49,7 @@ type BlockItemProps = {
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
+    serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
     onPreviewFile?: (fileInfo: FileInfo) => void; // 预览文件
     onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
@@ -153,6 +155,7 @@ const BlockItem = ({
     onMoveUp,
     onMoveDown,
     onFocus,
+    serverUrl,
     onPlayMedia,
     onPreviewFile,
     onScrollToBlock,
@@ -295,8 +298,20 @@ const BlockItem = ({
             // 【关键修复】去除 HTML 标签（如<span>）
             const rawDisplayName = mediaMatch[3] || block.meta?.fileName || (mediaType === 'VIDEO' ? '视频' : '音频');
             const displayName = rawDisplayName.replace(/<[^>]*>/g, '').trim();
-            const isLocalMedia = mediaUrl && !mediaUrl.startsWith('http://') && !mediaUrl.startsWith('https://');
-            const playableUrl = isLocalMedia && !mediaUrl.startsWith('file://') ? `file://${mediaUrl}` : mediaUrl;
+
+            // 【关键修复】构建完整的媒体 URL
+            let playableUrl = mediaUrl;
+            const isRelativePath = mediaUrl && mediaUrl.startsWith('/') && !mediaUrl.startsWith('//');
+            const isLocalMedia = mediaUrl && !mediaUrl.startsWith('http://') && !mediaUrl.startsWith('https://') && !isRelativePath;
+
+            if (isRelativePath && serverUrl) {
+                // 服务器相对路径（如 /api/v4/files/xxx），需要拼接 serverUrl
+                playableUrl = `${serverUrl}${mediaUrl}`;
+            } else if (isLocalMedia && !mediaUrl.startsWith('file://')) {
+                // 本地文件路径
+                playableUrl = `file://${mediaUrl}`;
+            }
+            // 否则已经是完整 URL（http:// 或 https://），直接使用
 
             if (mediaType === 'VIDEO') {
                 return (
@@ -386,8 +401,20 @@ const BlockItem = ({
 
         // ── 普通图片块 ──
         if (!block.content) return null;
-        const isLocalPath = !block.content.startsWith('http://') && !block.content.startsWith('https://');
-        const imageUri = isLocalPath && !block.content.startsWith('file://') ? `file://${block.content}` : block.content;
+
+        // 【关键修复】构建完整的图片 URL
+        let imageUri = block.content;
+        const isRelativePath = block.content.startsWith('/') && !block.content.startsWith('//');
+        const isLocalPath = !block.content.startsWith('http://') && !block.content.startsWith('https://') && !isRelativePath;
+
+        if (isRelativePath && serverUrl) {
+            // 服务器相对路径（如 /api/v4/files/xxx），需要拼接 serverUrl
+            imageUri = `${serverUrl}${block.content}`;
+        } else if (isLocalPath && !block.content.startsWith('file://')) {
+            // 本地文件路径
+            imageUri = `file://${block.content}`;
+        }
+        // 否则已经是完整 URL（http:// 或 https://），直接使用
 
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
@@ -518,7 +545,7 @@ const BlockItem = ({
 
         return (
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                <View style={style.textBlock}>
+                <View style={style.listContainer}>
                     {items.map((item: any, itemIndex: number) => {
                         // 获取项目文本
                         const itemText = typeof item === 'string' ? item : (item.text || '');
@@ -687,7 +714,7 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 };
 
 // ---- Main Block Editor Component ----
-const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile}: BlockEditorProps) => {
+const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
     const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
@@ -855,6 +882,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
+                serverUrl={serverUrl}
                 onPlayMedia={handlePlayMedia}
                 onPreviewFile={onPreviewFile}
                 onScrollToBlock={onScrollToBlock}
@@ -955,6 +983,10 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    listContainer: {
+        flex: 1,
+        flexDirection: 'column',
     },
     textInput: {
         flex: 1,
