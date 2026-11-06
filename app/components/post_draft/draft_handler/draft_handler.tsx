@@ -635,14 +635,32 @@ export default function DraftHandler(props: Props) {
                             }
                             completeProgress(progressKey);
 
-                            // 【参考 webapp】使用 patchPost 同时更新 message 和 file_ids
-                            const client = NetworkManager.getClient(serverUrl);
-                            await client.patchPost({
-                                id: postId,
-                                message: `!{file:${copied.id}}`,
-                                file_ids: [copied.id],
-                            });
-                            debugLog('DRAFT', `addFiles: cloud drive file ${file.name} copied, post ${postId} updated with patchPost`);
+                            // 【关键修复】在 patchPost 前设置 EphemeralStore，防止 handlePostEdited 重复处理
+                            EphemeralStore.setCreatingPost(postId, postId);
+
+                            try {
+                                // 【参考 webapp】使用 patchPost 同时更新 message 和 file_ids
+                                const client = NetworkManager.getClient(serverUrl);
+                                await client.patchPost({
+                                    id: postId,
+                                    message: `!{file:${copied.id}}`,
+                                    file_ids: [copied.id],
+                                });
+                                debugLog('DRAFT', `addFiles: cloud drive file ${file.name} copied, post ${postId} updated with patchPost`);
+
+                                // 【关键修复】调用 updatePostFileIds 更新本地 File 记录
+                                // 把 pending File (id=pending_<uuid>) 替换为 server File (id=copied.id)
+                                const serverFile: FileInfo = {
+                                    ...copied,
+                                    clientId: file.clientId || file.id,
+                                    localPath: file.localPath,
+                                };
+                                await updatePostFileIds(serverUrl, postId, [serverFile]);
+                                debugLog('DRAFT', `addFiles: cloud drive post ${postId} file records updated`);
+                            } finally {
+                                // 清理 EphemeralStore
+                                EphemeralStore.unsetCreatingPost(postId, postId);
+                            }
                         } catch (cdErr) {
                             logError('[addFiles cloudDriveCopy]', cdErr);
                             failProgress(progressKey);
