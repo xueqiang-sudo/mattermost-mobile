@@ -538,6 +538,16 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
     useEffect(() => {
         if (pendingFocusIndex != null && pendingFocusIndex >= 0 && pendingFocusIndex < blocks.length) {
             setFocusedIndex(pendingFocusIndex);
+
+            // 【关键修复】添加滚动逻辑，让新块显示在编辑区域中间
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                    index: pendingFocusIndex,
+                    animated: true,
+                    viewPosition: 0.5,  // 滚动到中间位置
+                });
+            }, 150);  // 等待 DOM 更新
+
             onFocusApplied?.();
         }
     }, [pendingFocusIndex, blocks.length, onFocusApplied]);
