@@ -110,12 +110,16 @@ const SmartNoteDetailScreen = () => {
     const route = useRoute<RouteProp<{params: SmartNoteDetailParams}, 'params'>>();
     const style = getStyleSheet(theme);
 
-    const {noteId, noteTitle} = route.params;
-    const isNew = noteId === 'new';
+    const {noteId: initialNoteId, noteTitle} = route.params;
+    const initialIsNew = initialNoteId === 'new';
+
+    // 【关键修复】使用 state 追踪 noteId 和 isNew，创建笔记后可以更新
+    const [currentNoteId, setCurrentNoteId] = useState<string>(initialNoteId);
+    const isNew = currentNoteId === 'new';
 
     // Mode: 'new' = creating new note, 'viewing' = read-only, 'editing' = edit mode
     type NoteMode = 'new' | 'viewing' | 'editing';
-    const [mode, setMode] = useState<NoteMode>(isNew ? 'new' : 'viewing');
+    const [mode, setMode] = useState<NoteMode>(initialIsNew ? 'new' : 'viewing');
 
     const textInputRef = useRef<TextInput>(null);
     const [userId, setUserId] = useState('');
@@ -206,7 +210,7 @@ const SmartNoteDetailScreen = () => {
                 }
 
                 if (!isNew) {
-                    const note = await getNote(serverUrl, uid, noteId);
+                    const note = await getNote(serverUrl, uid, currentNoteId);
                     if (note) {
                         setTitle(note.title);
                         const noteBlocks = note.blocks && note.blocks.length > 0
@@ -223,7 +227,7 @@ const SmartNoteDetailScreen = () => {
             }
         };
         init();
-    }, [serverUrl, noteId, isNew]);
+    }, [serverUrl, currentNoteId, isNew]);
 
     // ---- Voice recording (direct transcription API) ----
     const handleVoiceRecorded = useCallback(async (files: FileInfo[]) => {
@@ -684,7 +688,7 @@ const SmartNoteDetailScreen = () => {
 
             debugLog('[SmartNotebook] handleSave: 开始保存', {
                 isNew,
-                noteId,
+                noteId: currentNoteId,
                 userId,
                 title: noteTitle,
                 blocksCount: blocksToSave.length,
@@ -702,13 +706,16 @@ const SmartNoteDetailScreen = () => {
                             blocks: blocksToSave,
                         });
                         debugLog('[SmartNotebook] handleSave: 更新新笔记成功');
+
+                        // 【关键修复】创建成功后更新 noteId，避免下次保存时再次创建
+                        setCurrentNoteId(createdNote.id);
                     } else {
                         debugLog('[SmartNotebook] handleSave: 创建笔记失败', {createdNote});
                         throw new Error('创建笔记失败');
                     }
                 } else {
-                    debugLog('[SmartNotebook] handleSave: 更新现有笔记', {noteId});
-                    await updateNote(serverUrl, userId, noteId, {
+                    debugLog('[SmartNotebook] handleSave: 更新现有笔记', {noteId: currentNoteId});
+                    await updateNote(serverUrl, userId, currentNoteId, {
                         title: noteTitle,
                         blocks: blocksToSave,
                     });
@@ -717,7 +724,7 @@ const SmartNoteDetailScreen = () => {
             } catch (saveError) {
                 debugLog('[SmartNotebook] handleSave: 保存失败', {
                     isNew,
-                    noteId,
+                    noteId: currentNoteId,
                     error: saveError instanceof Error ? saveError.message : String(saveError),
                     stack: saveError instanceof Error ? saveError.stack : undefined,
                 });
@@ -755,7 +762,7 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [userId, saving, title, blocks, isNew, serverUrl, noteId, intl, extractTitleFromBlocks, mode]);
+    }, [userId, saving, title, blocks, isNew, serverUrl, currentNoteId, intl, extractTitleFromBlocks, mode]);
 
     const handleSave = useCallback(async () => {
         if (!userId || saving) return;

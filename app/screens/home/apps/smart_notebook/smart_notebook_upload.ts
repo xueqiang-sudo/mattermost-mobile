@@ -41,8 +41,13 @@ export function isLocalBlock(block: SmartNoteBlock): boolean {
         return false;
     }
 
-    // 默认认为是本地文件
-    return Boolean(block.content);
+    // 【关键修复】只对媒体类型块默认认为是本地文件，段落等文本块不应该被识别为本地文件
+    if (block.type === 'file' || block.type === 'image' || block.type === 'video' || block.type === 'audio') {
+        return Boolean(block.content);
+    }
+
+    // 段落、列表等文本块不需要上传
+    return false;
 }
 
 /**
