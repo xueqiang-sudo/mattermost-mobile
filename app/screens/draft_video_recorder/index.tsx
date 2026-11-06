@@ -362,9 +362,15 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
     }, [isRecording]);
 
     const closeModal = useCallback(async () => {
+        console.log('[DraftVideoRecorder] closeModal called');
         setTorchOn(false);
         // 修复：使用 dismissModal 而不是 popTopScreen，因为这个页面是 Modal
-        await dismissModal();
+        try {
+            await dismissModal();
+            console.log('[DraftVideoRecorder] closeModal completed');
+        } catch (error) {
+            console.error('[DraftVideoRecorder] closeModal error:', error);
+        }
     }, []);
 
     const closeModalRef = useRef(closeModal);
@@ -479,21 +485,21 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                 setIsRecording(false);
                 setTorchOn(false);
 
-                // 修复：先调用回调发送视频，然后再关闭页面
-                // 之前的顺序是先关闭页面，可能导致回调丢失
-                try {
-                    console.log('[DraftVideoRecorder] calling onVideoRecorded callback first');
-                    onVideoRecorded(video);
-                    console.log('[DraftVideoRecorder] onVideoRecorded callback completed');
-                } catch (error) {
-                    console.error('[DraftVideoRecorder] onVideoRecorded callback failed', error);
-                }
+                // 修复：先关闭页面，然后在后台处理视频
+                // 之前的顺序是先处理视频再关闭页面，导致页面卡住不关闭
+                console.log('[DraftVideoRecorder] dismissing modal first');
+                void dismissModal();
 
-                // 延迟关闭页面，确保回调完成
+                // 在后台调用回调处理视频（不阻塞页面关闭）
                 setTimeout(() => {
-                    console.log('[DraftVideoRecorder] dismissing modal after delay');
-                    void dismissModal();
-                }, 100);
+                    try {
+                        console.log('[DraftVideoRecorder] calling onVideoRecorded callback');
+                        onVideoRecorded(video);
+                        console.log('[DraftVideoRecorder] onVideoRecorded callback completed');
+                    } catch (error) {
+                        console.error('[DraftVideoRecorder] onVideoRecorded callback failed', error);
+                    }
+                }, 0);
             },
         });
     }, [closeModal, componentId, onVideoRecorded]);
@@ -518,14 +524,18 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
     }, []);
 
     const handleClosePress = useCallback(() => {
+        console.log('[DraftVideoRecorder] handleClosePress called, isRecording:', isRecording);
         if (isRecording) {
             // 如果在录制中，先取消录制，然后关闭窗口
+            console.log('[DraftVideoRecorder] canceling recording before close');
             void cancelRecording().then(() => {
+                console.log('[DraftVideoRecorder] recording canceled, closing modal');
                 void closeModal();
             });
             return;
         }
         // 如果未在录制，直接关闭窗口
+        console.log('[DraftVideoRecorder] not recording, closing modal directly');
         void closeModal();
     }, [cancelRecording, closeModal, isRecording]);
 

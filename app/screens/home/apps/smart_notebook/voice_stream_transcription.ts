@@ -27,12 +27,12 @@ interface UseVoiceStreamTranscriptionProps {
 }
 
 /**
- * Hook：监听实时语音转录结果，自动插入到编辑区
+ * Hook：监听实时语音转录结果，自动插入到编辑区当前聚焦块的末尾
  *
  * 工作原理：
- * 1. 录音中：实时更新当前段落（partialText）
- * 2. 录音结束：创建最终段落（finalText）
- * 3. 始终在光标位置后面插入
+ * 1. 录音中：实时更新当前段落（partialText）- 替换上次插入的部分文本
+ * 2. 录音结束：在聚焦块末尾插入最终文本（finalText）
+ * 3. 始终在当前聚焦块的末尾插入
  */
 export function useVoiceStreamTranscription({
     voiceStreamState,
@@ -41,8 +41,8 @@ export function useVoiceStreamTranscription({
     setBlocks,
     createBlock,
 }: UseVoiceStreamTranscriptionProps) {
-    // 跟踪当前正在编辑的语音块 ID
-    const currentVoiceBlockIdRef = useRef<string | null>(null);
+    // 跟踪上一次插入的部分文本，用于替换更新
+    const lastPartialTextRef = useRef<string>('');
 
     // 监听部分转录结果（实时更新）
     useEffect(() => {
@@ -51,41 +51,37 @@ export function useVoiceStreamTranscription({
         }
 
         const partialText = voiceStreamResult.partialText.trim();
-        if (!partialText) {
-            return;
-        }
 
         setBlocks(prev => {
-            const insertAt = focusedBlockIndex >= 0 ? focusedBlockIndex + 1 : prev.length;
-
-            // 如果已有当前语音块，更新它
-            if (currentVoiceBlockIdRef.current) {
-                const existingIndex = prev.findIndex(b => b.id === currentVoiceBlockIdRef.current);
-                if (existingIndex !== -1) {
-                    const updated = [...prev];
-                    updated[existingIndex] = {
-                        ...updated[existingIndex],
-                        content: partialText,
-                    };
-                    return updated;
-                }
+            if (focusedBlockIndex < 0 || focusedBlockIndex >= prev.length) {
+                return prev;
             }
 
-            // 否则创建新的语音块
-            const newBlock = createBlock('paragraph', partialText);
-            currentVoiceBlockIdRef.current = newBlock.id;
-
             const updated = [...prev];
-            updated.splice(insertAt, 0, newBlock);
+            const currentBlock = updated[focusedBlockIndex];
+            const currentContent = currentBlock.content || '';
 
-            // 更新 order
-            updated.forEach((b, i) => {
-                b.order = i;
-            });
+            // 移除之前的部分文本（如果有的话）
+            let cleanContent = currentContent;
+            const lastPartial = lastPartialTextRef.current;
+            if (lastPartial && currentContent.endsWith(lastPartial)) {
+                cleanContent = currentContent.slice(0, -lastPartial.length);
+            }
+
+            // 在末尾追加新的部分文本
+            const newContent = cleanContent + partialText;
+
+            updated[focusedBlockIndex] = {
+                ...currentBlock,
+                content: newContent,
+            };
 
             return updated;
         });
-    }, [voiceStreamResult.partialText, voiceStreamState, focusedBlockIndex, setBlocks, createBlock]);
+
+        // 更新上一次的部分文本
+        lastPartialTextRef.current = partialText;
+    }, [voiceStreamResult.partialText, voiceStreamState, focusedBlockIndex, setBlocks]);
 
     // 监听最终结果（录音结束时）
     useEffect(() => {
@@ -95,58 +91,46 @@ export function useVoiceStreamTranscription({
 
         const finalText = voiceStreamResult.finalText.trim();
         if (!finalText) {
-            // 重置语音块跟踪
-            currentVoiceBlockIdRef.current = null;
+            // 重置状态
+            lastPartialTextRef.current = '';
             return;
         }
 
         setBlocks(prev => {
-            // 如果有当前语音块，用最终文本替换
-            if (currentVoiceBlockIdRef.current) {
-                const existingIndex = prev.findIndex(b => b.id === currentVoiceBlockIdRef.current);
-                if (existingIndex !== -1) {
-                    const updated = [...prev];
-                    updated[existingIndex] = {
-                        ...updated[existingIndex],
-                        content: finalText,
-                    };
-
-                    // 在语音块下方添加空段落，方便继续输入
-                    const emptyBlock = createBlock('paragraph', '');
-                    updated.splice(existingIndex + 1, 0, emptyBlock);
-
-                    // 更新 order
-                    updated.forEach((b, i) => {
-                        b.order = i;
-                    });
-
-                    currentVoiceBlockIdRef.current = null;
-                    return updated;
-                }
+            if (focusedBlockIndex < 0 || focusedBlockIndex >= prev.length) {
+                return prev;
             }
 
-            // 否则创建新的最终块
-            const insertAt = focusedBlockIndex >= 0 ? focusedBlockIndex + 1 : prev.length;
-            const finalBlock = createBlock('paragraph', finalText);
-            const emptyBlock = createBlock('paragraph', '');
-
             const updated = [...prev];
-            updated.splice(insertAt, 0, finalBlock, emptyBlock);
+            const currentBlock = updated[focusedBlockIndex];
+            const currentContent = currentBlock.content || '';
 
-            // 更新 order
-            updated.forEach((b, i) => {
-                b.order = i;
-            });
+            // 移除之前的部分文本（如果有的话）
+            const lastPartial = lastPartialTextRef.current;
+            let cleanContent = currentContent;
+            if (lastPartial && currentContent.endsWith(lastPartial)) {
+                cleanContent = currentContent.slice(0, -lastPartial.length);
+            }
 
-            currentVoiceBlockIdRef.current = null;
+            // 在末尾插入最终文本
+            const newContent = cleanContent + finalText;
+
+            updated[focusedBlockIndex] = {
+                ...currentBlock,
+                content: newContent,
+            };
+
             return updated;
         });
-    }, [voiceStreamResult.finalText, voiceStreamState, focusedBlockIndex, setBlocks, createBlock]);
+
+        // 重置状态
+        lastPartialTextRef.current = '';
+    }, [voiceStreamResult.finalText, voiceStreamState, focusedBlockIndex, setBlocks]);
 
     // 录音开始时重置跟踪
     useEffect(() => {
         if (voiceStreamState === 'recording') {
-            currentVoiceBlockIdRef.current = null;
+            lastPartialTextRef.current = '';
         }
     }, [voiceStreamState]);
 }

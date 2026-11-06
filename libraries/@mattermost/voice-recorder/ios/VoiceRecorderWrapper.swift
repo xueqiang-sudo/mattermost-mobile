@@ -292,32 +292,74 @@ import os.log
             let inputNode = engine.inputNode
 
             // 配置录音格式（PCM 16kHz 单声道，适合流式传输）
-            let recordingFormat = AVAudioFormat(
+            guard let recordingFormat = AVAudioFormat(
                 commonFormat: .pcmFormatInt16,
                 sampleRate: 16000.0,
                 channels: 1,
                 interleaved: true
-            )!
+            ) else {
+                log("无法创建录音格式", type: .error)
+                completion(false, "RECORD_ERROR")
+                return
+            }
+
+            // 【关键修复】检查 inputNode 是否支持该格式
+            let hardwareFormat = inputNode.inputFormat(forBus: 0)
+            if hardwareFormat.sampleRate == 0 || hardwareFormat.channelCount == 0 {
+                log("硬件音频格式无效: sampleRate=\(hardwareFormat.sampleRate), channels=\(hardwareFormat.channelCount)", type: .error)
+                completion(false, "RECORD_ERROR")
+                return
+            }
+
+            // 【关键修复】如果请求的格式与硬件格式不匹配，使用硬件格式
+            let actualFormat = (hardwareFormat.sampleRate == recordingFormat.sampleRate &&
+                               hardwareFormat.channelCount == recordingFormat.channelCount)
+                ? recordingFormat
+                : hardwareFormat
+
+            log("使用录音格式: sampleRate=\(actualFormat.sampleRate), channels=\(actualFormat.channelCount)")
 
             // 安装音频tap，捕获实时音频
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, time in
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: actualFormat) { [weak self] buffer, time in
                 guard let self = self, self.isRealtimeRecording else { return }
 
-                // 将音频数据转换为 base64
-                let audioData = buffer.audioBufferList.pointee.mBuffers
+                // 【关键修复】添加 try-catch 保护整个回调处理
+                do {
+                    // 将音频数据转换为 base64
+                    let audioData = buffer.audioBufferList.pointee.mBuffers
 
-                // 检查 mData 指针是否有效
-                guard let mDataPointer = audioData.mData else {
-                    return
-                }
+                    // 检查 mData 指针是否有效
+                    guard let mDataPointer = audioData.mData else {
+                        return
+                    }
 
-                // Data(bytes:count:) 返回非 Optional 的 Data，直接使用
-                let data = Data(bytes: mDataPointer, count: Int(audioData.mDataByteSize))
-                let base64String = data.base64EncodedString()
+                    // 【关键修复】检查数据大小是否有效
+                    let dataSize = Int(audioData.mDataByteSize)
+                    if dataSize <= 0 || dataSize > 1024 * 1024 {  // 最大 1MB
+                        self.log("音频数据大小无效: \(dataSize)", type: .error)
+                        return
+                    }
 
-                // 回调给JS
-                self.runOnMain {
-                    onChunkReady(base64String)
+                    // Data(bytes:count:) 返回非 Optional 的 Data，直接使用
+                    let data = Data(bytes: mDataPointer, count: dataSize)
+
+                    // 【关键修复】检查数据是否为空
+                    if data.isEmpty {
+                        return
+                    }
+
+                    let base64String = data.base64EncodedString()
+
+                    // 【关键修复】回调给JS，添加错误处理
+                    self.runOnMain {
+                        do {
+                            onChunkReady(base64String)
+                        } catch {
+                            self.log("回调调用失败: \(error.localizedDescription)", type: .error)
+                        }
+                    }
+                } catch {
+                    self.log("音频处理异常: \(error.localizedDescription)", type: .error)
                 }
             }
 

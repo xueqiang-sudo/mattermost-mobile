@@ -630,6 +630,7 @@ export default function DraftHandler(props: Props) {
                         try {
                             debugLog('DRAFT', `addFiles: cloud drive copy-to-channel for ${file.name} (driveId=${cdFile._cloudDriveFileId})`);
                             const copied = await copyDriveFileToChannel(serverUrl, cdFile._cloudDriveTeamId, cdFile._cloudDriveFileId, channelId);
+                            debugLog('DRAFT', `addFiles: cloud drive copy-to-channel returned: ${JSON.stringify(copied)}`);
                             if (!copied || !copied.id) {
                                 throw new Error('copyDriveFileToChannel returned no file');
                             }
@@ -662,6 +663,7 @@ export default function DraftHandler(props: Props) {
                                 EphemeralStore.unsetCreatingPost(postId, postId);
                             }
                         } catch (cdErr) {
+                            debugLog('DRAFT', `addFiles: cloud drive copy-to-channel ERROR: ${cdErr instanceof Error ? cdErr.message : String(cdErr)}`);
                             logError('[addFiles cloudDriveCopy]', cdErr);
                             failProgress(progressKey);
                             await markPostUploadFailed(serverUrl, postId, file.name);

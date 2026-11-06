@@ -364,10 +364,12 @@ export default function CloudDrivePicker({componentId, channelId, teamId: propTe
             // 真正的 copyDriveFileToChannel 复制挪到 addFiles 的后台阶段执行。
             const fileInfos: FileInfo[] = selectedFiles.map((file) => ({
                 id: `pending_${file.id}`,
+                clientId: `client_${file.id}`,
                 name: file.name,
                 extension: file.extension,
                 mime_type: file.mime_type,
                 size: file.size,
+                localPath: file.uri || file.localPath || '',
                 // 标记：addFiles 后台阶段需调 copyDriveFileToChannel 把云盘文件复制进频道。
                 _needsCopyToChannel: true,
                 _cloudDriveFileId: file.id,

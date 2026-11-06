@@ -387,47 +387,101 @@ class VoiceRecorderModuleImpl(
                 }
 
                 // 创建 AudioRecord 实例
-                audioRecord = AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    sampleRate,
-                    channelConfig,
-                    audioFormat,
-                    bufferSize * 2  // 使用双倍缓冲区以提高稳定性
-                )
+                val recorder = try {
+                    AudioRecord(
+                        MediaRecorder.AudioSource.MIC,
+                        sampleRate,
+                        channelConfig,
+                        audioFormat,
+                        bufferSize * 2  // 使用双倍缓冲区以提高稳定性
+                    )
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "AudioRecord 创建失败 SecurityException", e)
+                    withContext(Dispatchers.Main) {
+                        promise.reject("PERMISSION_DENIED", "Failed to create AudioRecord: ${e.message}")
+                    }
+                    return@launch
+                } catch (e: Exception) {
+                    Log.e(TAG, "AudioRecord 创建失败", e)
+                    withContext(Dispatchers.Main) {
+                        promise.reject("RECORD_ERROR", "Failed to create AudioRecord: ${e.message}")
+                    }
+                    return@launch
+                }
 
-                if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                if (recorder.state != AudioRecord.STATE_INITIALIZED) {
                     Log.e(TAG, "AudioRecord 初始化失败")
-                    audioRecord?.release()
-                    audioRecord = null
+                    try {
+                        recorder.release()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "release() after init failure", e)
+                    }
                     withContext(Dispatchers.Main) {
                         promise.reject("RECORD_ERROR", "AudioRecord initialization failed")
                     }
                     return@launch
                 }
 
+                // 【关键修复】使用局部变量保存 recorder，避免线程安全问题
+                audioRecord = recorder
                 isRealtimeRecording = true
                 Log.d(TAG, "AudioRecord 初始化成功，采样率: ${sampleRate}Hz, 缓冲区: ${bufferSize * 2} bytes")
 
                 // 启动后台线程进行录音
                 realtimeRecordingThread = Thread {
+                    var chunkCount = 0
                     try {
                         val buffer = ByteArray(bufferSize)
-                        audioRecord?.startRecording()
-                        Log.d(TAG, "========== 实时录音已启动 ==========")
 
-                        var chunkCount = 0
+                        // 【关键修复】添加 try-catch 保护 startRecording()
+                        try {
+                            recorder.startRecording()
+                            Log.d(TAG, "========== 实时录音已启动 ==========")
+                        } catch (e: IllegalStateException) {
+                            Log.e(TAG, "AudioRecord.startRecording() IllegalStateException", e)
+                            isRealtimeRecording = false
+                            return@Thread
+                        } catch (e: Exception) {
+                            Log.e(TAG, "AudioRecord.startRecording() 异常", e)
+                            isRealtimeRecording = false
+                            return@Thread
+                        }
+
                         while (isRealtimeRecording) {
-                            val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                            // 【关键修复】检查 recorder 是否仍然有效
+                            if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                                Log.w(TAG, "AudioRecord 不在录音状态，退出循环")
+                                break
+                            }
+
+                            val readSize = try {
+                                recorder.read(buffer, 0, buffer.size)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "AudioRecord.read() 异常", e)
+                                break
+                            }
 
                             if (readSize > 0) {
                                 // 复制音频块
                                 val chunk = buffer.copyOf(readSize)
 
                                 // 编码为 base64
-                                val base64Chunk = Base64.encodeToString(chunk, Base64.NO_WRAP)
+                                val base64Chunk = try {
+                                    Base64.encodeToString(chunk, Base64.NO_WRAP)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Base64 编码失败", e)
+                                    continue
+                                }
 
-                                // 通过回调发送给 JS
-                                onChunkReady.invoke(base64Chunk)
+                                // 【关键修复】通过回调发送给 JS，添加 try-catch 保护
+                                try {
+                                    onChunkReady.invoke(base64Chunk)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "回调调用失败", e)
+                                    // 如果回调失败，停止录音
+                                    isRealtimeRecording = false
+                                    break
+                                }
 
                                 chunkCount++
                                 if (chunkCount % 10 == 0) {  // 每10个块打印一次日志
@@ -444,14 +498,29 @@ class VoiceRecorderModuleImpl(
                     } catch (e: Exception) {
                         Log.e(TAG, "实时录音线程异常", e)
                     } finally {
-                        // 停止并释放 AudioRecord
+                        // 【关键修复】安全地停止和释放 AudioRecord
                         try {
-                            audioRecord?.stop()
+                            if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                                recorder.stop()
+                                Log.d(TAG, "AudioRecord.stop() 成功")
+                            }
                         } catch (e: IllegalStateException) {
+                            Log.e(TAG, "AudioRecord.stop() IllegalStateException", e)
+                        } catch (e: Exception) {
                             Log.e(TAG, "AudioRecord.stop() 失败", e)
                         }
-                        audioRecord?.release()
-                        audioRecord = null
+
+                        try {
+                            recorder.release()
+                            Log.d(TAG, "AudioRecord.release() 成功")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "AudioRecord.release() 失败", e)
+                        }
+
+                        // 清理引用
+                        if (audioRecord === recorder) {
+                            audioRecord = null
+                        }
                         Log.d(TAG, "AudioRecord 已释放")
                     }
                 }.apply {

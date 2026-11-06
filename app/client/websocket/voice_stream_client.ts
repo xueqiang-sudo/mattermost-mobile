@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {debugLog} from '@store/debug_log';
+
 /**
  * VoiceStreamClient - WebSocket client for real-time voice transcription
  * Used for smart notebook voice-to-text feature
@@ -28,20 +30,20 @@ export class VoiceStreamClient {
                 const baseUrl = this.serverUrl.replace(/^https?:\/\//, '');
                 const wsUrl = `${wsProtocol}://${baseUrl}/api/v4/voice-stream?token=${encodeURIComponent(this.token)}`;
 
-                console.log('[VoiceStreamClient] Connecting to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Connecting to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
 
                 // Create WebSocket connection
                 this.ws = new WebSocket(wsUrl);
 
                 this.ws.onopen = () => {
-                    console.log('[VoiceStreamClient] WebSocket connected');
+                    debugLog('VOICE_STREAM', '[VoiceStreamClient] WebSocket connected');
                     this.reconnectAttempts = 0;
                     this.onConnected?.();
                     resolve();
                 };
 
                 this.ws.onerror = (error) => {
-                    console.error('[VoiceStreamClient] WebSocket error:', error);
+                    debugLog('VOICE_STREAM', '[VoiceStreamClient] WebSocket error:', error);
                     this.onError?.(error instanceof Error ? error.message : 'Unknown error');
                     reject(error);
                 };
@@ -51,17 +53,17 @@ export class VoiceStreamClient {
                         const data = JSON.parse(event.data);
                         this.handleMessage(data);
                     } catch (error) {
-                        console.error('[VoiceStreamClient] Failed to parse message:', error);
+                        debugLog('VOICE_STREAM', '[VoiceStreamClient] Failed to parse message:', error);
                     }
                 };
 
                 this.ws.onclose = (event) => {
-                    console.log('[VoiceStreamClient] WebSocket closed:', event.code, event.reason);
+                    debugLog('VOICE_STREAM', '[VoiceStreamClient] WebSocket closed:', event.code, event.reason);
                     this.onClose?.(event.code, event.reason);
                 };
 
             } catch (error) {
-                console.error('[VoiceStreamClient] Connection failed:', error);
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Connection failed:', error);
                 reject(error);
             }
         });
@@ -72,7 +74,7 @@ export class VoiceStreamClient {
      */
     sendAudioChunk(chunkBase64: string): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.warn('[VoiceStreamClient] WebSocket not connected');
+            debugLog('VOICE_STREAM', '[VoiceStreamClient] WebSocket not connected');
             return;
         }
 
@@ -87,7 +89,7 @@ export class VoiceStreamClient {
             // Send as binary message
             this.ws.send(bytes.buffer);
         } catch (error) {
-            console.error('[VoiceStreamClient] Failed to send audio chunk:', error);
+            debugLog('VOICE_STREAM', '[VoiceStreamClient] Failed to send audio chunk:', error);
         }
     }
 
@@ -96,7 +98,7 @@ export class VoiceStreamClient {
      */
     sendControlMessage(type: 'start' | 'stop' | 'cancel', sessionId?: string): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.warn('[VoiceStreamClient] WebSocket not connected');
+            debugLog('VOICE_STREAM', '[VoiceStreamClient] WebSocket not connected');
             return;
         }
 
@@ -107,9 +109,9 @@ export class VoiceStreamClient {
 
         try {
             this.ws.send(JSON.stringify(message));
-            console.log('[VoiceStreamClient] Sent control message:', type);
+            debugLog('VOICE_STREAM', '[VoiceStreamClient] Sent control message:', type);
         } catch (error) {
-            console.error('[VoiceStreamClient] Failed to send control message:', error);
+            debugLog('VOICE_STREAM', '[VoiceStreamClient] Failed to send control message:', error);
         }
     }
 
@@ -117,7 +119,7 @@ export class VoiceStreamClient {
      * Handle incoming message from server
      */
     private handleMessage(msg: any): void {
-        console.log('[VoiceStreamClient] Received message:', msg.type);
+        debugLog('VOICE_STREAM', '[VoiceStreamClient] Received message:', msg.type);
 
         switch (msg.type) {
             case 'transcription':
@@ -125,25 +127,25 @@ export class VoiceStreamClient {
                 break;
 
             case 'started':
-                console.log('[VoiceStreamClient] Session started:', msg.session_id);
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Session started:', msg.session_id);
                 break;
 
             case 'completed':
-                console.log('[VoiceStreamClient] Session completed');
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Session completed');
                 this.onCompleted?.(msg.text || '');
                 break;
 
             case 'cancelled':
-                console.log('[VoiceStreamClient] Session cancelled');
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Session cancelled');
                 break;
 
             case 'error':
-                console.error('[VoiceStreamClient] Server error:', msg.error);
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Server error:', msg.error);
                 this.onError?.(msg.error || 'Unknown server error');
                 break;
 
             default:
-                console.warn('[VoiceStreamClient] Unknown message type:', msg.type);
+                debugLog('VOICE_STREAM', '[VoiceStreamClient] Unknown message type:', msg.type);
         }
     }
 
@@ -152,7 +154,7 @@ export class VoiceStreamClient {
      */
     close(): void {
         if (this.ws) {
-            console.log('[VoiceStreamClient] Closing connection');
+            debugLog('VOICE_STREAM', '[VoiceStreamClient] Closing connection');
             this.ws.close(1000, 'Normal closure');
             this.ws = null;
         }

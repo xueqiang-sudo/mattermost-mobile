@@ -77,7 +77,26 @@ export function useVoiceStream(serverUrl: string, token: string) {
      */
     const startStreaming = useCallback(async () => {
         debugLog('VOICE_STREAM', '[startStreaming] ===== 开始启动语音流 =====');
-        console.log('[useVoiceStream] Starting stream...');
+        debugLog('VOICE_STREAM', '[startStreaming] Starting stream...');
+
+        // 【防御性检查】如果已经在录制或连接中，不要重复启动
+        if (state === 'recording' || state === 'connecting') {
+            debugLog('VOICE_STREAM', '[startStreaming] ⚠️ Already in progress, state:', state);
+            debugLog('VOICE_STREAM', '[startStreaming] Already streaming, state:', state);
+            return false;
+        }
+
+        // 【防御性检查】如果已有 client 实例，先清理
+        if (clientRef.current) {
+            debugLog('VOICE_STREAM', '[startStreaming] ⚠️ Existing client found, cleaning up');
+            debugLog('VOICE_STREAM', '[startStreaming] Existing client found, cleaning up');
+            try {
+                clientRef.current.close();
+            } catch (e) {
+                debugLog('VOICE_STREAM', '[startStreaming] Cleanup error:', e);
+            }
+            clientRef.current = null;
+        }
 
         try {
             // Reset state
@@ -148,7 +167,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
             // Set up callbacks
             debugLog('VOICE_STREAM', '[startStreaming] Step 6: Set up client callbacks');
             client.onTranscription = (text, isFinal) => {
-                console.log('[useVoiceStream] Transcription:', text, 'isFinal:', isFinal);
+                debugLog('VOICE_STREAM', '[startStreaming] Transcription:', text, 'isFinal:', isFinal);
                 setResult(r => ({
                     ...r,
                     partialText: isFinal ? r.partialText : text,
@@ -157,13 +176,13 @@ export function useVoiceStream(serverUrl: string, token: string) {
             };
 
             client.onCompleted = (finalText) => {
-                console.log('[useVoiceStream] Completed with text:', finalText);
+                debugLog('VOICE_STREAM', '[startStreaming] Completed with text:', finalText);
                 setResult(r => ({...r, finalText, partialText: ''}));
             };
 
             client.onError = (error) => {
                 debugLog('VOICE_STREAM', '[startStreaming] ❌ Client error:', error);
-                console.error('[useVoiceStream] Error:', error);
+                debugLog('VOICE_STREAM', '[startStreaming] Error:', error);
                 setResult(r => ({...r, error}));
                 setState('error');
             };
@@ -171,8 +190,11 @@ export function useVoiceStream(serverUrl: string, token: string) {
             client.onClose = (code, reason) => {
                 debugLog('VOICE_STREAM', '[startStreaming] Connection closed:', {code, reason});
                 console.log('[useVoiceStream] Connection closed:', code, reason);
-                if (state === 'recording') {
-                    // Unexpected closure
+                // 【修复】使用 ref 避免闭包捕获旧的 state 值
+                // 注意：这里我们无法直接访问最新的 state，所以只在明显异常的情况下处理
+                if (code !== 1000 && reason !== 'Normal closure') {
+                    // Unexpected closure (not normal close)
+                    debugLog('VOICE_STREAM', '[startStreaming] ⚠️ Unexpected closure, code:', code);
                     setState('error');
                     setResult(r => ({...r, error: '连接意外关闭'}));
                 }
@@ -195,13 +217,18 @@ export function useVoiceStream(serverUrl: string, token: string) {
             let recordingStarted = false;
             try {
                 debugLog('VOICE_STREAM', '[startStreaming] Step 9.1: About to call startRealtimeRecording');
+                debugLog('VOICE_STREAM', '[startStreaming] About to call native startRealtimeRecording');
 
                 // 添加超时保护（5秒）
                 const recordingPromise = startRealtimeRecording(
                     (chunkBase64) => {
                         // Audio chunk callback - send to server
-                        if (clientRef.current?.isConnected()) {
-                            clientRef.current.sendAudioChunk(chunkBase64);
+                        try {
+                            if (clientRef.current?.isConnected()) {
+                                clientRef.current.sendAudioChunk(chunkBase64);
+                            }
+                        } catch (chunkError) {
+                            debugLog('VOICE_STREAM', '[startStreaming] ⚠️ Audio chunk callback error:', chunkError);
                         }
                     },
                     {format: 'pcm'}
@@ -210,17 +237,20 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 const timeoutPromise = new Promise<boolean>((resolve) => {
                     setTimeout(() => {
                         debugLog('VOICE_STREAM', '[startStreaming] ❌ startRealtimeRecording timeout (5s)');
+                        debugLog('VOICE_STREAM', '[startStreaming] startRealtimeRecording timeout');
                         resolve(false);
                     }, 5000);
                 });
 
                 recordingStarted = await Promise.race([recordingPromise, timeoutPromise]);
                 debugLog('VOICE_STREAM', '[startStreaming] Step 9.2: startRealtimeRecording returned:', {recordingStarted});
+                debugLog('VOICE_STREAM', '[startStreaming] startRealtimeRecording returned:', recordingStarted);
             } catch (recordError) {
                 debugLog('VOICE_STREAM', '[startStreaming] ❌ startRealtimeRecording threw error:', {
                     message: recordError instanceof Error ? recordError.message : String(recordError),
                     stack: recordError instanceof Error ? recordError.stack : undefined,
                 });
+                debugLog('VOICE_STREAM', '[startStreaming] startRealtimeRecording error:', recordError);
                 recordingStarted = false;
             }
 
@@ -238,7 +268,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
             debugLog('VOICE_STREAM', '[startStreaming] Step 10: Set state to recording');
             setState('recording');
             debugLog('VOICE_STREAM', '[startStreaming] ✅ 语音流启动成功');
-            console.log('[useVoiceStream] Streaming started successfully');
+            debugLog('VOICE_STREAM', '[startStreaming] Streaming started successfully');
             return true;
 
         } catch (error: any) {
@@ -246,7 +276,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 message: error?.message || String(error),
                 stack: error?.stack || 'no stack',
             });
-            console.error('[useVoiceStream] Start failed:', error);
+            debugLog('VOICE_STREAM', '[startStreaming] Start failed:', error);
             setState('error');
             setResult(r => ({...r, error: error.message || '启动失败'}));
 
@@ -263,7 +293,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
      * Stop streaming: stop recording + finalize transcription
      */
     const stopStreaming = useCallback(async (): Promise<string> => {
-        console.log('[useVoiceStream] Stopping stream...');
+        debugLog('VOICE_STREAM', '[stopStreaming] Stopping stream...');
 
         try {
             // Stop recording first
@@ -286,12 +316,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
             const finalText = result.finalText || result.partialText;
 
             setState('idle');
-            console.log('[useVoiceStream] Stopped, final text:', finalText);
+            debugLog('VOICE_STREAM', '[stopStreaming] Stopped, final text:', finalText);
 
             return finalText;
 
         } catch (error: any) {
-            console.error('[useVoiceStream] Stop failed:', error);
+            debugLog('VOICE_STREAM', '[stopStreaming] Stop failed:', error);
             setState('error');
             setResult(r => ({...r, error: error.message || '停止失败'}));
 
@@ -307,7 +337,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
      * Cancel streaming without finalizing
      */
     const cancelStreaming = useCallback(async () => {
-        console.log('[useVoiceStream] Cancelling stream...');
+        debugLog('VOICE_STREAM', '[cancelStreaming] Cancelling stream...');
 
         try {
             await stopRealtimeRecording();
@@ -323,10 +353,10 @@ export function useVoiceStream(serverUrl: string, token: string) {
             setState('idle');
             setResult({partialText: '', finalText: '', error: null});
 
-            console.log('[useVoiceStream] Cancelled');
+            debugLog('VOICE_STREAM', '[cancelStreaming] Cancelled');
 
         } catch (error: any) {
-            console.error('[useVoiceStream] Cancel failed:', error);
+            debugLog('VOICE_STREAM', '[cancelStreaming] Cancel failed:', error);
 
             // Force cleanup
             clientRef.current?.close();

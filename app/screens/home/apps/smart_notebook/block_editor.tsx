@@ -185,14 +185,34 @@ const BlockItem = ({
         onFocus(index);
     }, [index, onFocus]);
 
-    // 【关键修复】移除回车键的特殊处理
-    // 在手机上，回车键应该是块内换行（\n），而不是创建新块
-    // 让系统默认行为处理回车键（TextInput 的 multiline={true} 会自动处理）
-    // 如果需要创建新列表项，用户可以通过工具栏或 + 号按钮
+    // 处理回车键
+    // 对于列表块：创建新的列表项
+    // 对于其他块：块内换行（\n）
     const handleKeyPress = useCallback((e: any) => {
-        // 不做任何处理，让系统默认行为处理回车键
-        // 这样回车就是块内换行（\n），而不是创建新块
-    }, []);
+        const key = e?.nativeEvent?.key;
+        if (key !== 'Enter') {
+            return;
+        }
+
+        // 只有列表块才需要特殊处理回车键
+        if (block.type === 'bulleted-list' || block.type === 'numbered-list' || block.type === 'checklist') {
+            // 阻止默认行为（换行）
+            e.preventDefault?.();
+
+            // 创建新的列表项的 meta
+            const newMeta = block.type === 'numbered-list' ? {
+                ...block.meta,
+                number: (block.meta?.number || 1) + 1,
+            } : block.type === 'checklist' ? {
+                ...block.meta,
+                checked: false,
+            } : undefined;
+
+            // 在当前块后插入新块
+            onAddAfter(index, block.type, newMeta);
+        }
+        // 其他块类型让系统默认处理（块内换行）
+    }, [block, index, onAddAfter]);
 
     // Get appropriate style for block type
     const getBlockTextStyle = () => {
@@ -225,11 +245,42 @@ const BlockItem = ({
             const num = block.meta?.number || 1;
             return `${num}. `;
         }
-        if (block.type === 'checklist') {
-            const checked = block.meta?.checked || false;
-            return checked ? '☑ ' : '☐ ';
-        }
+        // checklist 使用单独的复选框组件，不需要前缀文本
         return '';
+    };
+
+    // Toggle checklist item checked state
+    const handleChecklistToggle = useCallback(() => {
+        const newChecked = !(block.meta?.checked || false);
+        onChange(index, {
+            ...block,
+            meta: {
+                ...block.meta,
+                checked: newChecked,
+            },
+        });
+    }, [block, index, onChange]);
+
+    // Render checklist checkbox
+    const renderCheckbox = () => {
+        if (block.type !== 'checklist') {
+            return null;
+        }
+
+        const checked = block.meta?.checked || false;
+        return (
+            <TouchableOpacity
+                onPress={handleChecklistToggle}
+                style={style.checkbox}
+                activeOpacity={0.7}
+            >
+                {checked ? (
+                    <CompassIcon name='check' size={20} color={theme.buttonBg}/>
+                ) : (
+                    <View style={style.checkboxEmpty}/>
+                )}
+            </TouchableOpacity>
+        );
     };
 
     // Get placeholder
@@ -458,6 +509,7 @@ const BlockItem = ({
         <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
             {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
             <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
+                {renderCheckbox()}
                 {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
                 <TextInput
                     ref={textInputRef}
@@ -845,6 +897,21 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         width: 20,
         textAlign: 'right',
         marginRight: 4,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+        marginTop: 2,
+    },
+    checkboxEmpty: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.4),
     },
     mediaBlock: {
         flex: 1,
