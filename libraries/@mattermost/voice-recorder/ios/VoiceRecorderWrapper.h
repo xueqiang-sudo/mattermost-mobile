@@ -1,10 +1,14 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#import <React/RCTBridge.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 __attribute__((objc_runtime_name("_TtC13VoiceRecorder20VoiceRecorderWrapper")))
 @interface VoiceRecorderWrapper : NSObject <AVAudioRecorderDelegate>
+
+// 【优化】初始化方法，接收 bridge
+- (instancetype)initWithBridge:(RCTBridge *)bridge;
 
 - (void)startRecording:(NSDictionary<NSString *, id> * _Nullable)options
             completion:(void (^)(BOOL success, NSString * _Nullable errorCode))completion;
@@ -24,6 +28,14 @@ __attribute__((objc_runtime_name("_TtC13VoiceRecorder20VoiceRecorderWrapper")))
                     completion:(void (^)(BOOL success, NSString * _Nullable errorCode))completion;
 
 - (void)stopRealtimeRecordingWithCompletion:(void (^)(void))completion;
+
+// 【优化】原生直传模式方法（避免 Bridge 瓶颈）
+- (void)startRealtimeRecordingDirect:(NSDictionary<NSString *, id> * _Nullable)options
+                          completion:(void (^)(BOOL success, NSString * _Nullable errorCode))completion;
+
+- (void)sendControlMessage:(NSDictionary<NSString *, id> * _Nullable)message;
+
+- (void)disconnectVoiceStream;
 
 @end
 
