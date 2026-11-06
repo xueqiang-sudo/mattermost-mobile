@@ -1,16 +1,28 @@
 import Foundation
 import AVFoundation
 import os.log
+import React
 
 @objc public class VoiceRecorderWrapper: NSObject, AVAudioRecorderDelegate {
     private var audioRecorder: AVAudioRecorder?
     private var recordingStartTime: Date?
     private var recordingURL: URL?
+    private var bridge: RCTBridge?  // 【优化】用于发送事件到 JS
 
     private let logger = OSLog(subsystem: "com.mattermost.voicerecorder", category: "VoiceRecorder")
 
     public typealias StopRecordingCompletion = ([String: Any]) -> Void
     private var stopCompletion: StopRecordingCompletion?
+
+    // 【优化】初始化方法，接收 bridge
+    @objc public init(bridge: RCTBridge?) {
+        self.bridge = bridge
+        super.init()
+    }
+
+    public override init() {
+        super.init()
+    }
 
     private func log(_ message: String, type: OSLogType = .default) {
         os_log("%{public}@", log: logger, type: type, message)
@@ -246,7 +258,80 @@ import os.log
 
     private var audioEngine: AVAudioEngine?
     private var isRealtimeRecording = false
+    private var voiceStreamManager: VoiceStreamNativeManager?  // 【优化】原生 WebSocket 管理器
 
+    // 【优化】新增方法：原生端直传模式（推荐）
+    @objc(startRealtimeRecordingDirect:completion:)
+    public func startRealtimeRecordingDirect(_ options: [String: Any]?,
+                                              completion: @escaping (Bool, NSString?) -> Void) {
+        log("========== iOS 开始实时录音（原生直传模式）==========")
+
+        // 从 options 获取 serverUrl 和 token
+        guard let serverUrl = options?["serverUrl"] as? String,
+              let token = options?["token"] as? String else {
+            log("缺少 serverUrl 或 token", type: .error)
+            completion(false, "INVALID_PARAMS")
+            return
+        }
+
+        // 创建并连接 WebSocket
+        let manager = VoiceStreamNativeManager()
+        manager.onTranscription = { [weak self] text, isFinal in
+            self?.log("收到转录: \(text), isFinal=\(isFinal)")
+            // 通过 RCTEventEmitter 发送事件到 JS
+            if let bridge = self?.bridge {
+                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamTranscription",
+                                                      body: ["text": text, "isFinal": isFinal])
+            }
+        }
+        manager.onConnected = { [weak self] in
+            self?.log("WebSocket 已连接")
+            if let bridge = self?.bridge {
+                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamConnected", body: [:])
+            }
+        }
+        manager.onError = { [weak self] error in
+            self?.log("WebSocket 错误: \(error)", type: .error)
+            if let bridge = self?.bridge {
+                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamError",
+                                                      body: ["error": error])
+            }
+        }
+        manager.onClose = { [weak self] code, reason in
+            self?.log("WebSocket 关闭: \(code), \(reason)")
+            if let bridge = self?.bridge {
+                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamClosed",
+                                                      body: ["code": code, "reason": reason])
+            }
+        }
+
+        manager.connect(serverUrl: serverUrl, token: token)
+        voiceStreamManager = manager
+
+        // 等待 WebSocket 连接后启动录音
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.beginRealtimeRecordingDirect(options: options, completion: completion)
+        }
+    }
+
+    // 【优化】发送控制消息
+    @objc(sendControlMessage:)
+    public func sendControlMessage(_ message: [String: Any]) {
+        guard let type = message["type"] as? String else { return }
+        let sessionId = message["session_id"] as? String
+        voiceStreamManager?.sendControlMessage(type: type, sessionId: sessionId)
+        log("发送控制消息: \(type)")
+    }
+
+    // 【优化】断开 WebSocket
+    @objc(disconnectVoiceStream)
+    public func disconnectVoiceStream() {
+        voiceStreamManager?.disconnect()
+        voiceStreamManager = nil
+        log("WebSocket 已断开")
+    }
+
+    // 保留旧方法以兼容现有代码
     @objc(startRealtimeRecording:onChunkReady:completion:)
     public func startRealtimeRecording(_ options: [String: Any]?,
                                        onChunkReady: @escaping (String) -> Void,
@@ -344,7 +429,7 @@ import os.log
             } else {
                 // 回退到硬件格式
                 actualFormat = hardwareFormat
-                log("无法创建 16kHz 格式，使用硬件格式: \(hardwareFormat.sampleRate)Hz", type: .warning)
+                log("无法创建 16kHz 格式，使用硬件格式: \(hardwareFormat.sampleRate)Hz", type: .default)
             }
 
             log("使用录音格式: sampleRate=\(actualFormat.sampleRate), channels=\(actualFormat.channelCount), interleaved=\(actualFormat.isInterleaved)")
@@ -432,6 +517,92 @@ import os.log
         }
     }
 
+    // 【优化】原生直传模式的录音启动逻辑
+    private func beginRealtimeRecordingDirect(options: [String: Any]?,
+                                               completion: @escaping (Bool, NSString?) -> Void) {
+        log("========== 开始配置实时录音（原生直传）==========")
+        let audioSession = AVAudioSession.sharedInstance()
+
+        do {
+            // 配置音频会话
+            log("配置音频会话: category=.record, mode=.measurement, preferredSampleRate=16000")
+            try audioSession.setPreferredSampleRate(16000.0)
+            log("首选采样率已设置: 16000Hz")
+
+            try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            log("音频会话 category 设置成功")
+
+            try audioSession.setActive(true)
+            log("音频会话已激活，实际采样率：\(audioSession.sampleRate)Hz")
+
+            // 创建 AVAudioEngine
+            log("创建 AVAudioEngine...")
+            let engine = AVAudioEngine()
+            let inputNode = engine.inputNode
+            log("AVAudioEngine 创建成功")
+
+            // 配置录音格式
+            let hardwareFormat = inputNode.inputFormat(forBus: 0)
+            log("硬件格式: sampleRate=\(hardwareFormat.sampleRate), channels=\(hardwareFormat.channelCount)")
+
+            if hardwareFormat.sampleRate == 0 || hardwareFormat.channelCount == 0 {
+                log("硬件音频格式无效", type: .error)
+                completion(false, "RECORD_ERROR")
+                return
+            }
+
+            // 优先使用 16kHz
+            let actualFormat: AVAudioFormat
+            if hardwareFormat.sampleRate == 16000.0 {
+                actualFormat = hardwareFormat
+                log("硬件已支持 16kHz")
+            } else if let desiredFormat = AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: 16000.0,
+                channels: 1,
+                interleaved: true
+            ) {
+                actualFormat = desiredFormat
+                log("使用 16kHz 录音格式（将自动转换）")
+            } else {
+                actualFormat = hardwareFormat
+                log("使用硬件格式: \(hardwareFormat.sampleRate)Hz", type: .default)
+            }
+
+            // 安装音频 tap，直接发送二进制数据
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: actualFormat) { [weak self] buffer, time in
+                guard let self = self, self.isRealtimeRecording else { return }
+
+                let audioData = buffer.audioBufferList.pointee.mBuffers
+                guard let mDataPointer = audioData.mData else { return }
+
+                let dataSize = Int(audioData.mDataByteSize)
+                if dataSize <= 0 || dataSize > 1024 * 1024 { return }
+
+                let data = Data(bytes: mDataPointer, count: dataSize)
+                if data.isEmpty { return }
+
+                // 【关键优化】直接通过原生 WebSocket 发送，不经过 Bridge
+                self.voiceStreamManager?.sendAudioData(data)
+            }
+            log("音频 tap 安装成功（直传模式）")
+
+            // 启动引擎
+            try engine.start()
+            log("音频引擎启动成功")
+
+            audioEngine = engine
+            isRealtimeRecording = true
+
+            log("========== iOS 实时录音已启动（原生直传模式）==========")
+            completion(true, nil)
+
+        } catch {
+            log("实时录音启动失败: \(error.localizedDescription)", type: .error)
+            completion(false, "RECORD_ERROR")
+        }
+    }
+
     @objc(stopRealtimeRecordingWithCompletion:)
     public func stopRealtimeRecording(completion: @escaping () -> Void) {
         log("========== iOS 停止实时录音 ==========")
@@ -442,6 +613,13 @@ import os.log
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine = nil
+
+        // 【优化】发送停止消息并断开 WebSocket
+        voiceStreamManager?.sendControlMessage(type: "stop")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.voiceStreamManager?.disconnect()
+            self?.voiceStreamManager = nil
+        }
 
         // 释放音频会话
         try? AVAudioSession.sharedInstance().setActive(false)

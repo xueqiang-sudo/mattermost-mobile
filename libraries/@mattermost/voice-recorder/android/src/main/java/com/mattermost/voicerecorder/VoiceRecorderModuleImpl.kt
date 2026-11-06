@@ -45,6 +45,9 @@ class VoiceRecorderModuleImpl(
     private var isRealtimeRecording = false
     private var realtimeRecordingThread: Thread? = null
 
+    // 【优化】原生 WebSocket 管理器
+    private var voiceStreamManager: VoiceStreamNativeManager? = null
+
     fun getTypedExportedConstants(): MutableMap<String, Any> {
         return mutableMapOf()
     }
@@ -349,6 +352,217 @@ class VoiceRecorderModuleImpl(
      * 开始实时录音，通过回调持续返回音频块
      * 使用 AudioRecord API（不同于 MediaRecorder）
      */
+    // 【优化】原生直传模式：启动录音 + WebSocket 直传
+    fun startRealtimeRecordingDirect(options: ReadableMap?, promise: Promise) {
+        Log.d(TAG, "========== 开始实时录音（原生直传模式）==========")
+
+        val serverUrl = options?.getString("serverUrl")
+        val token = options?.getString("token")
+
+        if (serverUrl.isNullOrEmpty() || token.isNullOrEmpty()) {
+            Log.e(TAG, "缺少 serverUrl 或 token")
+            promise.reject("INVALID_PARAMS", "Missing serverUrl or token")
+            return
+        }
+
+        coroutineScope.launch {
+            // 检查权限
+            if (!hasRecordPermission()) {
+                Log.e(TAG, "RECORD_AUDIO permission not granted")
+                withContext(Dispatchers.Main) {
+                    promise.reject("PERMISSION_DENIED", "Microphone permission not granted")
+                }
+                return@launch
+            }
+
+            try {
+                // 防止重复启动
+                if (isRealtimeRecording) {
+                    Log.w(TAG, "实时录音已在进行中")
+                    withContext(Dispatchers.Main) {
+                        promise.resolve(true)
+                    }
+                    return@launch
+                }
+
+                // 创建并连接 WebSocket
+                val manager = VoiceStreamNativeManager()
+                manager.onTranscription = { text, isFinal ->
+                    Log.d(TAG, "收到转录: $text, isFinal=$isFinal")
+                    // 发送事件到 JS
+                    val params = Arguments.createMap()
+                    params.putString("text", text)
+                    params.putBoolean("isFinal", isFinal)
+                    reactContext
+                        .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit("VoiceStreamTranscription", params)
+                }
+                manager.onConnected = {
+                    Log.d(TAG, "WebSocket 已连接")
+                    val params = Arguments.createMap()
+                    reactContext
+                        .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit("VoiceStreamConnected", params)
+                }
+                manager.onError = { error ->
+                    Log.e(TAG, "WebSocket 错误: $error")
+                    val params = Arguments.createMap()
+                    params.putString("error", error)
+                    reactContext
+                        .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit("VoiceStreamError", params)
+                }
+                manager.onClose = { code, reason ->
+                    Log.d(TAG, "WebSocket 关闭: $code, $reason")
+                    val params = Arguments.createMap()
+                    params.putInt("code", code)
+                    params.putString("reason", reason)
+                    reactContext
+                        .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit("VoiceStreamClosed", params)
+                }
+
+                manager.connect(serverUrl, token)
+                voiceStreamManager = manager
+
+                // 等待 WebSocket 连接后启动录音
+                Thread.sleep(500)
+
+                // 启动录音（直传模式）
+                startAudioRecordingDirect(promise)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "实时录音启动失败", e)
+                withContext(Dispatchers.Main) {
+                    promise.reject("RECORD_ERROR", "Failed to start recording: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // 【优化】发送控制消息
+    fun sendControlMessage(message: ReadableMap?) {
+        val type = message?.getString("type") ?: return
+        val sessionId = message.getString("session_id")
+        voiceStreamManager?.sendControlMessage(type, sessionId)
+        Log.d(TAG, "发送控制消息: $type")
+    }
+
+    // 【优化】断开 WebSocket
+    fun disconnectVoiceStream() {
+        voiceStreamManager?.disconnect()
+        voiceStreamManager = null
+        Log.d(TAG, "WebSocket 已断开")
+    }
+
+    // 【优化】直传模式的录音逻辑
+    private fun startAudioRecordingDirect(promise: Promise) {
+        val sampleRate = 16000
+        val channelConfig = AudioFormat.CHANNEL_IN_MONO
+        val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+        val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+        if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
+            Log.e(TAG, "无法获取有效的缓冲区大小: $bufferSize")
+            coroutineScope.launch {
+                withContext(Dispatchers.Main) {
+                    promise.reject("RECORD_ERROR", "Invalid buffer size")
+                }
+            }
+            return
+        }
+
+        val recorder = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                channelConfig,
+                audioFormat,
+                bufferSize * 2
+            )
+        } catch (e: SecurityException) {
+            Log.e(TAG, "AudioRecord 创建失败 SecurityException", e)
+            coroutineScope.launch {
+                withContext(Dispatchers.Main) {
+                    promise.reject("PERMISSION_DENIED", "Failed to create AudioRecord")
+                }
+            }
+            return
+        } catch (e: Exception) {
+            Log.e(TAG, "AudioRecord 创建失败", e)
+            coroutineScope.launch {
+                withContext(Dispatchers.Main) {
+                    promise.reject("RECORD_ERROR", "Failed to create AudioRecord")
+                }
+            }
+            return
+        }
+
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            Log.e(TAG, "AudioRecord 初始化失败")
+            recorder.release()
+            coroutineScope.launch {
+                withContext(Dispatchers.Main) {
+                    promise.reject("RECORD_ERROR", "AudioRecord initialization failed")
+                }
+            }
+            return
+        }
+
+        audioRecord = recorder
+        isRealtimeRecording = true
+        Log.d(TAG, "AudioRecord 初始化成功，采样率: ${sampleRate}Hz")
+
+        // 启动后台线程进行录音（直传模式）
+        realtimeRecordingThread = Thread {
+            try {
+                val buffer = ByteArray(bufferSize)
+                recorder.startRecording()
+                Log.d(TAG, "========== 实时录音已启动（直传模式）==========")
+
+                while (isRealtimeRecording) {
+                    if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                        break
+                    }
+
+                    val readSize = recorder.read(buffer, 0, buffer.size)
+                    if (readSize > 0) {
+                        val chunk = buffer.copyOf(readSize)
+                        // 【关键优化】直接通过原生 WebSocket 发送，不经过 Bridge
+                        voiceStreamManager?.sendAudioData(chunk)
+                    } else if (readSize < 0) {
+                        Log.e(TAG, "读取音频数据失败: $readSize")
+                        break
+                    }
+                }
+
+                Log.d(TAG, "实时录音线程结束")
+            } catch (e: Exception) {
+                Log.e(TAG, "实时录音线程异常", e)
+            } finally {
+                try {
+                    if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                        recorder.stop()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "stop() 失败", e)
+                }
+                recorder.release()
+                if (audioRecord === recorder) {
+                    audioRecord = null
+                }
+            }
+        }
+        realtimeRecordingThread?.start()
+
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                promise.resolve(true)
+            }
+        }
+    }
+
+    // 保留旧方法以兼容现有代码
     fun startRealtimeRecording(options: ReadableMap?, onChunkReady: Callback, promise: Promise) {
         Log.d(TAG, "========== 开始实时录音 ==========")
 
@@ -565,6 +779,12 @@ class VoiceRecorderModuleImpl(
                     }
                 }
                 realtimeRecordingThread = null
+
+                // 【优化】发送停止消息并断开 WebSocket
+                voiceStreamManager?.sendControlMessage("stop")
+                Thread.sleep(500)
+                voiceStreamManager?.disconnect()
+                voiceStreamManager = null
 
                 Log.d(TAG, "========== 实时录音已停止 ==========")
 

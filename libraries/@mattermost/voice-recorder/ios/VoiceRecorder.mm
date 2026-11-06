@@ -16,7 +16,7 @@ RCT_EXPORT_MODULE(VoiceRecorder);
 - (VoiceRecorderWrapper *)recorderWrapper
 {
     if (_recorderWrapper == nil) {
-        _recorderWrapper = [[VoiceRecorderWrapper alloc] init];
+        _recorderWrapper = [[VoiceRecorderWrapper alloc] initWithBridge:self.bridge];
     }
     return _recorderWrapper;
 }
@@ -151,6 +151,45 @@ RCT_EXPORT_METHOD(stopRealtimeRecording:(RCTPromiseResolveBlock)resolve
         NSLog(@"========== iOS 停止实时录音完成 ==========");
         resolve(nil);
     }];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 【优化】原生直传模式：避免 Bridge 开销
+// ═══════════════════════════════════════════════════════════════
+
+RCT_EXPORT_METHOD(startRealtimeRecordingDirect:(NSDictionary *)options
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSLog(@"========== iOS 开始实时录音（原生直传模式）==========");
+    NSLog(@"请求参数 - options: %@", options);
+
+    [[self recorderWrapper] startRealtimeRecordingDirect:options
+                                              completion:^(BOOL success, NSString *_Nullable errorCode) {
+        if (success) {
+            NSLog(@"========== iOS 实时录音启动成功（直传模式）==========");
+            resolve(@(success));
+            return;
+        }
+        NSLog(@"========== iOS 实时录音启动失败（直传模式）==========");
+        if (errorCode != nil && [errorCode isEqualToString:@"PERMISSION_DENIED"]) {
+            reject(@"PERMISSION_DENIED", @"Microphone permission not granted", nil);
+        } else if (errorCode != nil && [errorCode isEqualToString:@"INVALID_PARAMS"]) {
+            reject(@"INVALID_PARAMS", @"Missing serverUrl or token", nil);
+        } else {
+            reject(@"RECORD_ERROR", @"Failed to start realtime recording", nil);
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(sendControlMessage:(NSDictionary *)message)
+{
+    [[self recorderWrapper] sendControlMessage:message];
+}
+
+RCT_EXPORT_METHOD(disconnectVoiceStream)
+{
+    [[self recorderWrapper] disconnectVoiceStream];
 }
 
 @end

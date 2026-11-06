@@ -67,4 +67,36 @@ class VoiceRecorderModule(context: ReactApplicationContext) :
     fun cleanExpiredRecordingFiles(prefix: String, maxAgeMs: Double, promise: Promise) {
         implementation.cleanExpiredRecordingFiles(prefix, maxAgeMs, promise)
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 【优化】原生直传模式方法
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 启动实时录音（原生直传模式）
+     * 音频数据直接通过 WebSocket 发送到服务器，避免 Bridge 开销
+     * @param options - 包含 serverUrl 和 token 的选项对象
+     * @param promise - Promise 回调
+     */
+    @ReactMethod
+    fun startRealtimeRecordingDirect(options: ReadableMap?, promise: Promise) {
+        implementation.startRealtimeRecordingDirect(options, promise)
+    }
+
+    /**
+     * 发送控制消息到语音流服务器
+     * @param message - 控制消息对象，包含 type 和可选的 session_id
+     */
+    @ReactMethod
+    fun sendControlMessage(message: ReadableMap?) {
+        implementation.sendControlMessage(message)
+    }
+
+    /**
+     * 断开语音流 WebSocket 连接
+     */
+    @ReactMethod
+    fun disconnectVoiceStream() {
+        implementation.disconnectVoiceStream()
+    }
 }
