@@ -929,16 +929,19 @@ function DraftInput({
         console.log('[handleVoiceGestureEnd] 当前 voiceFingerDownRef:', voiceFingerDownRef.current);
         console.log('[handleVoiceGestureEnd] 当前 getIsRecordingGlobally():', getIsRecordingGlobally());
         console.log('[handleVoiceGestureEnd] 当前 getIsRecorderBusy():', getIsRecorderBusy());
-        
-        // 立即重置所有状态，让 UI 状态与手势状态保持一致
-        resetAllVoiceStates();
-        
+
+        // 【关键修复】不要立即重置 voiceFingerDownRef，让 startRecording 完成权限检查
+        // 只重置 voiceCancelZone，保留 voiceFingerDownRef 和 voicePressActive
+        setVoiceCancelZone(false);
+
         // 如果录音器正在忙（可能是正在启动中），需要等待启动完成
         if (getIsRecorderBusy()) {
             console.log('[handleVoiceGestureEnd] 录音器正在启动中，等待启动完成后再停止');
             // 等待一小段时间让录音启动完成
             setTimeout(() => {
                 console.log('[handleVoiceGestureEnd] 等待完成，准备停止录音');
+                // 现在可以安全地重置 fingerDownRef
+                voiceFingerDownRef.current = false;
                 if (shouldCancel) {
                     console.log('[handleVoiceGestureEnd] 取消录音');
                     cancelRecording();
@@ -950,6 +953,10 @@ function DraftInput({
             return;
         }
         
+        // 录音器不忙，可以直接操作
+        // 现在可以安全地重置 fingerDownRef
+        voiceFingerDownRef.current = false;
+
         if (shouldCancel) {
             console.log('[handleVoiceGestureEnd] 取消录音');
             cancelRecording();
@@ -958,7 +965,7 @@ function DraftInput({
         console.log('[handleVoiceGestureEnd] 停止录音并发送');
         stopRecordingAndSend();
         console.log('[handleVoiceGestureEnd] 结束录音处理完成');
-    }, [cancelRecording, stopRecordingAndSend, resetAllVoiceStates]);
+    }, [cancelRecording, stopRecordingAndSend]);
 
     useEffect(() => {
         const sub = AppState.addEventListener('change', (nextAppState) => {
