@@ -370,12 +370,12 @@ const SmartNoteDetailScreen = () => {
 
         debugLog('smartNotebook', `[handleFilesSelected] Created ${newBlocks.length} blocks, inserting at cursor=${focusedBlockIndex}`);
 
-        // 在光标位置后面插入，而不是追加到末尾
+        // 【关键修复】在光标位置插入文件块，原段落块自动后移，光标聚焦到文件块后的段落块
         setBlocks(prev => {
-            const insertAt = focusedBlockIndex >= 0 ? focusedBlockIndex + 1 : prev.length;
             const updated = [...prev];
+            const insertAt = focusedBlockIndex >= 0 ? focusedBlockIndex : prev.length;
 
-            // 插入文件块
+            // 插入文件块（在光标位置）
             updated.splice(insertAt, 0, ...newBlocks);
 
             // 在文件块下方添加一个空段落，方便用户继续输入
@@ -399,13 +399,56 @@ const SmartNoteDetailScreen = () => {
     }, [blocks.length, focusedBlockIndex]);
 
     // ---- Add block of specific type ----
+    // 【关键修复】智能插入/替换 + 光标跟随
     const addBlock = useCallback((type: SmartNoteBlock['type'], meta?: Record<string, any>) => {
         const newBlock = createBlock(type, '');
         if (meta) {
             newBlock.meta = meta;
         }
-        setBlocks(prev => [...prev, newBlock]);
-    }, []);
+
+        setBlocks(prev => {
+            const updated = [...prev];
+            let insertAt: number;
+            let shouldReplace = false;
+
+            if (focusedBlockIndex >= 0 && focusedBlockIndex < prev.length) {
+                const currentBlock = prev[focusedBlockIndex];
+                // 检查当前块是否是空块
+                const isEmpty = !currentBlock.content || currentBlock.content.trim() === '';
+
+                if (isEmpty) {
+                    // 当前块为空，替换它
+                    insertAt = focusedBlockIndex;
+                    shouldReplace = true;
+                    debugLog('smartNotebook', `[addBlock] Replacing empty block at index ${focusedBlockIndex} with type ${type}`);
+                } else {
+                    // 当前块有内容，在后面插入
+                    insertAt = focusedBlockIndex + 1;
+                    debugLog('smartNotebook', `[addBlock] Inserting after non-empty block at index ${focusedBlockIndex}`);
+                }
+            } else {
+                // 没有光标，追加到末尾
+                insertAt = prev.length;
+                debugLog('smartNotebook', `[addBlock] No cursor, appending to end`);
+            }
+
+            // 如果要替换，先删除当前块
+            if (shouldReplace) {
+                updated.splice(insertAt, 1);
+            }
+
+            // 插入新块
+            updated.splice(insertAt, 0, newBlock);
+
+            // 更新 order
+            updated.forEach((b, i) => { b.order = i; });
+
+            // 光标聚焦到新块
+            setTimeout(() => setPendingFocusIndex(insertAt), 50);
+
+            return updated;
+        });
+    }, [focusedBlockIndex]);
 
     // ---- Toolbar actions ----
     const insertHeading = useCallback(() => {

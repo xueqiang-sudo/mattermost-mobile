@@ -185,34 +185,14 @@ const BlockItem = ({
         onFocus(index);
     }, [index, onFocus]);
 
-    // 处理回车键：列表项自动续行
+    // 【关键修复】移除回车键的特殊处理
+    // 在手机上，回车键应该是块内换行（\n），而不是创建新块
+    // 让系统默认行为处理回车键（TextInput 的 multiline={true} 会自动处理）
+    // 如果需要创建新列表项，用户可以通过工具栏或 + 号按钮
     const handleKeyPress = useCallback((e: any) => {
-        // 检查是否是回车键
-        if (e.nativeEvent.key === 'Enter') {
-            // 检查是否是列表类型
-            if (block.type === 'bulleted-list' || block.type === 'numbered-list' || block.type === 'checklist') {
-                // 如果是空列表项，转换为普通段落
-                if (!block.content.trim()) {
-                    onChange(index, {...block, type: 'paragraph', content: '', meta: undefined});
-                    return;
-                }
-
-                // 否则创建新的列表项
-                let newMeta: any = {};
-                if (block.type === 'numbered-list') {
-                    // 有序列表：序号加1
-                    const currentNumber = block.meta?.number || 1;
-                    newMeta = {number: currentNumber + 1};
-                } else if (block.type === 'checklist') {
-                    // 待办列表：默认未选中
-                    newMeta = {checked: false};
-                }
-
-                // 创建新块并设置焦点
-                onAddAfterWithFocus(index, block.type, newMeta);
-            }
-        }
-    }, [index, block, onChange, onAddAfterWithFocus]);
+        // 不做任何处理，让系统默认行为处理回车键
+        // 这样回车就是块内换行（\n），而不是创建新块
+    }, []);
 
     // Get appropriate style for block type
     const getBlockTextStyle = () => {
