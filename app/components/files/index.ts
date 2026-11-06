@@ -70,12 +70,26 @@ const enhance = withObservables(['post'], ({database, post, serverUrl}: EnhanceP
                 // 对齐 webapp：使用 client_id（snake_case）
                 const progressInfo = uploadProgress[pf.client_id];
 
-                // 检查 DB 中是否已有对应的文件记录（通过 pending ID 或真实 ID）
-                const pendingId = `pending_${pf.client_id}`;
-                if (dbFiles.some((f) => f.id === pendingId)) {
-                    // DB 中已有 pending 记录，跳过合成（避免重复渲染）
+                // 检查 DB 中是否已有对应的文件记录
+                // 【关键修复】DB File 的 id 是 pending_<uuid>（UUID 格式），而 pf.client_id 是文件 URL，
+                // 所以 pending_${pf.client_id} 与 DB File id 不匹配。改用 localPath 或 name 匹配。
+                const alreadyInDb = dbFiles.some((f) => {
+                    // 通过 localPath 匹配（localPath 存储了原始文件 URL）
+                    if (f.localPath && pf.client_id && f.localPath === pf.client_id) {
+                        return true;
+                    }
+                    // 回退：通过文件名匹配
+                    if (f.name === pf.name) {
+                        return true;
+                    }
+                    return false;
+                });
+                if (alreadyInDb) {
+                    // DB 中已有对应记录，跳过合成（避免重复渲染）
                     continue;
                 }
+
+                const pendingId = `pending_${pf.client_id}`;
 
                 const extension = pf.name.includes('.') ? pf.name.split('.').pop() || '' : '';
                 const syntheticFileInfo: FileInfo = {
