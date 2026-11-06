@@ -15,6 +15,7 @@ import {NOTIFY_ALL_MEMBERS} from '@constants/post_draft';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import DraftUploadManager from '@managers/draft_upload_manager';
+import NetworkManager from '@managers/network_manager';
 import * as DraftUtils from '@utils/draft';
 import {isDraftVideoLocalProcessingFile} from '@utils/file/draft_video_local_processing';
 import {isReactionMatch} from '@utils/emoji/helpers';
@@ -259,49 +260,62 @@ export const useHandleSendMessage = ({
 
         setSendingMessage(true);
         try {
-            // 步骤 1: 上传语音文件
-            const uploadedFiles: FileInfo[] = [];
-            for (let i = 0; i < voiceFiles.length; i++) {
-                const file = voiceFiles[i];
+            // 【关键修复】先转写语音为文本，然后只发送文本（不发送音频文件）
+            const file = voiceFiles[0];
 
-                const uploaded = await new Promise<FileInfo>((resolve, reject) => {
-                    const {error, cancel} = uploadFile(
-                        serverUrl,
-                        file,
-                        channelId,
-                        (progress) => {
-                        },
-                        (response) => {
-                            if (response.code !== 201 || !response.data?.file_infos?.length) {
-                                const errorMsg = (response.data?.message as string) || 'Failed to upload voice';
-                                reject(new Error(errorMsg));
-                                return;
-                            }
-                            const fi = response.data.file_infos[0] as FileInfo;
-                            fi.clientId = file.clientId;
-                            fi.localPath = file.localPath;
-                            resolve(fi);
-                        },
-                        (err) => {
-                            reject(new Error(err?.message || 'Upload failed'));
-                        },
-                    );
-                    if (error) {
-                        reject(error);
-                    }
-                });
-                uploadedFiles.push(uploaded);
+            if (!file.localPath) {
+                throw new Error('No local path for voice file');
             }
 
+            // 步骤 1: 调用转写 API
+            const VOICE_PLUGIN_BASE = '/plugins/com.superera.voice-recognition';
+            const endpoint = VOICE_PLUGIN_BASE + '/api/v1/transcribe';
 
-            // 步骤 2: 创建 ASR 帖子
+            const client = NetworkManager.getClient(serverUrl);
+
+            // 准备文件名和类型
+            let fileName = file.name || 'voice.aac';
+            const extension = fileName.split('.').pop()?.toLowerCase();
+            if (!extension || !['mp3', 'wav', 'amr', 'aac', 'm4a', 'ogg'].includes(extension)) {
+                const mimeToExt: Record<string, string> = {
+                    'audio/mpeg': 'mp3',
+                    'audio/wav': 'wav',
+                    'audio/x-wav': 'wav',
+                    'audio/amr': 'amr',
+                    'audio/aac': 'aac',
+                    'audio/mp4': 'm4a',
+                    'audio/x-m4a': 'm4a',
+                    'audio/ogg': 'ogg',
+                };
+                const correctExt = mimeToExt[file.mime_type || ''] || 'aac';
+                fileName = `voice.${correctExt}`;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', {
+                uri: file.localPath,
+                name: fileName,
+                type: file.mime_type || 'audio/aac',
+            } as any);
+
+            const transcribeResp = await client.doFetch(endpoint, {
+                method: 'post',
+                body: formData,
+            });
+
+            const transcribedText = transcribeResp?.data?.text || transcribeResp?.text || '';
+
+            if (!transcribedText || !transcribedText.trim()) {
+                throw new Error('语音转写结果为空');
+            }
+
+            // 步骤 2: 发送转写文本作为普通消息（不发送音频文件）
             const post = {
                 user_id: currentUserId,
                 channel_id: channelId,
                 root_id: rootId,
-                message: '',
-                type: PostTypes.CUSTOM_VOICE_ASR,
-                file_ids: uploadedFiles.map(f => f.id),  // ← 关键：添加文件 ID
+                message: transcribedText.trim(),
+                // 不使用 CUSTOM_VOICE_ASR 类型，不添加 file_ids
             } as Post;
 
             // 添加优先级信息
@@ -315,13 +329,11 @@ export const useHandleSendMessage = ({
                 };
             }
 
-
-            const createResult = await createPost(serverUrl, post, uploadedFiles);
+            const createResult = await createPost(serverUrl, post, []);
 
             if (createResult.error) {
                 throw createResult.error;
             }
-
 
             // 步骤 3: 发送事件
             DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);

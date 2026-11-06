@@ -38,11 +38,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         backgroundColor: theme.centerChannelBg,
         borderRadius: 16,
-        paddingVertical: 24,
-        paddingHorizontal: 28,
+        paddingVertical: 20,
+        paddingHorizontal: 24,
         minWidth: 280,
         maxWidth: 340,
-        maxHeight: '80%',
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 4},
         shadowOpacity: 0.15,
@@ -50,7 +49,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         elevation: 8,
     },
     header: {
-        marginBottom: 20,
+        marginBottom: 12,
     },
     headerTitle: {
         ...typography('Body', 200, 'SemiBold'),
@@ -60,15 +59,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     fileName: {
         ...typography('Body', 75, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginBottom: 20,
+        marginBottom: 12,
     },
     stepsContainer: {
-        marginBottom: 20,
+        marginBottom: 12,
     },
     stepContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 6,
     },
     stepIconContainer: {
         width: 28,
@@ -152,6 +151,9 @@ const FilePreviewLoadingModal = ({
         return <View style={styles.stepCircle}/>;
     };
 
+    // 【关键修复】如果步骤为空，显示默认的处理中状态
+    const displaySteps = steps.length > 0 ? steps : [currentStep === 'idle' ? 'opening' : currentStep];
+
     return (
         <Modal
             visible={visible}
@@ -170,15 +172,17 @@ const FilePreviewLoadingModal = ({
                         </Text>
                     </View>
 
-                    <Text
-                        style={styles.fileName}
-                        numberOfLines={2}
-                    >
-                        {fileName}
-                    </Text>
+                    {fileName ? (
+                        <Text
+                            style={styles.fileName}
+                            numberOfLines={2}
+                        >
+                            {fileName}
+                        </Text>
+                    ) : null}
 
                     <View style={styles.stepsContainer}>
-                        {steps.map((step) => {
+                        {displaySteps.map((step) => {
                             const status = getStepStatus(step);
                             return (
                                 <View

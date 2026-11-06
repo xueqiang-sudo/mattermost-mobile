@@ -242,6 +242,7 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
     const recordingEndsAtRef = useRef(0);
     const isRecordingRef = useRef(false);
     const leavingRecorderDueToLifecycleRef = useRef(false);
+    const videoProcessedRef = useRef(false); // 【关键修复】防止重复处理视频
     const [position, setPosition] = useState<'back' | 'front'>('back');
     const [isRecording, setIsRecording] = useState(false);
 
@@ -462,6 +463,8 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
         if (!cam) {
             return;
         }
+        // 【关键修复】重置处理标记，允许新录制
+        videoProcessedRef.current = false;
         recordingEndsAtRef.current = Date.now() + MAX_RECORD_MS;
         setIsRecording(true);
         // Audio is muxed when <Camera audio={true} /> and microphone permission is granted (VisionCamera 4).
@@ -483,7 +486,16 @@ const DraftVideoRecorder = ({componentId, onVideoRecorded}: Props) => {
                     videoDuration: video.duration,
                     videoWidth: video.width,
                     videoHeight: video.height,
+                    alreadyProcessed: videoProcessedRef.current,
                 });
+
+                // 【关键修复】防止重复处理视频
+                if (videoProcessedRef.current) {
+                    debugLog('VIDEO_RECORDER', '[onRecordingFinished] ⚠️ Video already processed, skipping');
+                    return;
+                }
+                videoProcessedRef.current = true;
+
                 setIsRecording(false);
                 setTorchOn(false);
 
