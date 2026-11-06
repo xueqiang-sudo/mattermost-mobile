@@ -34,6 +34,7 @@ type BlockEditorProps = {
     onFocusedIndexChange?: (index: number) => void;
     pendingFocusIndex?: number | null;
     onFocusApplied?: () => void;
+    onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
 };
 
 type BlockItemProps = {
@@ -47,6 +48,7 @@ type BlockItemProps = {
     onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
+    onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
     theme: Theme;
     editable: boolean;
     isFirst: boolean;
@@ -150,6 +152,7 @@ const BlockItem = ({
     onMoveDown,
     onFocus,
     onPlayMedia,
+    onScrollToBlock,
     theme,
     editable,
     isFirst,
@@ -168,9 +171,15 @@ const BlockItem = ({
             setTimeout(() => {
                 textInputRef.current?.focus();
                 setShouldAutoFocus(false);
+                // 请求滚动到新 block
+                if (onScrollToBlock) {
+                    setTimeout(() => {
+                        onScrollToBlock(index);
+                    }, 150); // 等待焦点和布局完成
+                }
             }, 100);
         }
-    }, [autoFocus, shouldAutoFocus]);
+    }, [autoFocus, shouldAutoFocus, index, onScrollToBlock]);
 
     const handleContentChange = useCallback((text: string) => {
         onChange(index, {...block, content: text});
@@ -178,7 +187,13 @@ const BlockItem = ({
 
     const handleFocus = useCallback(() => {
         onFocus(index);
-    }, [index, onFocus]);
+        // 请求滚动到当前 block
+        if (onScrollToBlock) {
+            setTimeout(() => {
+                onScrollToBlock(index);
+            }, 100); // 等待布局更新
+        }
+    }, [index, onFocus, onScrollToBlock]);
 
     // 点击块容器时聚焦
     const handlePress = useCallback(() => {
@@ -742,6 +757,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
                 onPlayMedia={handlePlayMedia}
+                onScrollToBlock={onScrollToBlock}
                 theme={theme}
                 editable={editable}
                 isFirst={index === 0}
@@ -750,7 +766,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, onFocusedIndexChange, p
                 autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
@@ -833,12 +849,12 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
     blockContainer: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        marginBottom: 8,
+        marginBottom: 2,
     },
     textBlock: {
         flex: 1,
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     textInput: {
         flex: 1,
@@ -895,8 +911,9 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 200, 'Regular'),
         color: theme.centerChannelColor,
         width: 20,
-        textAlign: 'right',
+        textAlign: 'center',
         marginRight: 4,
+        lineHeight: 20,
     },
     checkbox: {
         width: 24,
@@ -904,7 +921,6 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 8,
-        marginTop: 2,
     },
     checkboxEmpty: {
         width: 20,

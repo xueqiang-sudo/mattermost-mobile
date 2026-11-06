@@ -8,6 +8,7 @@ import {
     Alert,
     Animated,
     Clipboard,
+    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -122,6 +123,27 @@ const SmartNoteDetailScreen = () => {
     const [mode, setMode] = useState<NoteMode>(initialIsNew ? 'new' : 'viewing');
 
     const textInputRef = useRef<TextInput>(null);
+    const editorScrollViewRef = useRef<ScrollView>(null);
+
+    // 滚动到指定 block 的处理函数
+    const handleScrollToBlock = useCallback((index: number) => {
+        // 使用 setTimeout 确保布局已更新
+        setTimeout(() => {
+            if (editorScrollViewRef.current) {
+                // 估算每个 block 的高度和位置
+                // 这里使用一个简单的估算，实际可以根据 block 类型调整
+                const estimatedBlockHeight = 50; // 估算每个 block 的平均高度
+                const blockPosition = index * estimatedBlockHeight;
+
+                // 滚动到目标位置，留出一些空间在工具栏上方
+                editorScrollViewRef.current.scrollTo({
+                    y: Math.max(0, blockPosition - 100), // 留出 100px 空间
+                    animated: true,
+                });
+            }
+        }, 200); // 等待键盘动画和布局更新
+    }, []);
+
     const [userId, setUserId] = useState('');
     const [bearerToken, setBearerToken] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
@@ -131,6 +153,7 @@ const SmartNoteDetailScreen = () => {
     const [loading, setLoading] = useState(!isNew);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
+    const [savedTitle, setSavedTitle] = useState(''); // 保存时的标题
 
     // 脉冲动画
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -193,7 +216,8 @@ const SmartNoteDetailScreen = () => {
     }, []);
 
     // Check if content has changed
-    const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== noteTitle;
+    // 【关键修复】比较当前标题和保存时的标题，而不是和初始 prop 比较
+    const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== savedTitle;
 
     // ---- Init ----
     useEffect(() => {
@@ -213,12 +237,16 @@ const SmartNoteDetailScreen = () => {
                     const note = await getNote(serverUrl, uid, currentNoteId);
                     if (note) {
                         setTitle(note.title);
+                        setSavedTitle(note.title); // 初始化保存的标题
                         const noteBlocks = note.blocks && note.blocks.length > 0
                             ? note.blocks
                             : [createBlock('paragraph', '')];
                         setBlocks(noteBlocks);
                         setOriginalBlocks(JSON.parse(JSON.stringify(noteBlocks)));
                     }
+                } else {
+                    // 新笔记，初始标题为空
+                    setSavedTitle('');
                 }
             } catch (e) {
                 console.error('[SmartNoteDetail] init error:', e);
@@ -782,9 +810,17 @@ const SmartNoteDetailScreen = () => {
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
 
             setSaveSuccess(true);
-            setBlocks(blocksToSave); // 更新块为已上传版本
-            setOriginalBlocks(JSON.parse(JSON.stringify(blocksToSave)));
-            setTimeout(() => setSaveSuccess(false), 2000);
+
+            // 【关键修复】确保 blocks 和 originalBlocks 完全相同（都使用深拷贝）
+            const savedBlocksCopy = JSON.parse(JSON.stringify(blocksToSave));
+            setBlocks(savedBlocksCopy);
+            setOriginalBlocks(JSON.parse(JSON.stringify(savedBlocksCopy)));
+
+            // 【关键修复】保存当前标题，用于后续比较
+            setSavedTitle(noteTitle);
+
+            // 【关键修复】延长成功提示显示时间，让用户看清楚
+            setTimeout(() => setSaveSuccess(false), 3000); // 3秒而不是2秒
 
             // After saving, go back to viewing mode (for editing existing notes)
             if (mode === 'editing') {
@@ -821,7 +857,11 @@ const SmartNoteDetailScreen = () => {
 
         // 如果没有 H1 标题且用户没有手动输入标题，显示对话框
         if (!hasH1Title && !title.trim()) {
-            setShowTitleDialog(true);
+            // 【关键修复】先收起键盘，避免遮挡对话框
+            Keyboard.dismiss();
+            setTimeout(() => {
+                setShowTitleDialog(true);
+            }, 100); // 等待键盘收起动画
             return;
         }
 
@@ -836,25 +876,30 @@ const SmartNoteDetailScreen = () => {
 
     // ---- Cancel editing ----
     const handleCancel = useCallback(() => {
+        // 【关键修复】先收起键盘，避免遮挡对话框
+        Keyboard.dismiss();
+
         if (hasChanges) {
-            Alert.alert(
-                intl.formatMessage({id: 'smart_notebook.unsaved_changes', defaultMessage: '未保存的更改'}),
-                intl.formatMessage({id: 'smart_notebook.discard_changes', defaultMessage: '是否放弃更改？'}),
-                [
-                    {
-                        text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
-                        style: 'cancel',
-                    },
-                    {
-                        text: intl.formatMessage({id: 'smart_notebook.discard', defaultMessage: '放弃'}),
-                        style: 'destructive',
-                        onPress: () => {
-                            setBlocks(JSON.parse(JSON.stringify(originalBlocks)));
-                            setMode('viewing');
+            setTimeout(() => {
+                Alert.alert(
+                    intl.formatMessage({id: 'smart_notebook.unsaved_changes', defaultMessage: '未保存的更改'}),
+                    intl.formatMessage({id: 'smart_notebook.discard_changes', defaultMessage: '是否放弃更改？'}),
+                    [
+                        {
+                            text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                            style: 'cancel',
                         },
-                    },
-                ],
-            );
+                        {
+                            text: intl.formatMessage({id: 'smart_notebook.discard', defaultMessage: '放弃'}),
+                            style: 'destructive',
+                            onPress: () => {
+                                setBlocks(JSON.parse(JSON.stringify(originalBlocks)));
+                                setMode('viewing');
+                            },
+                        },
+                    ],
+                );
+            }, 100); // 等待键盘收起动画
         } else {
             setMode('viewing');
         }
@@ -1021,7 +1066,12 @@ const SmartNoteDetailScreen = () => {
                 </View>
 
                 {/* Content Area */}
-                <ScrollView style={style.editorContainer} keyboardShouldPersistTaps='handled'>
+                <ScrollView
+                    ref={editorScrollViewRef}
+                    style={style.editorContainer}
+                    keyboardShouldPersistTaps='handled'
+                    contentContainerStyle={{paddingBottom: 120}} // 为工具栏留出空间
+                >
                     {mode === 'viewing' ? (
                         // Read-only view with Block Editor (non-editable)
                         <TouchableOpacity
@@ -1052,6 +1102,7 @@ const SmartNoteDetailScreen = () => {
                             onFocusedIndexChange={handleFocusedIndexChange}
                             pendingFocusIndex={pendingFocusIndex}
                             onFocusApplied={handleFocusApplied}
+                            onScrollToBlock={handleScrollToBlock}
                         />
                     )}
                 </ScrollView>
