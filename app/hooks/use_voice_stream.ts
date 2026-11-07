@@ -43,11 +43,15 @@ export function useVoiceStream(serverUrl: string, token: string) {
 
     // 【优化】添加事件监听器 - 接收原生端转录结果
     useEffect(() => {
+        console.log('[useVoiceStream] 🎧 设置事件监听器...');
+        debugLog('VOICE_STREAM', '[useVoiceStream] 🎧 设置事件监听器...');
+
         // 监听转录结果（低频，每秒 1-2 次）
         const transcriptionListener = voiceStreamEmitter.addListener(
             'VoiceStreamTranscription',
             (event: {text: string; isFinal: boolean}) => {
-                debugLog('VOICE_STREAM', '[useVoiceStream] 收到转录:', event.text, 'isFinal:', event.isFinal);
+                console.log('[useVoiceStream] ✅ 收到转录事件:', event);
+                debugLog('VOICE_STREAM', '[useVoiceStream] ✅ 收到转录:', event.text, 'isFinal:', event.isFinal);
                 setResult(prev => ({
                     ...prev,
                     partialText: event.isFinal ? prev.partialText : event.text,
@@ -60,7 +64,8 @@ export function useVoiceStream(serverUrl: string, token: string) {
         const connectedListener = voiceStreamEmitter.addListener(
             'VoiceStreamConnected',
             () => {
-                debugLog('VOICE_STREAM', '[useVoiceStream] WebSocket 已连接');
+                console.log('[useVoiceStream] ✅ WebSocket 已连接事件');
+                debugLog('VOICE_STREAM', '[useVoiceStream] ✅ WebSocket 已连接');
             }
         );
 
@@ -68,6 +73,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
         const errorListener = voiceStreamEmitter.addListener(
             'VoiceStreamError',
             (event: {error: string}) => {
+                console.log('[useVoiceStream] ❌ 收到错误事件:', event);
                 debugLog('VOICE_STREAM', '[useVoiceStream] ❌ 错误:', event.error);
                 setResult(prev => ({...prev, error: event.error}));
                 setState('error');
@@ -78,7 +84,8 @@ export function useVoiceStream(serverUrl: string, token: string) {
         const closedListener = voiceStreamEmitter.addListener(
             'VoiceStreamClosed',
             (event: {code: number; reason: string}) => {
-                debugLog('VOICE_STREAM', '[useVoiceStream] 连接关闭:', event.code, event.reason);
+                console.log('[useVoiceStream] ⚠️ 连接关闭事件:', event);
+                debugLog('VOICE_STREAM', '[useVoiceStream] ⚠️ 连接关闭:', event.code, event.reason);
                 if (event.code !== 1000 && event.reason !== 'Normal closure') {
                     setState('error');
                     setResult(prev => ({...prev, error: '连接意外关闭'}));
@@ -86,8 +93,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
             }
         );
 
+        console.log('[useVoiceStream] ✅ 事件监听器已注册');
+        debugLog('VOICE_STREAM', '[useVoiceStream] ✅ 事件监听器已注册');
+
         // 清理监听器
         return () => {
+            console.log('[useVoiceStream] 🧹 清理事件监听器');
             transcriptionListener.remove();
             connectedListener.remove();
             errorListener.remove();

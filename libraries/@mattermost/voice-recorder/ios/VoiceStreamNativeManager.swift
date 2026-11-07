@@ -18,7 +18,10 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
         let baseUrl = serverUrl.replacingOccurrences(of: "^https?://", with: "", options: .regularExpression)
         let wsUrlString = "\(wsProtocol)://\(baseUrl)/api/v4/voice-stream?token=\(token)"
 
+        print("[VoiceStreamNative] 正在连接 WebSocket: \(wsUrlString.prefix(100))...")
+
         guard let url = URL(string: wsUrlString) else {
+            print("[VoiceStreamNative] ❌ Invalid WebSocket URL")
             onError?("Invalid WebSocket URL")
             return
         }
@@ -27,6 +30,8 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: OperationQueue.main)
         webSocketTask = urlSession?.webSocketTask(with: url)
         webSocketTask?.resume()
+
+        print("[VoiceStreamNative] WebSocket 任务已启动，等待连接...")
 
         // 开始接收消息
         receiveMessage()
@@ -78,9 +83,11 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
             case .success(let message):
                 switch message {
                 case .string(let text):
+                    print("[VoiceStreamNative] 收到文本消息: \(text.prefix(200))")
                     self?.handleTextMessage(text)
                 case .data(let data):
                     if let text = String(data: data, encoding: .utf8) {
+                        print("[VoiceStreamNative] 收到数据消息: \(text.prefix(200))")
                         self?.handleTextMessage(text)
                     }
                 @unknown default:
@@ -90,7 +97,7 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
                 self?.receiveMessage()
 
             case .failure(let error):
-                print("[VoiceStreamNative] Receive error: \(error.localizedDescription)")
+                print("[VoiceStreamNative] ❌ 接收消息失败: \(error.localizedDescription)")
             }
         }
     }
@@ -99,29 +106,39 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
     private func handleTextMessage(_ text: String) {
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            print("[VoiceStreamNative] ⚠️ 无法解析 JSON: \(text.prefix(100))")
             return
         }
 
-        guard let type = json["type"] as? String else { return }
+        guard let type = json["type"] as? String else {
+            print("[VoiceStreamNative] ⚠️ 消息缺少 type 字段")
+            return
+        }
+
+        print("[VoiceStreamNative] 处理消息类型: \(type)")
 
         switch type {
         case "transcription":
             let transcription = json["text"] as? String ?? ""
             let isFinal = json["is_final"] as? Bool ?? false
+            print("[VoiceStreamNative] 📝 转录: '\(transcription)', isFinal=\(isFinal)")
             onTranscription?(transcription, isFinal)
 
         case "started":
-            print("[VoiceStreamNative] Session started")
+            print("[VoiceStreamNative] ✅ 会话已启动")
 
         case "completed":
             let finalText = json["text"] as? String ?? ""
+            print("[VoiceStreamNative] ✅ 会话完成: '\(finalText)'")
             onTranscription?(finalText, true)
 
         case "error":
             let errorMsg = json["error"] as? String ?? "Unknown error"
+            print("[VoiceStreamNative] ❌ 服务端错误: \(errorMsg)")
             onError?(errorMsg)
 
         default:
+            print("[VoiceStreamNative] ⚠️ 未知消息类型: \(type)")
             break
         }
     }

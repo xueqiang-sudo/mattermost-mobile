@@ -169,6 +169,28 @@ export async function getGraphRelations(
 
 // ── Media Upload ──
 
+async function ensureUploadBasename(fileUri: string, fileName: string): Promise<string> {
+    try {
+        const safeName = fileName.replace(/[/\\]/g, '');
+        if (!safeName) {
+            return fileUri;
+        }
+        const withScheme = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+        const currentBase = decodeURIComponent(withScheme.split('/').pop() || '');
+        if (currentBase === safeName) {
+            return fileUri; // basename 已正确，无需复制
+        }
+        const {cacheDirectory, makeDirectoryAsync, copyAsync} = await import('expo-file-system');
+        const dir = `${cacheDirectory}smart_notebook_upload_${Date.now()}/`;
+        await makeDirectoryAsync(dir, {intermediates: true});
+        const dest = `${dir}${safeName}`;
+        await copyAsync({from: withScheme, to: dest});
+        return dest;
+    } catch (e) {
+        return fileUri;
+    }
+}
+
 export async function uploadMedia(
     serverUrl: string,
     userId: string,
@@ -176,20 +198,44 @@ export async function uploadMedia(
 ): Promise<{url: string; fileId: string}> {
     const client = NetworkManager.getClient(serverUrl);
 
-    const formData = new FormData();
-    formData.append('user_id', userId);
-    formData.append('file', {
-        uri: file.uri,
-        name: file.name,
-        type: file.type,
-    } as any);
+    // 使用原生上传方法（与云盘、知识库一致），正确处理文件 URI 和中文文件名
+    const url = `${PLUGIN_BASE}/api/smart-notebook/upload?user_id=${encodeURIComponent(userId)}`;
+    const options = {
+        method: 'POST',
+        multipart: {
+            // 服务端 handleSmartNotebookUpload 用 r.FormFile("file") 取文件，字段名必须是 "file"
+            fileKey: 'file',
+            data: {},
+        },
+        timeoutInterval: 180000, // 3分钟超时
+        headers: client.getRequestHeaders('POST'),
+    };
 
-    const resp = await client.doFetch(PLUGIN_BASE + '/api/smart-notebook/upload', {
-        method: 'post',
-        body: formData,
+    // 确保文件名正确（处理中文和特殊字符）
+    const localPath = await ensureUploadBasename(file.uri, file.name);
+
+    return new Promise<{url: string; fileId: string}>((resolve, reject) => {
+        client.apiClient.upload(url, localPath, options).then((response: any) => {
+            if (!response.ok) {
+                const errorMsg = response.data?.message || response.error || 'Upload failed';
+                reject(new Error(errorMsg));
+                return;
+            }
+
+            const data = response.data || response;
+            if (!data.url || !data.fileId) {
+                reject(new Error('上传成功但未返回文件信息'));
+                return;
+            }
+
+            resolve({
+                url: data.url,
+                fileId: data.fileId,
+            });
+        }).catch((error: any) => {
+            reject(error);
+        });
     });
-
-    return resp.data;
 }
 
 // ── Voice Transcription (Direct API) ──

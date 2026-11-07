@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Dimensions, Modal, Pressable, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
@@ -64,7 +64,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     stepsContainer: {
         marginBottom: 12,
-        flexShrink: 1,
     },
     stepContainer: {
         flexDirection: 'row',
@@ -174,11 +173,7 @@ const FilePreviewLoadingModal = ({
                         </Text>
                     </View>
 
-                    <ScrollView
-                        style={styles.stepsContainer}
-                        bounces={false}
-                        showsVerticalScrollIndicator={false}
-                    >
+                    <View style={styles.stepsContainer}>
                         {displaySteps.map((step) => {
                             const status = getStepStatus(step);
                             return (
@@ -199,7 +194,7 @@ const FilePreviewLoadingModal = ({
                                 </View>
                             );
                         })}
-                    </ScrollView>
+                    </View>
 
                     {fileName ? (
                         <Text
