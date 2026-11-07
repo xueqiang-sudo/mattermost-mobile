@@ -814,33 +814,6 @@ const SmartNoteDetailScreen = () => {
             // 隐藏保存进度
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
 
-            // 【关键改造】对齐 webapp：保存后调用 markFilesInUse 标记文件使用中
-            const noteIdToMark = isNew ? currentNoteId : currentNoteId;
-            if (noteIdToMark) {
-                // 从 blocks 中提取所有 fileId
-                const fileIds: string[] = [];
-                for (const block of blocksToSave) {
-                    if (block.meta?.fileId) {
-                        fileIds.push(block.meta.fileId);
-                    }
-                    if (block.meta?.mmFileId && block.meta.mmFileId !== block.meta?.fileId) {
-                        fileIds.push(block.meta.mmFileId);
-                    }
-                }
-
-                if (fileIds.length > 0) {
-                    try {
-                        debugLog('[SmartNotebook] handleSave: 标记文件使用中', {noteId: noteIdToMark, fileIds});
-                        const {markFilesInUse} = await import('./smart_notebook_api');
-                        await markFilesInUse(serverUrl, noteIdToMark, fileIds);
-                        debugLog('[SmartNotebook] handleSave: 标记文件使用中成功');
-                    } catch (markErr) {
-                        debugLog('[SmartNotebook] handleSave: 标记文件使用中失败（可忽略）', {error: markErr});
-                        // Non-fatal: files are still accessible, just not tracked for cleanup
-                    }
-                }
-            }
-
             setSaveSuccess(true);
 
             // 【关键修复】确保 blocks 和 originalBlocks 完全相同（都使用深拷贝）
@@ -1199,7 +1172,21 @@ const SmartNoteDetailScreen = () => {
                 {/* Toolbar - only show in edit mode */}
                 {mode !== 'viewing' && (
                 <View style={style.toolbar}>
-                    {/* 只保留文件和麦克风按钮 */}
+                    {/* +号：在末尾添加段落并聚焦 */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            setBlocks(prev => {
+                                const newBlock = createBlock('paragraph', '');
+                                const updated = [...prev, newBlock];
+                                updated.forEach((b, i) => { b.order = i; });
+                                setTimeout(() => setPendingFocusIndex(updated.length - 1), 50);
+                                return updated;
+                            });
+                        }}
+                        style={style.toolbarBtn}
+                    >
+                        <CompassIcon name='plus' size={22} color={theme.centerChannelColor}/>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
                         <CompassIcon name='folder-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>

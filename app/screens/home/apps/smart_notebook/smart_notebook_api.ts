@@ -4,8 +4,12 @@
 // Smart Notebook API layer for mobile
 // Uses PostgreSQL backend via fact-extractor plugin
 
+import {DatabaseManager} from '@database/manager';
 import NetworkManager from '@managers/network_manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {debugLog} from '@store/debug_log';
+
+import {uploadDriveFile} from '../workbench_api';
 
 const PLUGIN_BASE = '/plugins/com.mattermost.fact-extractor';
 
@@ -168,20 +172,6 @@ export async function getGraphRelations(
     return smartNotebookFetch(serverUrl, `/api/smart-notebook/graph-relations?${params}`, {method: 'get'});
 }
 
-// ── Mark Files In Use ──
-
-export async function markFilesInUse(
-    serverUrl: string,
-    noteId: string,
-    fileIds: string[],
-): Promise<{ok: boolean; updated: number}> {
-    debugLog('[markFilesInUse] 标记文件使用中:', {noteId, fileIds});
-    return smartNotebookFetch(serverUrl, '/api/smart-notebook/mark-files', {
-        method: 'post',
-        body: {noteId, fileIds},
-    });
-}
-
 // ── Media Upload ──
 
 async function ensureUploadBasename(fileUri: string, fileName: string): Promise<string> {
@@ -227,74 +217,46 @@ export async function uploadMedia(
     userId: string,
     file: {uri: string; name: string; type: string},
 ): Promise<{url: string; fileId: string}> {
-    const client = NetworkManager.getClient(serverUrl);
-
-    debugLog('[uploadMedia] 开始上传:', {
+    debugLog('[uploadMedia] 开始上传（使用云盘 API）:', {
         originalUri: file.uri,
         fileName: file.name,
         fileType: file.type,
     });
 
-    // 使用原生上传方法（与云盘、知识库一致），正确处理文件 URI 和中文文件名
-    const url = `${PLUGIN_BASE}/api/smart-notebook/upload?user_id=${encodeURIComponent(userId)}`;
-    const options = {
-        method: 'POST',
-        multipart: {
-            // 服务端 handleSmartNotebookUpload 用 r.FormFile("file") 取文件，字段名必须是 "file"
-            fileKey: 'file',
-            data: {},
-        },
-        timeoutInterval: 180000, // 3分钟超时
-        headers: client.getRequestHeaders('POST'),
+    // 获取当前 teamId
+    const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+    const teamId = await getCurrentTeamId(database);
+
+    if (!teamId) {
+        debugLog('[uploadMedia] 无法获取 teamId');
+        throw new Error('无法获取团队信息');
+    }
+
+    debugLog('[uploadMedia] 获取到 teamId:', teamId);
+
+    // 使用云盘 API 上传（不需要 channelID）
+    const driveFile = await uploadDriveFile(
+        serverUrl,
+        teamId,
+        '', // parentId: 空字符串表示上传到根目录
+        'private', // scope: 私有文件
+        file.uri,
+        file.name,
+        file.type,
+    );
+
+    // 构建文件 URL（与云盘下载 URL 格式一致）
+    const fileUrl = `${serverUrl}/api/v4/teams/${teamId}/drive/files/${driveFile.id}/download`;
+
+    debugLog('[uploadMedia] 上传成功:', {
+        url: fileUrl,
+        fileId: driveFile.id,
+    });
+
+    return {
+        url: fileUrl,
+        fileId: driveFile.id,
     };
-
-    // 确保文件名正确（处理中文和特殊字符）
-    const localPath = await ensureUploadBasename(file.uri, file.name);
-
-    debugLog('[uploadMedia] 处理后的路径:', {
-        localPath,
-        isChanged: localPath !== file.uri,
-    });
-
-    return new Promise<{url: string; fileId: string}>((resolve, reject) => {
-        client.apiClient.upload(url, localPath, options).then((response: any) => {
-            debugLog('[uploadMedia] 上传响应:', {
-                ok: response.ok,
-                status: response.status,
-                data: response.data,
-            });
-
-            if (!response.ok) {
-                const errorMsg = response.data?.message || response.error || 'Upload failed';
-                debugLog('[uploadMedia] 上传失败:', errorMsg);
-                reject(new Error(errorMsg));
-                return;
-            }
-
-            const data = response.data || response;
-            if (!data.url || !data.fileId) {
-                debugLog('[uploadMedia] 响应缺少文件信息:', data);
-                reject(new Error('上传成功但未返回文件信息'));
-                return;
-            }
-
-            debugLog('[uploadMedia] 上传成功:', {
-                url: data.url,
-                fileId: data.fileId,
-            });
-
-            resolve({
-                url: data.url,
-                fileId: data.fileId,
-            });
-        }).catch((error: any) => {
-            debugLog('[uploadMedia] 上传异常:', {
-                message: error?.message || String(error),
-                stack: error?.stack,
-            });
-            reject(error);
-        });
-    });
 }
 
 // ── Voice Transcription (Direct API) ──
