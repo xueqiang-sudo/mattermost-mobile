@@ -7,8 +7,8 @@ NS_ASSUME_NONNULL_BEGIN
 __attribute__((objc_runtime_name("_TtC13VoiceRecorder20VoiceRecorderWrapper")))
 @interface VoiceRecorderWrapper : NSObject <AVAudioRecorderDelegate>
 
-// 【优化】初始化方法，接收 bridge
-- (instancetype)initWithBridge:(RCTBridge *)bridge;
+// 【优化】设置 bridge（延迟注入）
+- (void)setBridge:(RCTBridge *)bridge;
 
 - (void)startRecording:(NSDictionary<NSString *, id> * _Nullable)options
             completion:(void (^)(BOOL success, NSString * _Nullable errorCode))completion;

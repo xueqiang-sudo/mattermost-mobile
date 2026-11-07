@@ -14,14 +14,15 @@ import React
     public typealias StopRecordingCompletion = ([String: Any]) -> Void
     private var stopCompletion: StopRecordingCompletion?
 
-    // 【优化】初始化方法，接收 bridge
-    @objc public init(bridge: RCTBridge?) {
-        self.bridge = bridge
+    // 【优化】初始化方法
+    @objc public override init() {
+        self.bridge = nil
         super.init()
     }
 
-    public override init() {
-        super.init()
+    // 【优化】设置 bridge（延迟注入）
+    @objc public func setBridge(_ bridge: RCTBridge) {
+        self.bridge = bridge
     }
 
     private func log(_ message: String, type: OSLogType = .default) {

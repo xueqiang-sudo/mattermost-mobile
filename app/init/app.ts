@@ -7,7 +7,6 @@ import VoiceRecorder from '@mattermost/voice-recorder';
 import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';
 import DatabaseManager from '@database/manager';
-import {hasAcceptedAgreement} from '@init/agreement';
 import {getAllServerCredentials} from '@init/credentials';
 import JPushManager from '@init/jpush';
 import ManagedApp from '@init/managed_app';
@@ -19,7 +18,7 @@ import SessionManager from '@managers/session_manager';
 import WebsocketManager from '@managers/websocket_manager';
 import {initialLaunch} from '@init/launch';
 import {registerScreens} from '@screens/index';
-import {registerNavigationListeners, resetToStartupLoading, showLaunchAgreement} from '@screens/navigation';
+import {registerNavigationListeners, resetToStartupLoading} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {clearCachedUpdateApk} from '@utils/file/apk_download';
@@ -119,22 +118,13 @@ export async function start() {
 
     await WebsocketManager.init(serverCredentials);
 
-    // 检查是否已同意过隐私条款
-    const agreed = await hasAcceptedAgreement();
-    if (agreed) {
-        // 隐私合规：已同意过，解锁 React Native 传感器访问
-        if (Platform.OS === 'android' && NativeModules.PrivacyConsent) {
-            NativeModules.PrivacyConsent.allowSensorAccess();
-        }
-        // 隐私合规：已同意过，初始化 JPush SDK（用户同意后才能初始化）
-        JPushManager.init();
-        // 已同意过，直接进入正常启动流程
-        initialLaunch();
-    } else {
-        // 未同意过，显示协议弹窗，用户同意后由 LaunchAgreement 组件直接调用 initialLaunch()
-        // 用户不同意时，LaunchAgreement 组件会调用 BackHandler.exitApp() 退出应用
-        showLaunchAgreement();
+    // 隐私合规：Android 由原生 PrivacyConsentActivity 在 React Native 之前完成
+    // iOS 无需隐私弹窗（App Store 无此要求）
+    if (Platform.OS === 'android' && NativeModules.PrivacyConsent) {
+        NativeModules.PrivacyConsent.allowSensorAccess();
     }
+    JPushManager.init();
+    initialLaunch();
 
     // Debug panel overlay is NOT shown automatically at startup.
     // Users can open it manually when needed to avoid covering error messages.

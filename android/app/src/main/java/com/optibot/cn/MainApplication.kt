@@ -4,10 +4,6 @@ package com.optibot.cn
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
-import android.hardware.Sensor
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.os.Handler
 import com.mattermost.helpers.CustomPushNotificationHelper
 import com.facebook.react.PackageList
 import com.facebook.react.ReactHost
@@ -32,33 +28,8 @@ import expo.modules.ReactNativeHostWrapper
 import expo.modules.image.okhttp.ExpoImageOkHttpClientGlideModule
 import java.io.File
 
-/**
- * 隐私合规：空传感器管理器。
- * 应用不需要传感器，返回空实现阻止 SDK 读取传感器列表。
- * 直接返回 null 会导致部分设备崩溃，用空实现更安全。
- */
-class NoOpSensorManager(private val ctx: Context) : SensorManager() {
-    override fun getSensorList(type: Int): List<Sensor> = emptyList()
-    override fun getDefaultSensor(type: Int): Sensor? = null
-    override fun registerListener(listener: SensorEventListener?, sensor: Sensor?, rateUs: Int): Boolean = false
-    override fun registerListener(listener: SensorEventListener?, sensor: Sensor?, rateUs: Int, maxReportLatencyUs: Int): Boolean = false
-    override fun registerListener(listener: SensorEventListener?, sensor: Sensor?, rateUs: Int, handler: Handler?): Boolean = false
-    override fun registerListener(listener: SensorEventListener?, sensor: Sensor?, rateUs: Int, maxReportLatencyUs: Int, handler: Handler?): Boolean = false
-    override fun unregisterListener(listener: SensorEventListener?) {}
-    override fun unregisterListener(listener: SensorEventListener?, sensor: Sensor?) {}
-}
-
 class MainApplication : NavigationApplication() {
     private var listenerAdded = false
-    private var noOpSensorManager: NoOpSensorManager? = null
-
-    /** 隐私合规：拦截 SENSOR_SERVICE，返回空实现 */
-    override fun getSystemService(name: String): Any? {
-        if (name == Context.SENSOR_SERVICE) {
-            return noOpSensorManager ?: NoOpSensorManager(this).also { noOpSensorManager = it }
-        }
-        return super.getSystemService(name)
-    }
 
     override val reactNativeHost: ReactNativeHost =
         ReactNativeHostWrapper(this,

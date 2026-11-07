@@ -16,7 +16,11 @@ RCT_EXPORT_MODULE(VoiceRecorder);
 - (VoiceRecorderWrapper *)recorderWrapper
 {
     if (_recorderWrapper == nil) {
-        _recorderWrapper = [[VoiceRecorderWrapper alloc] initWithBridge:self.bridge];
+        _recorderWrapper = [[VoiceRecorderWrapper alloc] init];
+        // 【优化】延迟注入 bridge
+        if (self.bridge) {
+            [_recorderWrapper setBridge:self.bridge];
+        }
     }
     return _recorderWrapper;
 }

@@ -33,6 +33,15 @@ class MainActivity : NavigationActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 隐私合规：检查用户是否已同意隐私政策（防止通过 deep link 绕过）
+        val hasConsent = getSharedPreferences(PrivacyConsentActivity.PREF_NAME, MODE_PRIVATE)
+            .getBoolean(PrivacyConsentActivity.KEY_CONSENT, false)
+        if (!hasConsent) {
+            startActivity(android.content.Intent(this, PrivacyConsentActivity::class.java))
+            finish()
+            return
+        }
+
         super.onCreate(null)
         setContentView(R.layout.launch_screen)
         setHWKeyboardConnected()
