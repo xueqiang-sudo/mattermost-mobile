@@ -66,6 +66,10 @@ export function useVoiceStream(serverUrl: string, token: string) {
             () => {
                 console.log('[useVoiceStream] ✅ WebSocket 已连接事件');
                 debugLog('VOICE_STREAM', '[useVoiceStream] ✅ WebSocket 已连接');
+                // 【关键修复】连接成功后，由 JS 层发送 start 控制消息
+                // 这样可以在 JS 层控制何时启动 ASR，更灵活且易于调试
+                debugLog('VOICE_STREAM', '[useVoiceStream] 📤 发送 start 控制消息');
+                VoiceRecorder.sendControlMessage({type: 'start'});
             }
         );
 
@@ -93,6 +97,16 @@ export function useVoiceStream(serverUrl: string, token: string) {
             }
         );
 
+        // 监听原生日志（用于调试）
+        const logListener = voiceStreamEmitter.addListener(
+            'VoiceStreamLog',
+            (event: {level: string; message: string}) => {
+                const prefix = event.level === 'error' ? '❌' : '📝';
+                console.log(`[useVoiceStream] ${prefix} [Native]`, event.message);
+                debugLog('VOICE_STREAM', `[Native] ${event.message}`);
+            }
+        );
+
         console.log('[useVoiceStream] ✅ 事件监听器已注册');
         debugLog('VOICE_STREAM', '[useVoiceStream] ✅ 事件监听器已注册');
 
@@ -103,6 +117,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
             connectedListener.remove();
             errorListener.remove();
             closedListener.remove();
+            logListener.remove();
         };
     }, []);
 
@@ -253,7 +268,14 @@ export function useVoiceStream(serverUrl: string, token: string) {
         debugLog('VOICE_STREAM', '[stopStreaming] Stopping stream（原生直传模式）...');
 
         try {
-            // Stop recording first（会自动发送 stop 并断开 WebSocket）
+            // 【关键修复】由 JS 层发送 stop 控制消息，保持与 start 一致的架构
+            debugLog('VOICE_STREAM', '[stopStreaming] 📤 发送 stop 控制消息');
+            VoiceRecorder.sendControlMessage({type: 'stop'});
+
+            // 等待一小段时间让服务器处理 stop 消息
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // 停止录音并断开 WebSocket
             await stopRealtimeRecording();
 
             const finalText = result.finalText || result.partialText;

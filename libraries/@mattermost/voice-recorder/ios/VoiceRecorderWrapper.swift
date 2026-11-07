@@ -283,11 +283,16 @@ import React
             self?.eventEmitter?.sendEvent(withName: "VoiceStreamTranscription",
                                           body: ["text": text, "isFinal": isFinal])
         }
+        manager.onLog = { [weak self] level, message in
+            // 转发原生日志到 JS 层
+            self?.eventEmitter?.sendEvent(withName: "VoiceStreamLog", body: [
+                "level": level,
+                "message": "[Native] \(message)"
+            ])
+        }
         manager.onConnected = { [weak self] in
-            self?.log("WebSocket 已连接，自动发送 start 控制消息")
-            // 【关键修复】WebSocket 连接成功后立即发送 start 控制消息
-            // 确保在开始发送音频数据之前，服务器的 ASR 已经启动
-            self?.voiceStreamManager?.sendControlMessage(type: "start")
+            self?.log("WebSocket 已连接")
+            // 只通知 JS 层连接成功，由 JS 层决定是否发送 start 控制消息
             self?.eventEmitter?.sendEvent(withName: "VoiceStreamConnected", body: [:])
         }
         manager.onError = { [weak self] error in
@@ -610,9 +615,8 @@ import React
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine = nil
 
-        // 【优化】发送停止消息并断开 WebSocket
-        voiceStreamManager?.sendControlMessage(type: "stop")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        // 【架构优化】stop 控制消息由 JS 层发送，这里只负责断开 WebSocket
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.voiceStreamManager?.disconnect()
             self?.voiceStreamManager = nil
         }

@@ -1,16 +1,26 @@
 import Foundation
+import os.log
 
 /// 【优化】原生端 WebSocket 管理器
 /// 直接在原生层管理 WebSocket 连接和音频发送，避免 Bridge 开销
 class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession: URLSession?
+    private let logger = OSLog(subsystem: "com.mattermost.voicerecorder", category: "VoiceStreamNative")
 
     // 回调（传回 JS 层）
     var onTranscription: ((String, Bool) -> Void)?
     var onConnected: (() -> Void)?
     var onError: ((String) -> Void)?
     var onClose: ((Int, String) -> Void)?
+    var onLog: ((String, String) -> Void)?  // (level, message)
+
+    private func log(_ message: String, type: OSLogType = .default) {
+        os_log("%{public}@", log: logger, type: type, message)
+        // 同时发送到 JS 层
+        let level = type == .error ? "error" : "info"
+        onLog?(level, message)
+    }
 
     /// 连接到语音流 WebSocket
     func connect(serverUrl: String, token: String) {
@@ -51,19 +61,28 @@ class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
 
     /// 发送控制消息（JSON）
     func sendControlMessage(type: String, sessionId: String? = nil) {
-        guard let task = webSocketTask else { return }
+        log("📤 准备发送控制消息: type=\(type)")
+        guard let task = webSocketTask else {
+            log("❌ webSocketTask 为 nil，无法发送", type: .error)
+            return
+        }
 
         var message: [String: Any] = ["type": type]
         if let sessionId = sessionId {
             message["session_id"] = sessionId
         }
 
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: message) else { return }
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: message) else {
+            log("❌ JSON 序列化失败", type: .error)
+            return
+        }
 
         let wsMessage = URLSessionWebSocketTask.Message.data(jsonData)
-        task.send(wsMessage) { error in
+        task.send(wsMessage) { [weak self] error in
             if let error = error {
-                print("[VoiceStreamNative] Failed to send control: \(error.localizedDescription)")
+                self?.log("❌ 发送控制消息失败: \(error.localizedDescription)", type: .error)
+            } else {
+                self?.log("✅ 控制消息发送成功: type=\(type)")
             }
         }
     }

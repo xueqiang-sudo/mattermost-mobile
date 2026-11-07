@@ -398,10 +398,8 @@ class VoiceRecorderModuleImpl(
                         .emit("VoiceStreamTranscription", params)
                 }
                 manager.onConnected = {
-                    Log.d(TAG, "WebSocket 已连接，自动发送 start 控制消息")
-                    // 【关键修复】WebSocket 连接成功后立即发送 start 控制消息
-                    // 确保在开始发送音频数据之前，服务器的 ASR 已经启动
-                    manager.sendControlMessage("start", null)
+                    Log.d(TAG, "WebSocket 已连接")
+                    // 【架构优化】只通知 JS 层连接成功，由 JS 层决定是否发送 start 控制消息
                     val params = Arguments.createMap()
                     reactContext
                         .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
@@ -783,9 +781,8 @@ class VoiceRecorderModuleImpl(
                 }
                 realtimeRecordingThread = null
 
-                // 【优化】发送停止消息并断开 WebSocket
-                voiceStreamManager?.sendControlMessage("stop")
-                Thread.sleep(500)
+                // 【架构优化】stop 控制消息由 JS 层发送，这里只负责断开 WebSocket
+                Thread.sleep(300)
                 voiceStreamManager?.disconnect()
                 voiceStreamManager = null
 
