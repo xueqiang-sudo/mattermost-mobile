@@ -48,7 +48,7 @@ class PrivacyConsentActivity : Activity() {
             "<a href=\"https://pipeline.optibot.cn/terms\">《用户协议》</a>" +
             "及" +
             "<a href=\"https://pipeline.optibot.cn/privacy\">《隐私政策》</a>" +
-            "各条款。如您同意《用户协议》及《隐私政策》，请您点击"同意"开始使用我们的产品和服务，" +
+            "各条款。如您同意《用户协议》及《隐私政策》，请您点击&ldquo;同意&rdquo;开始使用我们的产品和服务，" +
             "我们将尽全力保护您的个人信息安全。<br/><br/>" +
             "为了向您提供稳定的消息推送服务，我们的产品集成了极光推送SDK。<br/><br/>" +
             "<b>关于极光推送SDK：</b><br/>" +

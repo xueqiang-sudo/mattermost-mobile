@@ -8,6 +8,17 @@
 
 RCT_EXPORT_MODULE(VoiceRecorder);
 
+// 【修复】声明支持的事件名称（继承 RCTEventEmitter 必须实现）
+- (NSArray<NSString *> *)supportedEvents
+{
+    return @[
+        @"VoiceStreamTranscription",
+        @"VoiceStreamConnected",
+        @"VoiceStreamError",
+        @"VoiceStreamClosed"
+    ];
+}
+
 - (dispatch_queue_t)methodQueue
 {
     return dispatch_get_main_queue();
@@ -17,10 +28,8 @@ RCT_EXPORT_MODULE(VoiceRecorder);
 {
     if (_recorderWrapper == nil) {
         _recorderWrapper = [[VoiceRecorderWrapper alloc] init];
-        // 【优化】延迟注入 bridge
-        if (self.bridge) {
-            [_recorderWrapper setBridge:self.bridge];
-        }
+        // 【修复】延迟注入 eventEmitter
+        [_recorderWrapper setEventEmitter:self];
     }
     return _recorderWrapper;
 }

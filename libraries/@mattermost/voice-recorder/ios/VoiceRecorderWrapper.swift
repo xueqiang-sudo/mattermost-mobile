@@ -7,7 +7,7 @@ import React
     private var audioRecorder: AVAudioRecorder?
     private var recordingStartTime: Date?
     private var recordingURL: URL?
-    private var bridge: RCTBridge?  // 【优化】用于发送事件到 JS
+    private weak var eventEmitter: RCTEventEmitter?  // 【修复】用于发送事件到 JS
 
     private let logger = OSLog(subsystem: "com.mattermost.voicerecorder", category: "VoiceRecorder")
 
@@ -16,13 +16,13 @@ import React
 
     // 【优化】初始化方法
     @objc public override init() {
-        self.bridge = nil
+        self.eventEmitter = nil
         super.init()
     }
 
-    // 【优化】设置 bridge（延迟注入）
-    @objc public func setBridge(_ bridge: RCTBridge) {
-        self.bridge = bridge
+    // 【修复】设置 eventEmitter（延迟注入）
+    @objc public func setEventEmitter(_ eventEmitter: RCTEventEmitter) {
+        self.eventEmitter = eventEmitter
     }
 
     private func log(_ message: String, type: OSLogType = .default) {
@@ -279,31 +279,23 @@ import React
         let manager = VoiceStreamNativeManager()
         manager.onTranscription = { [weak self] text, isFinal in
             self?.log("收到转录: \(text), isFinal=\(isFinal)")
-            // 通过 RCTEventEmitter 发送事件到 JS
-            if let bridge = self?.bridge {
-                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamTranscription",
-                                                      body: ["text": text, "isFinal": isFinal])
-            }
+            // 【修复】通过 RCTEventEmitter 发送事件到 JS
+            self?.eventEmitter?.sendEvent(withName: "VoiceStreamTranscription",
+                                          body: ["text": text, "isFinal": isFinal])
         }
         manager.onConnected = { [weak self] in
             self?.log("WebSocket 已连接")
-            if let bridge = self?.bridge {
-                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamConnected", body: [:])
-            }
+            self?.eventEmitter?.sendEvent(withName: "VoiceStreamConnected", body: [:])
         }
         manager.onError = { [weak self] error in
             self?.log("WebSocket 错误: \(error)", type: .error)
-            if let bridge = self?.bridge {
-                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamError",
-                                                      body: ["error": error])
-            }
+            self?.eventEmitter?.sendEvent(withName: "VoiceStreamError",
+                                          body: ["error": error])
         }
         manager.onClose = { [weak self] code, reason in
             self?.log("WebSocket 关闭: \(code), \(reason)")
-            if let bridge = self?.bridge {
-                bridge.eventDispatcher().sendAppEvent(withName: "VoiceStreamClosed",
-                                                      body: ["code": code, "reason": reason])
-            }
+            self?.eventEmitter?.sendEvent(withName: "VoiceStreamClosed",
+                                          body: ["code": code, "reason": reason])
         }
 
         manager.connect(serverUrl: serverUrl, token: token)

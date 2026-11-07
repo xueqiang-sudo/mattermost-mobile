@@ -1,14 +1,14 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
-#import <React/RCTBridge.h>
+#import <React/RCTEventEmitter.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 __attribute__((objc_runtime_name("_TtC13VoiceRecorder20VoiceRecorderWrapper")))
 @interface VoiceRecorderWrapper : NSObject <AVAudioRecorderDelegate>
 
-// 【优化】设置 bridge（延迟注入）
-- (void)setBridge:(RCTBridge *)bridge;
+// 【修复】设置 eventEmitter（延迟注入）
+- (void)setEventEmitter:(RCTEventEmitter *)eventEmitter;
 
 - (void)startRecording:(NSDictionary<NSString *, id> * _Nullable)options
             completion:(void (^)(BOOL success, NSString * _Nullable errorCode))completion;
