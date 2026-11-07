@@ -154,6 +154,17 @@ const SmartNoteDetailScreen = () => {
         downloadAndPreviewFile(fileInfo);
     }, [downloadAndPreviewFile]);
 
+    // 【关键改造】图片全屏预览
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+
+    const handlePreviewImage = useCallback((fileInfo: FileInfo) => {
+        debugLog('[SmartNote] Previewing image:', {name: fileInfo.name, id: fileInfo.id});
+        // 使用 localPath（完整的图片 URL）
+        if (fileInfo.localPath) {
+            setFullscreenImage(fileInfo.localPath);
+        }
+    }, []);
+
     const [userId, setUserId] = useState('');
     const [bearerToken, setBearerToken] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
@@ -359,20 +370,48 @@ const SmartNoteDetailScreen = () => {
     }, []);
 
     // ---- File picker handler ----
-    // 处理文件选择器返回的文件
-    const handleFilesSelected = useCallback((files: FileInfo[]) => {
+    // 【关键改造】对齐 webapp：立即上传文件，不再延迟到保存时
+    const handleFilesSelected = useCallback(async (files: FileInfo[]) => {
         debugLog('smartNotebook', `[handleFilesSelected] called with ${files.length} files`);
         files.forEach((file, i) => {
             debugLog('smartNotebook', `[handleFilesSelected] File ${i + 1}: name=${file.name}, uri=${file.uri}, id=${file.id}, mime=${file.mime_type}, size=${file.size}, source=${(file as any).source || 'unknown'}`);
         });
 
-        if (files.length === 0) {
+        if (files.length === 0 || !userId) {
             return;
         }
 
-        // 对齐 webapp 格式
-        const newBlocks: SmartNoteBlock[] = files.map((file, index) => {
+        // 显示上传进度
+        setSaveProgress({
+            visible: true,
+            current: 0,
+            total: files.length,
+            message: intl.formatMessage({
+                id: 'smart_notebook.uploading_files',
+                defaultMessage: '正在上传文件...',
+            }),
+        });
+
+        const newBlocks: SmartNoteBlock[] = [];
+
+        // 【关键改造】立即上传每个文件
+        for (let index = 0; index < files.length; index++) {
+            const file = files[index];
             const fileName = file.name || '';
+
+            // 更新进度
+            setSaveProgress({
+                visible: true,
+                current: index + 1,
+                total: files.length,
+                message: intl.formatMessage(
+                    {
+                        id: 'smart_notebook.uploading_progress',
+                        defaultMessage: '正在上传文件 ({current}/{total})...',
+                    },
+                    {current: index + 1, total: files.length},
+                ),
+            });
 
             // 【关键修复】如果 MIME 类型为空，从文件扩展名推断
             let mimeType = file.mime_type || '';
@@ -408,49 +447,74 @@ const SmartNoteDetailScreen = () => {
             const blockId = generateId();
             const extension = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
 
-            // 解析文件 URL（本地路径或服务器 URL）
-            const hasLocalUri = Boolean(file.uri);
-            let fileUrl = '';
-            if (hasLocalUri) {
-                fileUrl = file.uri!;
-            } else if (file.id) {
-                fileUrl = `${serverUrl}/api/v4/files/${file.id}`;
-            }
+            debugLog('smartNotebook', `[handleFilesSelected] Uploading file: ${fileName}`);
 
-            // 对齐 webapp：视频/音频存为 image 类型，caption 编码实际 URL
-            let content = fileUrl;
-            let caption = fileName;
+            try {
+                // 【关键改造】立即上传文件
+                const uploadResult = await uploadMedia(serverUrl, userId, {
+                    uri: file.uri!,
+                    name: fileName,
+                    type: mimeType,
+                });
 
-            if (isVideo(fileName, mimeType)) {
-                content = fileUrl;
-                caption = `[VIDEO:${fileUrl}]${fileName}`;
-            } else if (isAudio(fileName, mimeType)) {
-                content = '';
-                caption = `[AUDIO:${fileUrl}]${fileName}`;
-            }
+                debugLog('smartNotebook', `[handleFilesSelected] Upload success:`, {
+                    url: uploadResult.url,
+                    fileId: uploadResult.fileId,
+                });
 
-            debugLog('smartNotebook', `[handleFilesSelected] Creating block: id=${blockId}, blockType=${blockType}, caption=${caption}`);
+                // 对齐 webapp：视频/音频存为 image 类型，caption 编码实际 URL
+                let content = uploadResult.url;
+                let caption = fileName;
 
-            return {
-                id: blockId,
-                type: blockType,
-                content,
-                order: blocks.length + index,
-                meta: {
-                    // webapp 兼容字段
-                    url: content,
+                if (isVideo(fileName, mimeType)) {
+                    content = uploadResult.url;
+                    caption = `[VIDEO:${uploadResult.url}]${fileName}`;
+                } else if (isAudio(fileName, mimeType)) {
+                    content = '';
+                    caption = `[AUDIO:${uploadResult.url}]${fileName}`;
+                }
+
+                debugLog('smartNotebook', `[handleFilesSelected] Creating block: id=${blockId}, blockType=${blockType}, caption=${caption}`);
+
+                newBlocks.push({
+                    id: blockId,
+                    type: blockType,
+                    content,
+                    order: blocks.length + index,
+                    meta: {
+                        // webapp 兼容字段
+                        url: content,
+                        fileName,
+                        extension,
+                        mmFileId: uploadResult.fileId || '',
+                        caption,
+                        fileId: uploadResult.fileId || '',
+                        // mobile 额外字段
+                        size: file.size || 0,
+                        mimeType: file.mime_type || '',
+                        isLocal: false,  // 【关键改造】已上传，不是本地文件
+                    },
+                });
+            } catch (error: any) {
+                debugLog('smartNotebook', `[handleFilesSelected] Upload failed:`, {
                     fileName,
-                    extension,
-                    mmFileId: file.id || '',
-                    caption,
-                    fileId: file.id || '',  // 【关键修复】block_editor.tsx 读取此字段
-                    // mobile 额外字段
-                    size: file.size || 0,
-                    mimeType: file.mime_type || '',
-                    isLocal: hasLocalUri,
-                },
-            };
-        });
+                    error: error?.message || String(error),
+                });
+
+                Alert.alert(
+                    intl.formatMessage({id: 'smart_notebook.upload_failed', defaultMessage: '上传失败'}),
+                    `${fileName}: ${error?.message || '未知错误'}`,
+                );
+            }
+        }
+
+        // 隐藏上传进度
+        setSaveProgress({visible: false, current: 0, total: 0, message: ''});
+
+        if (newBlocks.length === 0) {
+            debugLog('smartNotebook', `[handleFilesSelected] No blocks created (all uploads failed)`);
+            return;
+        }
 
         debugLog('smartNotebook', `[handleFilesSelected] Created ${newBlocks.length} blocks, inserting at cursor=${focusedBlockIndex}`);
 
@@ -475,7 +539,7 @@ const SmartNoteDetailScreen = () => {
 
             return updated;
         });
-    }, [focusedBlockIndex, serverUrl]);
+    }, [focusedBlockIndex, serverUrl, userId, intl]);
 
     // Debug: Monitor blocks state changes
     useEffect(() => {
@@ -673,138 +737,20 @@ const SmartNoteDetailScreen = () => {
 
         setSaving(true);
 
-        // 检查是否有本地文件需要上传
-        const {isLocalBlock} = await import('./smart_notebook_upload');
-        const localBlocks = blocks.filter(isLocalBlock);
-        const hasLocalFiles = localBlocks.length > 0;
-
-        // 调试日志：追踪保存前的块状态
-        debugLog('[SmartNotebook] performSave: 检查本地文件', {
+        // 【关键改造】对齐 webapp：文件已在选择时立即上传，保存时无需再上传
+        debugLog('[SmartNotebook] performSave: 开始保存', {
             totalBlocks: blocks.length,
-            localBlocksCount: localBlocks.length,
             blockDetails: blocks.map(b => ({
                 id: b.id,
                 type: b.type,
                 isLocal: b.meta?.isLocal,
                 fileName: b.meta?.fileName,
-                contentLen: b.content?.length,
+                fileId: b.meta?.fileId,
             })),
         });
 
         try {
-            let blocksToSave = blocks;
-
-            // 如果有本地文件，显示上传进度
-            if (hasLocalFiles) {
-                // 显示上传进度对话框
-                setSaveProgress({
-                    visible: true,
-                    current: 0,
-                    total: localBlocks.length,
-                    message: intl.formatMessage({
-                        id: 'smart_notebook.uploading_files',
-                        defaultMessage: '正在上传文件...',
-                    }),
-                });
-
-                // 上传所有本地文件
-                const {uploadAllLocalBlocks} = await import('./smart_notebook_upload');
-                debugLog('[SmartNotebook] handleSave: 开始上传本地文件', {
-                    localBlocksCount: localBlocks.length,
-                    totalBlocksCount: blocks.length,
-                });
-                const uploadResult = await uploadAllLocalBlocks(
-                    serverUrl,
-                    userId,
-                    blocks,
-                    (current, total) => {
-                        // 更新进度
-                        debugLog('[SmartNotebook] handleSave: 上传进度', {current, total});
-                        setSaveProgress({
-                            visible: true,
-                            current,
-                            total,
-                            message: intl.formatMessage(
-                                {
-                                    id: 'smart_notebook.uploading_progress',
-                                    defaultMessage: '正在上传文件 ({current}/{total})...',
-                                },
-                                {current, total},
-                            ),
-                        });
-                    },
-                );
-
-                debugLog('[SmartNotebook] handleSave: 上传完成', {
-                    success: uploadResult.success,
-                    errorsCount: uploadResult.errors.length,
-                    blocksCount: uploadResult.blocks.length,
-                });
-
-                // 隐藏上传进度
-                setSaveProgress({visible: false, current: 0, total: 0, message: ''});
-
-                // 如果有上传失败的文件，提示用户
-                if (uploadResult.errors.length > 0) {
-                    const failedNames = uploadResult.errors
-                        .map((e) => {
-                            // 优先使用 meta.fileName
-                            if (e.block.meta?.fileName) {
-                                return e.block.meta.fileName;
-                            }
-                            // 提取 VIDEO/AUDIO caption 中的文件名
-                            const cap = e.block.meta?.caption || '';
-                            const m = cap.match(/^\[(?:VIDEO|AUDIO):[^\]]*\](.*)$/);
-                            if (m && m[1]) return m[1];
-                            // 从 content 路径提取文件名
-                            if (e.block.content) {
-                                const parts = e.block.content.split('/');
-                                return parts[parts.length - 1] || '未知文件';
-                            }
-                            return '未知文件';
-                        })
-                        .join(', ');
-
-                    const result = await new Promise<boolean>((resolve) => {
-                        Alert.alert(
-                            intl.formatMessage({
-                                id: 'smart_notebook.upload_warning',
-                                defaultMessage: '部分文件上传失败',
-                            }),
-                            intl.formatMessage(
-                                {
-                                    id: 'smart_notebook.upload_warning_message',
-                                    defaultMessage: '{count} 个文件上传失败：{names}\n\n是否仍然保存笔记？',
-                                },
-                                {
-                                    count: uploadResult.errors.length,
-                                    names: failedNames,
-                                },
-                            ),
-                            [
-                                {
-                                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
-                                    style: 'cancel',
-                                    onPress: () => resolve(false),
-                                },
-                                {
-                                    text: intl.formatMessage({id: 'smart_notebook.save_anyway', defaultMessage: '仍然保存'}),
-                                    style: 'default',
-                                    onPress: () => resolve(true),
-                                },
-                            ],
-                        );
-                    });
-
-                    if (!result) {
-                        // 用户选择取消
-                        setSaving(false);
-                        return false;
-                    }
-                }
-
-                blocksToSave = uploadResult.blocks;
-            }
+            const blocksToSave = blocks;
 
             // 显示保存进度
             setSaveProgress({
@@ -867,6 +813,33 @@ const SmartNoteDetailScreen = () => {
 
             // 隐藏保存进度
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
+
+            // 【关键改造】对齐 webapp：保存后调用 markFilesInUse 标记文件使用中
+            const noteIdToMark = isNew ? currentNoteId : currentNoteId;
+            if (noteIdToMark) {
+                // 从 blocks 中提取所有 fileId
+                const fileIds: string[] = [];
+                for (const block of blocksToSave) {
+                    if (block.meta?.fileId) {
+                        fileIds.push(block.meta.fileId);
+                    }
+                    if (block.meta?.mmFileId && block.meta.mmFileId !== block.meta?.fileId) {
+                        fileIds.push(block.meta.mmFileId);
+                    }
+                }
+
+                if (fileIds.length > 0) {
+                    try {
+                        debugLog('[SmartNotebook] handleSave: 标记文件使用中', {noteId: noteIdToMark, fileIds});
+                        const {markFilesInUse} = await import('./smart_notebook_api');
+                        await markFilesInUse(serverUrl, noteIdToMark, fileIds);
+                        debugLog('[SmartNotebook] handleSave: 标记文件使用中成功');
+                    } catch (markErr) {
+                        debugLog('[SmartNotebook] handleSave: 标记文件使用中失败（可忽略）', {error: markErr});
+                        // Non-fatal: files are still accessible, just not tracked for cleanup
+                    }
+                }
+            }
 
             setSaveSuccess(true);
 
@@ -1154,6 +1127,7 @@ const SmartNoteDetailScreen = () => {
                                     editable={false}
                                     serverUrl={serverUrl}
                                     onPreviewFile={handlePreviewFile}
+                                    onPreviewImage={handlePreviewImage}
                                 />
                             ) : (
                                 <Text style={style.readOnlyContent}>
@@ -1174,6 +1148,7 @@ const SmartNoteDetailScreen = () => {
                             onFocusApplied={handleFocusApplied}
                             onScrollToBlock={handleScrollToBlock}
                             onPreviewFile={handlePreviewFile}
+                            onPreviewImage={handlePreviewImage}
                         />
                     )}
                 </ScrollView>
@@ -1224,24 +1199,7 @@ const SmartNoteDetailScreen = () => {
                 {/* Toolbar - only show in edit mode */}
                 {mode !== 'viewing' && (
                 <View style={style.toolbar}>
-                    <TouchableOpacity onPress={insertHeading} style={style.toolbarBtn}>
-                        <Text style={style.toolbarText}>H1</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={insertBulletList} style={style.toolbarBtn}>
-                        <Text style={style.toolbarText}>•</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={insertNumberedList} style={style.toolbarBtn}>
-                        <Text style={style.toolbarText}>1.</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={insertChecklist} style={style.toolbarBtn}>
-                        <CompassIcon name='playlist-check' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={insertQuote} style={style.toolbarBtn}>
-                        <Text style={style.toolbarText}>"</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={insertCode} style={style.toolbarBtn}>
-                        <Text style={style.toolbarText}>&lt;/&gt;</Text>
-                    </TouchableOpacity>
+                    {/* 只保留文件和麦克风按钮 */}
                     <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
                         <CompassIcon name='folder-outline' size={20} color={theme.centerChannelColor}/>
                     </TouchableOpacity>
@@ -1404,6 +1362,47 @@ const SmartNoteDetailScreen = () => {
                             </View>
                         </View>
                     </KeyboardAvoidingView>
+                </Modal>
+
+                {/* 【关键改造】图片全屏预览 Modal */}
+                <Modal
+                    visible={!!fullscreenImage}
+                    transparent={true}
+                    animationType='fade'
+                    statusBarTranslucent={true}
+                    onRequestClose={() => setFullscreenImage(null)}
+                >
+                    <View style={{
+                        flex: 1,
+                        backgroundColor: '#000',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}>
+                        <TouchableOpacity
+                            style={{
+                                position: 'absolute',
+                                top: 50,
+                                right: 20,
+                                zIndex: 10,
+                                padding: 10,
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                borderRadius: 20,
+                            }}
+                            onPress={() => setFullscreenImage(null)}
+                        >
+                            <CompassIcon name='close' size={28} color='#fff'/>
+                        </TouchableOpacity>
+                        {fullscreenImage && (
+                            <Image
+                                source={{uri: fullscreenImage}}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                }}
+                                resizeMode='contain'
+                            />
+                        )}
+                    </View>
                 </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>

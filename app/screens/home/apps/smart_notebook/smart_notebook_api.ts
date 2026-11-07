@@ -168,6 +168,20 @@ export async function getGraphRelations(
     return smartNotebookFetch(serverUrl, `/api/smart-notebook/graph-relations?${params}`, {method: 'get'});
 }
 
+// ── Mark Files In Use ──
+
+export async function markFilesInUse(
+    serverUrl: string,
+    noteId: string,
+    fileIds: string[],
+): Promise<{ok: boolean; updated: number}> {
+    debugLog('[markFilesInUse] 标记文件使用中:', {noteId, fileIds});
+    return smartNotebookFetch(serverUrl, '/api/smart-notebook/mark-files', {
+        method: 'post',
+        body: {noteId, fileIds},
+    });
+}
+
 // ── Media Upload ──
 
 async function ensureUploadBasename(fileUri: string, fileName: string): Promise<string> {

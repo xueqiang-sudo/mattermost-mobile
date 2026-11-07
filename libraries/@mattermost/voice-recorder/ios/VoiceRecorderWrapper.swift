@@ -301,8 +301,8 @@ import React
                                           body: ["code": code, "reason": reason])
         }
 
+        voiceStreamManager = manager  // 【关键修复】先赋值，再连接
         manager.connect(serverUrl: serverUrl, token: token)
-        voiceStreamManager = manager
 
         // 等待 WebSocket 连接后启动录音
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in

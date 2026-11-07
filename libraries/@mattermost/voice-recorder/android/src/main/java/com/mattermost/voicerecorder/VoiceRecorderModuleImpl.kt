@@ -425,8 +425,8 @@ class VoiceRecorderModuleImpl(
                         .emit("VoiceStreamClosed", params)
                 }
 
+                voiceStreamManager = manager  // 【关键修复】先赋值，再连接
                 manager.connect(serverUrl, token)
-                voiceStreamManager = manager
 
                 // 等待 WebSocket 连接后启动录音
                 Thread.sleep(500)

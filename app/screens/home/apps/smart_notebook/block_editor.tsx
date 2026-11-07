@@ -37,6 +37,7 @@ type BlockEditorProps = {
     onFocusApplied?: () => void;
     onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
     onPreviewFile?: (fileInfo: FileInfo) => void; // 预览文件
+    onPreviewImage?: (fileInfo: FileInfo) => void; // 【关键改造】预览图片（全屏）
 };
 
 type BlockItemProps = {
@@ -52,6 +53,7 @@ type BlockItemProps = {
     serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
     onPreviewFile?: (fileInfo: FileInfo) => void; // 预览文件
+    onPreviewImage?: (fileInfo: FileInfo) => void; // 【关键改造】预览图片（全屏）
     onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
     theme: Theme;
     editable: boolean;
@@ -158,6 +160,7 @@ const BlockItem = ({
     serverUrl,
     onPlayMedia,
     onPreviewFile,
+    onPreviewImage,
     onScrollToBlock,
     theme,
     editable,
@@ -416,12 +419,35 @@ const BlockItem = ({
         }
         // 否则已经是完整 URL（http:// 或 https://），直接使用
 
+        // 【关键改造】构建 FileInfo 对象用于图片预览
+        const imageInfo: FileInfo = {
+            id: block.meta?.fileId || block.id || '',
+            name: block.meta?.fileName || caption || '图片',
+            extension: block.meta?.extension || imageUri.split('.').pop()?.toLowerCase() || '',
+            mime_type: block.meta?.mimeType || 'image/jpeg',
+            size: block.meta?.size || 0,
+            user_id: '',
+            create_at: 0,
+            update_at: 0,
+            delete_at: 0,
+            post_id: '',
+            channel_id: '',
+            has_preview_image: true,
+            height: 0,
+            width: 0,
+            localPath: imageUri,
+        };
+
         return (
-            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+            <TouchableOpacity
+                onPress={() => onPreviewImage?.(imageInfo)} // 【关键改造】单击打开全屏预览
+                onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
+                style={style.blockContainer}
+            >
                 <View style={style.mediaBlock}>
                     <Image
                         source={{uri: imageUri}}
-                        style={style.imagePreview}
+                        style={style.imageThumbnail} // 【关键改造】使用缩略图样式（更小）
                         resizeMode='cover'
                         onError={() => {}}
                     />
@@ -500,7 +526,8 @@ const BlockItem = ({
 
         return (
             <TouchableOpacity
-                onPress={() => onPreviewFile?.(fileInfo)} // 添加点击预览
+                onPress={() => onPreviewFile?.(fileInfo)} // 单击预览文件
+                onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
                 style={style.blockContainer}
             >
                 <View style={style.mediaBlock}>
@@ -714,7 +741,7 @@ const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLa
 };
 
 // ---- Main Block Editor Component ----
-const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile}: BlockEditorProps) => {
+const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile, onPreviewImage}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
     const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
@@ -885,6 +912,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 serverUrl={serverUrl}
                 onPlayMedia={handlePlayMedia}
                 onPreviewFile={onPreviewFile}
+                onPreviewImage={onPreviewImage}
                 onScrollToBlock={onScrollToBlock}
                 theme={theme}
                 editable={editable}
@@ -894,7 +922,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
@@ -1076,6 +1104,11 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
     imagePreview: {
         width: '100%',
         height: 200,
+        borderRadius: 8,
+    },
+    imageThumbnail: {
+        width: '100%',
+        height: 120, // 【关键改造】缩略图更小，节省屏幕空间
         borderRadius: 8,
     },
     videoPreviewContainer: {
