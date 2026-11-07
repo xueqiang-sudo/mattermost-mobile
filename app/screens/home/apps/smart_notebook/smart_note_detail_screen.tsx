@@ -1034,96 +1034,131 @@ const SmartNoteDetailScreen = () => {
             >
                 {/* Header */}
                 <View style={style.header}>
-                    <TouchableOpacity onPress={mode === 'editing' ? handleCancel : handleGoBack} style={style.headerBtn}>
+                    {/* 左侧：返回按钮 + 标题 */}
+                    <TouchableOpacity onPress={handleGoBack} style={style.headerBtn}>
                         <CompassIcon
-                            name={mode === 'editing' ? 'close' : 'arrow-left'}
+                            name='arrow-left'
                             size={20}
                             color={theme.sidebarText}
                         />
                     </TouchableOpacity>
                     <View style={style.headerTitleContainer}>
                         <Text style={style.headerLabel} numberOfLines={1}>
-                            {mode === 'new'
-                                ? intl.formatMessage({id: 'smart_notebook.new_note', defaultMessage: '新建笔记'})
-                                : mode === 'editing'
-                                    ? intl.formatMessage({id: 'smart_notebook.edit_note', defaultMessage: '编辑笔记'})
-                                    : title || intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'})}
+                            {title || intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'})}
                         </Text>
                     </View>
-                    {mode === 'viewing' ? (
-                        <View style={style.headerActions}>
+
+                    {/* 右侧：操作按钮组 */}
+                    <View style={style.headerActions}>
+                        {/* 查看模式：显示复制图标 */}
+                        {mode === 'viewing' && (
                             <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
-                                <Text style={style.headerActionText}>
-                                    {intl.formatMessage({id: 'smart_notebook.copy', defaultMessage: '复制'})}
-                                </Text>
+                                <CompassIcon name='content-copy' size={20} color={theme.sidebarText}/>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={handleEdit} style={style.saveBtn}>
-                                <Text style={style.saveBtnText}>
-                                    {intl.formatMessage({id: 'smart_notebook.edit', defaultMessage: '编辑'})}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : saveSuccess ? (
-                        <View style={style.saveSuccessContainer}>
-                            <Text style={style.saveSuccessText}>
-                                {intl.formatMessage({id: 'smart_notebook.saved', defaultMessage: '已保存'})}
-                            </Text>
-                        </View>
-                    ) : (
-                        <TouchableOpacity onPress={handleSave} style={style.saveBtn} disabled={saving}>
-                            <Text style={[style.saveBtnText, saving && style.saveBtnTextDisabled]}>
-                                {intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'})}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
+                        )}
+
+                        {/* 编辑/新建模式：显示工具栏按钮 */}
+                        {mode !== 'viewing' && (
+                            <>
+                                {/* +号：在末尾添加段落并聚焦 */}
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setBlocks(prev => {
+                                            const newBlock = createBlock('paragraph', '');
+                                            const updated = [...prev, newBlock];
+                                            updated.forEach((b, i) => { b.order = i; });
+                                            setTimeout(() => setPendingFocusIndex(updated.length - 1), 50);
+                                            return updated;
+                                        });
+                                    }}
+                                    style={style.headerActionBtn}
+                                >
+                                    <CompassIcon name='plus' size={20} color={theme.sidebarText}/>
+                                </TouchableOpacity>
+
+                                {/* 文件上传按钮 */}
+                                <TouchableOpacity onPress={uploadFile} style={style.headerActionBtn}>
+                                    <CompassIcon name='folder-outline' size={20} color={theme.sidebarText}/>
+                                </TouchableOpacity>
+
+                                {/* 语音按钮 */}
+                                {voiceStreamState === 'connecting' || voiceProcessing ? (
+                                    <View style={style.headerActionBtn}>
+                                        <ActivityIndicator size='small' color={theme.sidebarText}/>
+                                    </View>
+                                ) : voiceStreamState === 'recording' ? (
+                                    <TouchableOpacity
+                                        onPress={async () => {
+                                            const finalText = await stopStreaming();
+                                            console.log('[SmartNote] Voice stopped, final text:', finalText);
+                                        }}
+                                        style={[style.headerActionBtn, style.recordingBtn]}
+                                    >
+                                        <CompassIcon name='microphone' size={20} color={theme.dndIndicator}/>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        onPress={async () => {
+                                            if (!bearerToken || bearerToken.trim() === '') {
+                                                Alert.alert(
+                                                    intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
+                                                    '认证信息尚未准备好，请稍后再试',
+                                                );
+                                                return;
+                                            }
+                                            const started = await startStreaming();
+                                            if (!started) {
+                                                Alert.alert(
+                                                    intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
+                                                    voiceStreamResult.error || '启动失败',
+                                                );
+                                            }
+                                        }}
+                                        style={style.headerActionBtn}
+                                    >
+                                        <CompassIcon name='microphone-outline' size={20} color={theme.sidebarText}/>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* 保存按钮（图标） */}
+                                {saveSuccess ? (
+                                    <View style={style.headerActionBtn}>
+                                        <CompassIcon name='check' size={20} color='#4CAF50'/>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity onPress={handleSave} style={style.headerActionBtn} disabled={saving}>
+                                        {saving ? (
+                                            <ActivityIndicator size='small' color={theme.sidebarText}/>
+                                        ) : (
+                                            <CompassIcon name='content-save' size={20} color={theme.sidebarText}/>
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            </>
+                        )}
+                    </View>
                 </View>
 
-                {/* Content Area */}
+                {/* Content Area - Always editable */}
                 <ScrollView
                     ref={editorScrollViewRef}
                     style={style.editorContainer}
                     keyboardShouldPersistTaps='handled'
-                    contentContainerStyle={{paddingBottom: 120}} // 为工具栏留出空间
+                    contentContainerStyle={{paddingBottom: 40}}
                 >
-                    {mode === 'viewing' ? (
-                        // Read-only view with Block Editor (non-editable)
-                        <TouchableOpacity
-                            style={style.readOnlyContainer}
-                            onPress={handleEdit}
-                            activeOpacity={0.8}
-                        >
-                            {blocks.length > 0 && blocks.some(b => b.content?.trim()) ? (
-                                <BlockEditor
-                                    blocks={blocks}
-                                    onChange={() => {}} // No-op for read-only
-                                    theme={theme}
-                                    editable={false}
-                                    serverUrl={serverUrl}
-                                    onPreviewFile={handlePreviewFile}
-                                    onPreviewImage={handlePreviewImage}
-                                />
-                            ) : (
-                                <Text style={style.readOnlyContent}>
-                                    {intl.formatMessage({id: 'smart_notebook.empty_content', defaultMessage: '暂无内容，点击编辑'})}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-                    ) : (
-                        // Editable view with Block Editor
-                        <BlockEditor
-                            blocks={blocks}
-                            onChange={handleBlocksChange}
-                            theme={theme}
-                            editable={true}
-                            serverUrl={serverUrl}
-                            onFocusedIndexChange={handleFocusedIndexChange}
-                            pendingFocusIndex={pendingFocusIndex}
-                            onFocusApplied={handleFocusApplied}
-                            onScrollToBlock={handleScrollToBlock}
-                            onPreviewFile={handlePreviewFile}
-                            onPreviewImage={handlePreviewImage}
-                        />
-                    )}
+                    <BlockEditor
+                        blocks={blocks}
+                        onChange={handleBlocksChange}
+                        theme={theme}
+                        editable={true}
+                        serverUrl={serverUrl}
+                        onFocusedIndexChange={handleFocusedIndexChange}
+                        pendingFocusIndex={pendingFocusIndex}
+                        onFocusApplied={handleFocusApplied}
+                        onScrollToBlock={handleScrollToBlock}
+                        onPreviewFile={handlePreviewFile}
+                        onPreviewImage={handlePreviewImage}
+                    />
                 </ScrollView>
 
                 {/* 【关键修复】文件预览 Loading Modal */}
@@ -1169,77 +1204,6 @@ const SmartNoteDetailScreen = () => {
                     </View>
                 )}
 
-                {/* Toolbar - only show in edit mode */}
-                {mode !== 'viewing' && (
-                <View style={style.toolbar}>
-                    {/* +号：在末尾添加段落并聚焦 */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            setBlocks(prev => {
-                                const newBlock = createBlock('paragraph', '');
-                                const updated = [...prev, newBlock];
-                                updated.forEach((b, i) => { b.order = i; });
-                                setTimeout(() => setPendingFocusIndex(updated.length - 1), 50);
-                                return updated;
-                            });
-                        }}
-                        style={style.toolbarBtn}
-                    >
-                        <CompassIcon name='plus' size={22} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={uploadFile} style={style.toolbarBtn}>
-                        <CompassIcon name='folder-outline' size={20} color={theme.centerChannelColor}/>
-                    </TouchableOpacity>
-                    {/* Real-time voice stream button - independent from chat window voice messages */}
-                    {voiceStreamState === 'connecting' || voiceProcessing ? (
-                        <View style={style.toolbarBtn}>
-                            <ActivityIndicator size='small' color={theme.buttonBg}/>
-                        </View>
-                    ) : voiceStreamState === 'recording' ? (
-                        <TouchableOpacity
-                            onPress={async () => {
-                                // 停止录音并完成转文字
-                                const finalText = await stopStreaming();
-                                console.log('[SmartNote] Voice stopped, final text:', finalText);
-                            }}
-                            style={[style.toolbarBtnLarge, style.toolbarBtnRecording]}
-                        >
-                            <CompassIcon name='microphone' size={32} color={theme.buttonColor}/>
-                            {/* 录音中的脉冲动画效果 */}
-                            <Animated.View
-                                style={[
-                                    style.recordingPulse,
-                                    {opacity: pulseAnim},
-                                ]}
-                            />
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity
-                            onPress={async () => {
-                                // 【关键修复】检查 bearerToken 是否已准备好
-                                if (!bearerToken || bearerToken.trim() === '') {
-                                    Alert.alert(
-                                        intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
-                                        '认证信息尚未准备好，请稍后再试',
-                                    );
-                                    return;
-                                }
-
-                                const started = await startStreaming();
-                                if (!started) {
-                                    Alert.alert(
-                                        intl.formatMessage({id: 'smart_notebook.voice_error', defaultMessage: '语音转文字失败'}),
-                                        voiceStreamResult.error || '启动失败',
-                                    );
-                                }
-                            }}
-                            style={style.toolbarBtnLarge}
-                        >
-                            <CompassIcon name='microphone-outline' size={28} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                    )}
-                </View>
-                )}
 
                 {/* Save Progress Dialog */}
                 <Modal
@@ -1453,11 +1417,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     headerTitleContainer: {
         flex: 1,
-        alignItems: 'center',
+        marginLeft: 8,
+        justifyContent: 'center',
     },
     headerLabel: {
         ...typography('Heading', 300, 'SemiBold'),
         color: theme.sidebarText,
+    },
+    recordingBtn: {
+        backgroundColor: theme.dndIndicator + '20',
+        borderRadius: 16,
     },
     editorContainer: {
         flex: 1,
