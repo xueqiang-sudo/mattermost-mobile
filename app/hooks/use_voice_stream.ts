@@ -220,9 +220,10 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 return false;
             }
 
-            // 【优化】发送 start 控制消息
-            debugLog('VOICE_STREAM', '[startStreaming] Step 7: Send start control message');
-            VoiceRecorder.sendControlMessage({type: 'start'});
+            // 【关键修复】不再手动发送 start 控制消息
+            // iOS 端会在 WebSocket 连接成功后自动发送 start 消息
+            // 这样可以确保 start 消息在音频数据之前到达服务器
+            debugLog('VOICE_STREAM', '[startStreaming] Step 7: (start 消息由 iOS 自动发送)');
 
             debugLog('VOICE_STREAM', '[startStreaming] Step 8: Set state to recording');
             setState('recording');

@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {ActivityIndicator, Dimensions, Modal, Pressable, Text, View} from 'react-native';
+import {ActivityIndicator, Modal, Pressable, Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import {useTheme} from '@context/theme';
@@ -39,10 +39,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.centerChannelBg,
         borderRadius: 16,
         paddingVertical: 24,
-        paddingHorizontal: 24,
+        paddingHorizontal: 28,
         minWidth: 280,
         maxWidth: 340,
-        maxHeight: Dimensions.get('window').height * 0.8,
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 4},
         shadowOpacity: 0.15,
@@ -50,7 +49,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         elevation: 8,
     },
     header: {
-        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    headerIcon: {
+        marginRight: 10,
     },
     headerTitle: {
         ...typography('Body', 200, 'SemiBold'),
@@ -60,10 +64,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     fileName: {
         ...typography('Body', 75, 'Regular'),
         color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginBottom: 12,
+        marginBottom: 20,
     },
     stepsContainer: {
-        marginBottom: 12,
+        marginBottom: 20,
     },
     stepContainer: {
         flexDirection: 'row',
@@ -136,6 +140,26 @@ const FilePreviewLoadingModal = ({
         return 'pending';
     };
 
+    // 【关键修复】只显示当前和未来的步骤，隐藏已完成的步骤
+    const displaySteps = React.useMemo(() => {
+        if (steps.length === 0) {
+            return [currentStep === 'idle' ? 'opening' : currentStep];
+        }
+
+        // 如果已完成，显示所有步骤
+        if (currentStep === 'done') {
+            return steps;
+        }
+
+        // 过滤掉已完成的步骤，只保留当前和未来的步骤
+        const currentIndex = steps.indexOf(currentStep);
+        if (currentIndex === -1) {
+            return steps;
+        }
+
+        return steps.slice(currentIndex);
+    }, [steps, currentStep]);
+
     const renderStepIcon = (status: 'completed' | 'current' | 'pending') => {
         if (status === 'completed') {
             return (
@@ -152,9 +176,6 @@ const FilePreviewLoadingModal = ({
         return <View style={styles.stepCircle}/>;
     };
 
-    // 【关键修复】如果步骤为空，显示默认的处理中状态
-    const displaySteps = steps.length > 0 ? steps : [currentStep === 'idle' ? 'opening' : currentStep];
-
     return (
         <Modal
             visible={visible}
@@ -165,6 +186,12 @@ const FilePreviewLoadingModal = ({
             <View style={styles.overlay}>
                 <View style={styles.container}>
                     <View style={styles.header}>
+                        <CompassIcon
+                            name='file-outline'
+                            size={24}
+                            color={theme.buttonBg}
+                            style={styles.headerIcon}
+                        />
                         <Text
                             style={styles.headerTitle}
                             numberOfLines={1}
@@ -172,6 +199,15 @@ const FilePreviewLoadingModal = ({
                             正在处理文件
                         </Text>
                     </View>
+
+                    {fileName ? (
+                        <Text
+                            style={styles.fileName}
+                            numberOfLines={2}
+                        >
+                            {fileName}
+                        </Text>
+                    ) : null}
 
                     <View style={styles.stepsContainer}>
                         {displaySteps.map((step) => {
@@ -195,15 +231,6 @@ const FilePreviewLoadingModal = ({
                             );
                         })}
                     </View>
-
-                    {fileName ? (
-                        <Text
-                            style={styles.fileName}
-                            numberOfLines={2}
-                        >
-                            {fileName}
-                        </Text>
-                    ) : null}
 
                     {canCancel && (
                         <Pressable

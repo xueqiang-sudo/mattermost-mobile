@@ -5,6 +5,7 @@
 // Uses PostgreSQL backend via fact-extractor plugin
 
 import NetworkManager from '@managers/network_manager';
+import {debugLog} from '@store/debug_log';
 
 const PLUGIN_BASE = '/plugins/com.mattermost.fact-extractor';
 
@@ -173,20 +174,36 @@ async function ensureUploadBasename(fileUri: string, fileName: string): Promise<
     try {
         const safeName = fileName.replace(/[/\\]/g, '');
         if (!safeName) {
+            debugLog('[ensureUploadBasename] 文件名为空，返回原 URI');
             return fileUri;
         }
         const withScheme = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
         const currentBase = decodeURIComponent(withScheme.split('/').pop() || '');
+
+        debugLog('[ensureUploadBasename] 路径分析:', {
+            originalUri: fileUri,
+            withScheme,
+            currentBase,
+            safeName,
+            match: currentBase === safeName,
+        });
+
         if (currentBase === safeName) {
+            debugLog('[ensureUploadBasename] basename 已正确，返回原 URI');
             return fileUri; // basename 已正确，无需复制
         }
+
+        debugLog('[ensureUploadBasename] basename 不匹配，复制文件...');
         const {cacheDirectory, makeDirectoryAsync, copyAsync} = await import('expo-file-system');
         const dir = `${cacheDirectory}smart_notebook_upload_${Date.now()}/`;
         await makeDirectoryAsync(dir, {intermediates: true});
         const dest = `${dir}${safeName}`;
         await copyAsync({from: withScheme, to: dest});
+
+        debugLog('[ensureUploadBasename] 文件已复制到:', dest);
         return dest;
     } catch (e) {
+        debugLog('[ensureUploadBasename] 处理失败:', e);
         return fileUri;
     }
 }
@@ -197,6 +214,12 @@ export async function uploadMedia(
     file: {uri: string; name: string; type: string},
 ): Promise<{url: string; fileId: string}> {
     const client = NetworkManager.getClient(serverUrl);
+
+    debugLog('[uploadMedia] 开始上传:', {
+        originalUri: file.uri,
+        fileName: file.name,
+        fileType: file.type,
+    });
 
     // 使用原生上传方法（与云盘、知识库一致），正确处理文件 URI 和中文文件名
     const url = `${PLUGIN_BASE}/api/smart-notebook/upload?user_id=${encodeURIComponent(userId)}`;
@@ -214,25 +237,47 @@ export async function uploadMedia(
     // 确保文件名正确（处理中文和特殊字符）
     const localPath = await ensureUploadBasename(file.uri, file.name);
 
+    debugLog('[uploadMedia] 处理后的路径:', {
+        localPath,
+        isChanged: localPath !== file.uri,
+    });
+
     return new Promise<{url: string; fileId: string}>((resolve, reject) => {
         client.apiClient.upload(url, localPath, options).then((response: any) => {
+            debugLog('[uploadMedia] 上传响应:', {
+                ok: response.ok,
+                status: response.status,
+                data: response.data,
+            });
+
             if (!response.ok) {
                 const errorMsg = response.data?.message || response.error || 'Upload failed';
+                debugLog('[uploadMedia] 上传失败:', errorMsg);
                 reject(new Error(errorMsg));
                 return;
             }
 
             const data = response.data || response;
             if (!data.url || !data.fileId) {
+                debugLog('[uploadMedia] 响应缺少文件信息:', data);
                 reject(new Error('上传成功但未返回文件信息'));
                 return;
             }
+
+            debugLog('[uploadMedia] 上传成功:', {
+                url: data.url,
+                fileId: data.fileId,
+            });
 
             resolve({
                 url: data.url,
                 fileId: data.fileId,
             });
         }).catch((error: any) => {
+            debugLog('[uploadMedia] 上传异常:', {
+                message: error?.message || String(error),
+                stack: error?.stack,
+            });
             reject(error);
         });
     });

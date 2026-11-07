@@ -260,74 +260,60 @@ export const useHandleSendMessage = ({
 
         setSendingMessage(true);
         try {
-            // 【关键修复】先转写语音为文本，然后只发送文本（不发送音频文件）
             const file = voiceFiles[0];
 
             if (!file.localPath) {
                 throw new Error('No local path for voice file');
             }
 
-            // 步骤 1: 调用转写 API
-            const VOICE_PLUGIN_BASE = '/plugins/com.superera.voice-recognition';
-            const endpoint = VOICE_PLUGIN_BASE + '/api/v1/transcribe';
-
+            // 步骤 1: 上传语音文件到 Mattermost (标准文件上传)
             const client = NetworkManager.getClient(serverUrl);
+            const uploadUrl = `/api/v4/files`;
 
-            // 准备文件名和类型
-            let fileName = file.name || 'voice.aac';
-            const extension = fileName.split('.').pop()?.toLowerCase();
-            if (!extension || !['mp3', 'wav', 'amr', 'aac', 'm4a', 'ogg'].includes(extension)) {
-                const mimeToExt: Record<string, string> = {
-                    'audio/mpeg': 'mp3',
-                    'audio/wav': 'wav',
-                    'audio/x-wav': 'wav',
-                    'audio/amr': 'amr',
-                    'audio/aac': 'aac',
-                    'audio/mp4': 'm4a',
-                    'audio/x-m4a': 'm4a',
-                    'audio/ogg': 'ogg',
-                };
-                const correctExt = mimeToExt[file.mime_type || ''] || 'aac';
-                fileName = `voice.${correctExt}`;
-            }
+            const uploadOptions = {
+                method: 'POST',
+                multipart: {
+                    fileKey: 'files',
+                    data: {
+                        channel_id: channelId,
+                    },
+                },
+                timeoutInterval: 60000,
+                headers: client.getRequestHeaders('POST'),
+            };
 
-            const formData = new FormData();
-            formData.append('audio', {
-                uri: file.localPath,
-                name: fileName,
-                type: file.mime_type || 'audio/aac',
-            } as any);
-
-            const transcribeResp = await client.doFetch(endpoint, {
-                method: 'post',
-                body: formData,
+            console.log('[sendVoiceAsr] 开始上传语音文件:', {
+                localPath: file.localPath,
+                fileName: file.name,
+                mimeType: file.mime_type,
             });
 
-            const transcribedText = transcribeResp?.data?.text || transcribeResp?.text || '';
+            const uploadResp = await client.apiClient.upload(uploadUrl, file.localPath, uploadOptions);
 
-            if (!transcribedText || !transcribedText.trim()) {
-                throw new Error('语音转写结果为空');
+            if (!uploadResp.ok) {
+                throw new Error('上传语音文件失败');
             }
 
-            // 步骤 2: 发送转写文本作为普通消息（不发送音频文件）
+            const fileInfo = uploadResp.data?.file_infos?.[0];
+            if (!fileInfo?.id) {
+                throw new Error('上传成功但未获取到文件ID');
+            }
+
+            console.log('[sendVoiceAsr] 文件上传成功:', {
+                fileId: fileInfo.id,
+                fileName: fileInfo.name,
+            });
+
+            // 步骤 2: 创建 custom_voice_asr 类型的帖子
+            // 插件会自动检测到并转写为文本
             const post = {
                 user_id: currentUserId,
                 channel_id: channelId,
                 root_id: rootId,
-                message: transcribedText.trim(),
-                // 不使用 CUSTOM_VOICE_ASR 类型，不添加 file_ids
+                type: 'custom_voice_asr',  // ← 关键：特殊类型
+                message: '',  // 空文本
+                file_ids: [fileInfo.id],  // ← 附加语音文件
             } as Post;
-
-            // 添加优先级信息
-            if (!rootId && (
-                postPriority.priority ||
-                postPriority.requested_ack ||
-                postPriority.persistent_notifications)
-            ) {
-                post.metadata = {
-                    priority: postPriority,
-                };
-            }
 
             const createResult = await createPost(serverUrl, post, []);
 
@@ -335,14 +321,24 @@ export const useHandleSendMessage = ({
                 throw createResult.error;
             }
 
+            console.log('[sendVoiceAsr] 语音帖子已创建，等待插件转写:', {
+                postId: createResult.data?.id,
+                fileId: fileInfo.id,
+            });
+
             // 步骤 3: 发送事件
             DeviceEventEmitter.emit(Events.POST_LIST_SCROLL_TO_BOTTOM, Screens.CHANNEL);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_REPLY_ROOT);
             DeviceEventEmitter.emit(Events.POST_DRAFT_CLEAR_QUOTED_POST);
 
         } catch (err) {
-            logError('[sendVoiceAsr] 流程失败', err);
             const errorMessage = getErrorMessage(err);
+            console.error('[sendVoiceAsr] 流程失败:', {
+                error: errorMessage,
+                originalError: err,
+                stack: (err as Error)?.stack,
+            });
+            logError('[sendVoiceAsr] 流程失败', err);
             if (onError) {
                 onError(errorMessage as string);
             } else {

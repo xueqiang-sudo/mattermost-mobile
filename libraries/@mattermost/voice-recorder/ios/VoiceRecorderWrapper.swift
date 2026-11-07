@@ -284,7 +284,10 @@ import React
                                           body: ["text": text, "isFinal": isFinal])
         }
         manager.onConnected = { [weak self] in
-            self?.log("WebSocket 已连接")
+            self?.log("WebSocket 已连接，自动发送 start 控制消息")
+            // 【关键修复】WebSocket 连接成功后立即发送 start 控制消息
+            // 确保在开始发送音频数据之前，服务器的 ASR 已经启动
+            self?.voiceStreamManager?.sendControlMessage(type: "start")
             self?.eventEmitter?.sendEvent(withName: "VoiceStreamConnected", body: [:])
         }
         manager.onError = { [weak self] error in

@@ -227,7 +227,22 @@ const SmartNoteDetailScreen = () => {
 
     // Check if content has changed
     // 【关键修复】比较当前标题和保存时的标题，而不是和初始 prop 比较
-    const hasChanges = JSON.stringify(blocks) !== JSON.stringify(originalBlocks) || title !== savedTitle;
+    // 【关键修复】更智能的变更检测
+    // 1. 比较 blocks 内容（不仅仅是 JSON 字符串）
+    // 2. 如果 blocks 只包含空段落，认为没有变更
+    const hasActualContent = blocks.some(block => {
+        if (block.type === 'paragraph' || block.type === 'heading') {
+            return block.content && block.content.trim().length > 0;
+        }
+        // 其他类型的块（图片、文件等）认为有内容
+        return true;
+    });
+
+    const blocksChanged = JSON.stringify(blocks) !== JSON.stringify(originalBlocks);
+    const titleChanged = title !== savedTitle;
+
+    // 只有当有实际内容且发生了变化时，才认为有变更
+    const hasChanges = (hasActualContent && blocksChanged) || titleChanged;
 
     // ---- Init ----
     useEffect(() => {
@@ -653,8 +668,8 @@ const SmartNoteDetailScreen = () => {
         return intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'});
     }, [intl]);
 
-    const performSave = useCallback(async (overrideTitle?: string) => {
-        if (!userId || saving) return;
+    const performSave = useCallback(async (overrideTitle?: string): Promise<boolean> => {
+        if (!userId || saving) return false;
 
         setSaving(true);
 
@@ -784,7 +799,7 @@ const SmartNoteDetailScreen = () => {
                     if (!result) {
                         // 用户选择取消
                         setSaving(false);
-                        return;
+                        return false;
                     }
                 }
 
@@ -870,6 +885,8 @@ const SmartNoteDetailScreen = () => {
             if (mode === 'editing') {
                 setMode('viewing');
             }
+
+            return true;
         } catch (e) {
             // 隐藏进度对话框
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
@@ -886,13 +903,15 @@ const SmartNoteDetailScreen = () => {
                     {error: e instanceof Error ? e.message : String(e)},
                 ),
             );
+
+            return false;
         } finally {
             setSaving(false);
         }
     }, [userId, saving, title, blocks, isNew, serverUrl, currentNoteId, intl, extractTitleFromBlocks, mode]);
 
-    const handleSave = useCallback(async () => {
-        if (!userId || saving) return;
+    const handleSave = useCallback(async (): Promise<boolean> => {
+        if (!userId || saving) return false;
 
         // 检查是否有 H1 标题
         const hasH1Title = blocks.some(block =>
@@ -906,10 +925,10 @@ const SmartNoteDetailScreen = () => {
             setTimeout(() => {
                 setShowTitleDialog(true);
             }, 100); // 等待键盘收起动画
-            return;
+            return false;
         }
 
-        await performSave();
+        return await performSave();
     }, [userId, saving, title, blocks, performSave]);
 
     // ---- Enter edit mode ----
@@ -1034,7 +1053,11 @@ const SmartNoteDetailScreen = () => {
                     {
                         text: intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'}),
                         onPress: async () => {
-                            await handleSave();
+                            const saved = await handleSave();
+                            if (saved) {
+                                // 保存成功后返回上一页
+                                navigation.goBack();
+                            }
                         },
                     },
                 ],
@@ -1320,18 +1343,15 @@ const SmartNoteDetailScreen = () => {
                         setTitleInput('');
                     }}
                 >
-                    <View style={style.titleDialogOverlay}>
+                    <KeyboardAvoidingView
+                        style={style.titleDialogOverlay}
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    >
                         <View style={style.titleDialogContainer}>
                             <Text style={style.titleDialogTitle}>
                                 {intl.formatMessage({
                                     id: 'smart_notebook.enter_title',
                                     defaultMessage: '请输入标题',
-                                })}
-                            </Text>
-                            <Text style={style.titleDialogMessage}>
-                                {intl.formatMessage({
-                                    id: 'smart_notebook.enter_title_message',
-                                    defaultMessage: '您的笔记还没有标题，请输入一个标题：',
                                 })}
                             </Text>
                             <TextInput
@@ -1383,7 +1403,7 @@ const SmartNoteDetailScreen = () => {
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    </View>
+                    </KeyboardAvoidingView>
                 </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>
