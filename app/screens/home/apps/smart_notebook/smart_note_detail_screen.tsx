@@ -122,7 +122,7 @@ const SmartNoteDetailScreen = () => {
     const initialIsNew = initialNoteId === 'new';
 
     // 【关键修复】使用 state 追踪 noteId 和 isNew，创建笔记后可以更新
-    const [currentNoteId, setCurrentNoteId] = useState<string>(initialNoteId);
+    const [currentNoteId] = useState<string>(initialNoteId);
     const isNew = currentNoteId === 'new';
 
     // Mode: 'new' = creating new note, 'viewing' = read-only, 'editing' = edit mode
@@ -131,8 +131,6 @@ const SmartNoteDetailScreen = () => {
 
     const textInputRef = useRef<TextInput>(null);
     const editorScrollViewRef = useRef<ScrollView>(null);
-    // 【关键修复】保存后跳过 init 重新获取，避免竞态覆盖本地状态
-    const skipNextInitRef = useRef(false);
 
     // 滚动到指定 block 的处理函数
     const handleScrollToBlock = useCallback((index: number) => {
@@ -289,7 +287,6 @@ const SmartNoteDetailScreen = () => {
     const [originalBlocks, setOriginalBlocks] = useState<SmartNoteBlock[]>([]); // For cancel comparison
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!isNew);
-    const [saveSuccess, setSaveSuccess] = useState(false);
     const [voiceProcessing, setVoiceProcessing] = useState(false);
     const [savedTitle, setSavedTitle] = useState(''); // 保存时的标题
 
@@ -374,12 +371,6 @@ const SmartNoteDetailScreen = () => {
 
     // ---- Init ----
     useEffect(() => {
-        // 【关键修复】保存后 currentNoteId 变化触发此 effect，跳过冗余的重新获取
-        if (skipNextInitRef.current) {
-            skipNextInitRef.current = false;
-            return;
-        }
-
         const init = async () => {
             try {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -916,10 +907,7 @@ const SmartNoteDetailScreen = () => {
                         });
                         debugLog('[SmartNotebook] handleSave: 更新新笔记成功');
 
-                        // 【关键修复】创建成功后更新 noteId，避免下次保存时再次创建
-                        // 设置标志，防止 init effect 因 currentNoteId 变化而重新获取
-                        skipNextInitRef.current = true;
-                        setCurrentNoteId(createdNote.id);
+                        // 【简化】保存成功后直接返回列表，无需更新 currentNoteId
                     } else {
                         debugLog('[SmartNotebook] handleSave: 创建笔记失败', {createdNote});
                         throw new Error('创建笔记失败');
@@ -945,24 +933,7 @@ const SmartNoteDetailScreen = () => {
             // 隐藏保存进度
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
 
-            setSaveSuccess(true);
-
-            // 【关键修复】确保 blocks 和 originalBlocks 完全相同（都使用深拷贝）
-            const savedBlocksCopy = JSON.parse(JSON.stringify(blocksToSave));
-            setBlocks(savedBlocksCopy);
-            setOriginalBlocks(JSON.parse(JSON.stringify(savedBlocksCopy)));
-
-            // 【关键修复】保存当前标题，用于后续比较
-            setSavedTitle(noteTitle);
-
-            // 【关键修复】延长成功提示显示时间，让用户看清楚
-            setTimeout(() => setSaveSuccess(false), 3000); // 3秒而不是2秒
-
-            // After saving, go back to viewing mode (for editing existing notes)
-            if (mode === 'editing') {
-                setMode('viewing');
-            }
-
+            debugLog('[SmartNotebook] performSave: 保存成功');
             return true;
         } catch (e) {
             // 隐藏进度对话框
@@ -985,7 +956,7 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [userId, saving, title, blocks, isNew, serverUrl, currentNoteId, intl, extractTitleFromBlocks, mode]);
+    }, [userId, saving, title, blocks, isNew, serverUrl, currentNoteId, intl, extractTitleFromBlocks]);
 
     const handleSave = useCallback(async (): Promise<boolean> => {
         if (!userId || saving) return false;
@@ -997,16 +968,20 @@ const SmartNoteDetailScreen = () => {
 
         // 如果没有 H1 标题且用户没有手动输入标题，显示对话框
         if (!hasH1Title && !title.trim()) {
-            // 【关键修复】先收起键盘，避免遮挡对话框
             Keyboard.dismiss();
             setTimeout(() => {
                 setShowTitleDialog(true);
-            }, 100); // 等待键盘收起动画
+            }, 100);
             return false;
         }
 
-        return await performSave();
-    }, [userId, saving, title, blocks, performSave]);
+        const saved = await performSave();
+        if (saved) {
+            // 【简化】保存成功后直接返回，列表页 useFocusEffect 会自动刷新
+            navigation.goBack();
+        }
+        return saved;
+    }, [userId, saving, title, blocks, performSave, navigation]);
 
     // ---- Enter edit mode ----
     const handleEdit = useCallback(() => {
@@ -1112,7 +1087,6 @@ const SmartNoteDetailScreen = () => {
 
     // ---- Go back with confirmation ----
     const handleGoBack = useCallback(() => {
-        // 【关键修复】先收起键盘，避免 UI 卡顿或 Alert 被键盘遮挡
         Keyboard.dismiss();
         if (hasChanges) {
             Alert.alert(
@@ -1120,24 +1094,20 @@ const SmartNoteDetailScreen = () => {
                 intl.formatMessage({id: 'smart_notebook.unsaved_changes_message', defaultMessage: '是否保存更改？'}),
                 [
                     {
+                        // 取消：留在当前页面
                         text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
                         style: 'cancel',
-                        onPress: () => navigation.goBack(),
                     },
                     {
+                        // 不保存：直接返回
                         text: intl.formatMessage({id: 'smart_notebook.dont_save', defaultMessage: '不保存'}),
                         style: 'destructive',
                         onPress: () => navigation.goBack(),
                     },
                     {
+                        // 保存：handleSave 内部已处理保存+返回
                         text: intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'}),
-                        onPress: async () => {
-                            const saved = await handleSave();
-                            if (saved) {
-                                // 保存成功后返回上一页
-                                navigation.goBack();
-                            }
-                        },
+                        onPress: () => handleSave(),
                     },
                 ],
             );
@@ -1253,20 +1223,14 @@ const SmartNoteDetailScreen = () => {
                                     </TouchableOpacity>
                                 )}
 
-                                {/* 保存按钮（图标） */}
-                                {saveSuccess ? (
-                                    <View style={style.headerActionBtn}>
-                                        <CompassIcon name='check' size={20} color='#4CAF50'/>
-                                    </View>
-                                ) : (
-                                    <TouchableOpacity onPress={handleSave} style={style.headerActionBtn} disabled={saving}>
-                                        {saving ? (
-                                            <ActivityIndicator size='small' color={theme.sidebarText}/>
-                                        ) : (
-                                            <CompassIcon name='content-save' size={20} color={theme.sidebarText}/>
-                                        )}
-                                    </TouchableOpacity>
-                                )}
+                                {/* 保存按钮 */}
+                                <TouchableOpacity onPress={handleSave} style={style.headerActionBtn} disabled={saving}>
+                                    {saving ? (
+                                        <ActivityIndicator size='small' color={theme.sidebarText}/>
+                                    ) : (
+                                        <CompassIcon name='check-circle' size={22} color={theme.sidebarText}/>
+                                    )}
+                                </TouchableOpacity>
                             </>
                         )}
                     </View>
@@ -1431,8 +1395,10 @@ const SmartNoteDetailScreen = () => {
                                         setTitleInput('');
                                         setTitle(newTitle);
 
-                                        // 直接调用 performSave 并传入新标题
-                                        await performSave(newTitle);
+                                        const saved = await performSave(newTitle);
+                                        if (saved) {
+                                            navigation.goBack();
+                                        }
                                     }}
                                     style={[style.titleDialogBtn, style.titleDialogBtnConfirm]}
                                 >
@@ -1534,14 +1500,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     saveBtnTextDisabled: {
         opacity: 0.5,
-    },
-    saveSuccessContainer: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-    },
-    saveSuccessText: {
-        ...typography('Body', 100),
-        color: theme.onlineIndicator,
     },
     headerTitle: {
         ...typography('Heading', 200, 'SemiBold'),
