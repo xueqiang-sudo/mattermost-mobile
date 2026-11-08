@@ -189,7 +189,7 @@ const SmartNoteDetailScreen = () => {
             const isOffice = officeExtensions.includes(ext);
 
             // 对齐云盘：Office 文件需要 mm_file_id 才能进行 PDF 转换
-            const mmFileId = (fileInfo as any).mm_file_id || driveFileId;
+            const mmFileId = fileInfo.mm_file_id || '';
 
             // 尝试获取完整文件信息（包含 pdf_preview_id）
             let enrichedFileInfo: FileInfo | null = null;
@@ -624,7 +624,7 @@ const SmartNoteDetailScreen = () => {
                         url: content,
                         fileName,
                         extension,
-                        mmFileId: uploadResult.fileId || '',
+                        mmFileId: uploadResult.mmFileId || '',
                         caption,
                         fileId: uploadResult.fileId || '',
                         // mobile 额外字段
@@ -787,7 +787,7 @@ const SmartNoteDetailScreen = () => {
                         fileName: asset.fileName || 'image.jpg',
                         isLocal: false,
                         url: uploadResult.url,
-                        mmFileId: uploadResult.fileId || '',
+                        mmFileId: uploadResult.mmFileId || '',
                     };
                     setBlocks(prev => [...prev, newBlock]);
                 }
@@ -822,7 +822,7 @@ const SmartNoteDetailScreen = () => {
                         fileName: asset.fileName || 'video.mp4',
                         isLocal: false,
                         url: uploadResult.url,
-                        mmFileId: uploadResult.fileId || '',
+                        mmFileId: uploadResult.mmFileId || '',
                     };
                     setBlocks(prev => [...prev, newBlock]);
                 }

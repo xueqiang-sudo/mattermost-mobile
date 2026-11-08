@@ -216,7 +216,7 @@ export async function uploadMedia(
     serverUrl: string,
     userId: string,
     file: {uri: string; name: string; type: string},
-): Promise<{url: string; fileId: string}> {
+): Promise<{url: string; fileId: string; mmFileId: string}> {
     debugLog('[uploadMedia] 开始上传（使用云盘 API）:', {
         originalUri: file.uri,
         fileName: file.name,
@@ -251,11 +251,13 @@ export async function uploadMedia(
     debugLog('[uploadMedia] 上传成功:', {
         url: fileUrl,
         fileId: driveFile.id,
+        mmFileId: driveFile.mm_file_id || '',
     });
 
     return {
         url: fileUrl,
         fileId: driveFile.id,
+        mmFileId: driveFile.mm_file_id || '',
     };
 }
 

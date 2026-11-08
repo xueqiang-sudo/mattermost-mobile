@@ -522,6 +522,7 @@ const BlockItem = ({
             height: 0,
             width: 0,
             localPath: block.content,
+            mm_file_id: block.meta?.mmFileId || '',
         };
 
         return (

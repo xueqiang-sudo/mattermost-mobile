@@ -15,6 +15,7 @@ type FileInfo = {
     localPath?: string;
     mime_type: string;
     mini_preview?: string;
+    mm_file_id?: string;
     name: string;
     pdf_preview_id?: string;
     post_id?: string;

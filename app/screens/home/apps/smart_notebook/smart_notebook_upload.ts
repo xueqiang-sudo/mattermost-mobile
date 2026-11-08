@@ -189,8 +189,8 @@ export async function uploadLocalBlock(
 
         result.content = uploadResult.url;
         result.meta!.url = uploadResult.url;
-        result.meta!.mmFileId = uploadResult.fileId || '';
-        result.meta!.fileId = uploadResult.fileId || '';  // 【关键修复】同步更新 fileId
+        result.meta!.mmFileId = uploadResult.mmFileId || '';  // Mattermost 文件 ID（用于 PDF 转换）
+        result.meta!.fileId = uploadResult.fileId || '';  // 云盘文件 ID（用于下载）
         result.meta!.isLocal = false;
 
         onProgress?.(1);
