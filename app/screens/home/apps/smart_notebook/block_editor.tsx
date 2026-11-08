@@ -33,6 +33,7 @@ type BlockEditorProps = {
     theme: Theme;
     editable: boolean;
     serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
+    bearerToken?: string; // 用于图片请求的鉴权头
     onFocusedIndexChange?: (index: number) => void;
     pendingFocusIndex?: number | null;
     onFocusApplied?: () => void;
@@ -52,6 +53,7 @@ type BlockItemProps = {
     onMoveDown?: (index: number) => void;
     onFocus: (index: number) => void;
     serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
+    bearerToken?: string; // 用于图片请求的鉴权头
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
     onPreviewFile?: (fileInfo: FileInfo) => void; // 预览文件
     onPreviewImage?: (fileInfo: FileInfo) => void; // 【关键改造】预览图片（全屏）
@@ -149,16 +151,21 @@ const createBlock = (type: SmartNoteBlock['type'] = 'paragraph', content = ''): 
 
 // ---- Responsive Image Component ----
 // 动态获取图片尺寸，按原始宽高比等比缩放
-const ResponsiveImage = ({uri, style}: {uri: string; style: any}) => {
+const ResponsiveImage = ({uri, style, bearerToken}: {uri: string; style: any; bearerToken?: string}) => {
     const [aspectRatio, setAspectRatio] = useState(1);
 
     const screenWidth = Dimensions.get('window').width;
     const imageWidth = screenWidth - 40; // 留出边距
     const imageHeight = imageWidth / aspectRatio;
 
+    const source: any = {uri};
+    if (bearerToken && uri.startsWith('http')) {
+        source.headers = {Authorization: `Bearer ${bearerToken}`};
+    }
+
     return (
         <Image
-            source={{uri}}
+            source={source}
             style={[style, {width: imageWidth, height: Math.min(imageHeight, 400)}]}
             contentFit='contain'
             onLoad={(evt) => {
@@ -254,8 +261,11 @@ const BlockItem = ({
     onDelete,
     onAddAfter,
     onAddAfterWithFocus,
+    onMoveUp,
+    onMoveDown,
     onFocus,
     serverUrl,
+    bearerToken,
     onPlayMedia,
     onPreviewFile,
     onPreviewImage,
@@ -264,6 +274,8 @@ const BlockItem = ({
     editable,
     isSelected,
     autoFocus,
+    isFirst,
+    isLast,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);
@@ -554,6 +566,7 @@ const BlockItem = ({
                         <ResponsiveImage
                             uri={imageUri}
                             style={style.imageThumbnail}
+                            bearerToken={bearerToken}
                         />
                         <View style={style.mediaInfo}>
                             <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
@@ -805,7 +818,7 @@ const BlockItem = ({
 
 
 // ---- Main Block Editor Component ----
-const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile, onPreviewImage}: BlockEditorProps) => {
+const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, bearerToken, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile, onPreviewImage}: BlockEditorProps) => {
     const style = getBlockStyle(theme);
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
     const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
@@ -970,6 +983,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
                 serverUrl={serverUrl}
+                bearerToken={bearerToken}
                 onPlayMedia={handlePlayMedia}
                 onPreviewFile={onPreviewFile}
                 onPreviewImage={onPreviewImage}
@@ -982,7 +996,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 isLast={index === blocks.length - 1}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, bearerToken, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
@@ -1017,7 +1031,12 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                     {playingMedia?.type === 'video' ? (
                         <Video
                             ref={videoRef}
-                            source={{uri: playingMedia.uri}}
+                            source={{
+                                uri: playingMedia.uri,
+                                ...(bearerToken && playingMedia.uri.startsWith('http')
+                                    ? {headers: {Authorization: `Bearer ${bearerToken}`}}
+                                    : {}),
+                            }}
                             style={style.videoPlayer}
                             controls={true}
                             paused={false}
@@ -1036,7 +1055,12 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                             </View>
                             <Video
                                 ref={videoRef}
-                                source={{uri: playingMedia.uri}}
+                                source={{
+                                    uri: playingMedia.uri,
+                                    ...(bearerToken && playingMedia.uri.startsWith('http')
+                                        ? {headers: {Authorization: `Bearer ${bearerToken}`}}
+                                        : {}),
+                                }}
                                 style={style.audioPlayer}
                                 controls={false}
                                 paused={false}

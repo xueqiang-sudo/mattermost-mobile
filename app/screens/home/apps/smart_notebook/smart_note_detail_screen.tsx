@@ -1284,6 +1284,7 @@ const SmartNoteDetailScreen = () => {
                         theme={theme}
                         editable={true}
                         serverUrl={serverUrl}
+                        bearerToken={bearerToken}
                         onFocusedIndexChange={handleFocusedIndexChange}
                         pendingFocusIndex={pendingFocusIndex}
                         onFocusApplied={handleFocusApplied}
@@ -1487,7 +1488,12 @@ const SmartNoteDetailScreen = () => {
                         </TouchableOpacity>
                         {fullscreenImage && (
                             <Image
-                                source={{uri: fullscreenImage}}
+                                source={{
+                                    uri: fullscreenImage,
+                                    ...(bearerToken && fullscreenImage.startsWith('http')
+                                        ? {headers: {Authorization: `Bearer ${bearerToken}`}}
+                                        : {}),
+                                }}
                                 style={{
                                     width: '100%',
                                     height: '100%',
