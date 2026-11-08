@@ -274,8 +274,8 @@ const BlockItem = ({
     editable,
     isSelected,
     autoFocus,
-    isFirst,
-    isLast,
+    isFirst = false,
+    isLast = false,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);

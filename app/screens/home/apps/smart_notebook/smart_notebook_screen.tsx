@@ -166,21 +166,6 @@ const SmartNotebookScreen = () => {
         loadNotes();
     }, [loadNotes]);
 
-    // Refresh notes list when screen comes into focus
-    // Only refresh if needsRefresh flag is set (after creating/editing a note)
-    useFocusEffect(
-        useCallback(() => {
-            if (needsRefresh.current && userId) {
-                needsRefresh.current = false;
-                if (searchQuery.trim()) {
-                    doSearch(searchQuery);
-                } else {
-                    loadNotes();
-                }
-            }
-        }, [userId, searchQuery, doSearch, loadNotes]),
-    );
-
     // ---- Search (debounced) ----
     const doSearch = useCallback(async (query: string) => {
         if (!userId) return;
@@ -200,6 +185,21 @@ const SmartNotebookScreen = () => {
             setSearching(false);
         }
     }, [serverUrl, userId, loadNotes]);
+
+    // Refresh notes list when screen comes into focus
+    // Only refresh if needsRefresh flag is set (after creating/editing a note)
+    useFocusEffect(
+        useCallback(() => {
+            if (needsRefresh.current && userId) {
+                needsRefresh.current = false;
+                if (searchQuery.trim()) {
+                    doSearch(searchQuery);
+                } else {
+                    loadNotes();
+                }
+            }
+        }, [userId, searchQuery, doSearch, loadNotes]),
+    );
 
     const onSearchChange = useCallback((text: string) => {
         setSearchQuery(text);
