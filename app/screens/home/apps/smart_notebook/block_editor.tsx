@@ -6,7 +6,6 @@ import {useIntl} from 'react-intl';
 import {
     Alert,
     Dimensions,
-    FlatList,
     Image,
     Modal,
     Platform,
@@ -16,6 +15,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import DraggableFlatList from 'react-native-draggable-flatlist';
 import Video, {type VideoRef} from 'react-native-video';
 
 import CompassIcon from '@components/compass_icon';
@@ -48,8 +48,6 @@ type BlockItemProps = {
     onDelete: (index: number) => void;
     onAddAfter: (index: number, type?: SmartNoteBlock['type'], meta?: any) => void;
     onAddAfterWithFocus: (index: number, type?: SmartNoteBlock['type'], meta?: any) => void;
-    onMoveUp: (index: number) => void;
-    onMoveDown: (index: number) => void;
     onFocus: (index: number) => void;
     serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
@@ -58,10 +56,10 @@ type BlockItemProps = {
     onScrollToBlock?: (index: number) => void; // 请求滚动到指定 block
     theme: Theme;
     editable: boolean;
-    isFirst: boolean;
-    isLast: boolean;
     isSelected: boolean; // 当前是否被选中
     autoFocus?: boolean; // 是否自动聚焦 TextInput
+    drag?: () => void; // 拖拽触发函数
+    isActive?: boolean; // 是否正在被拖拽
 };
 
 // ---- Helper to generate unique ID ----
@@ -183,6 +181,53 @@ const ResponsiveImage = ({uri, style}: {uri: string; style: any}) => {
     );
 };
 
+// ---- Block Wrapper with drag handle and trash icon ----
+type BlockWrapperProps = {
+    children: React.ReactNode;
+    editable: boolean;
+    onDrag: () => void;
+    onDelete: () => void;
+    isActive: boolean;
+    theme: Theme;
+};
+
+const BlockWrapper = ({children, editable, onDrag, onDelete, isActive, theme}: BlockWrapperProps) => {
+    const style = getBlockStyle(theme);
+    return (
+        <View style={[style.blockRow, isActive && style.blockRowActive]}>
+            {editable && (
+                <TouchableOpacity
+                    onPressIn={onDrag}
+                    style={style.dragHandle}
+                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                >
+                    <CompassIcon
+                        name='drag-vertical'
+                        size={20}
+                        color={changeOpacity(theme.centerChannelColor, 0.4)}
+                    />
+                </TouchableOpacity>
+            )}
+            <View style={style.blockContent}>
+                {children}
+            </View>
+            {editable && (
+                <TouchableOpacity
+                    onPress={onDelete}
+                    style={style.trashButton}
+                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                >
+                    <CompassIcon
+                        name='trash-can-outline'
+                        size={18}
+                        color={changeOpacity(theme.errorTextColor || '#d24b4e', 0.7)}
+                    />
+                </TouchableOpacity>
+            )}
+        </View>
+    );
+};
+
 // ---- Block Item Component ----
 const BlockItem = ({
     block,
@@ -191,8 +236,6 @@ const BlockItem = ({
     onDelete,
     onAddAfter,
     onAddAfterWithFocus,
-    onMoveUp,
-    onMoveDown,
     onFocus,
     serverUrl,
     onPlayMedia,
@@ -201,10 +244,10 @@ const BlockItem = ({
     onScrollToBlock,
     theme,
     editable,
-    isFirst,
-    isLast,
     isSelected,
     autoFocus,
+    drag,
+    isActive,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);
@@ -355,87 +398,69 @@ const BlockItem = ({
 
             if (mediaType === 'VIDEO') {
                 return (
-                    <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                        <View style={style.mediaBlock}>
-                            <View style={style.videoPreviewContainer}>
-                                <View style={style.videoPlaceholder}>
-                                    <CompassIcon name='video-outline' size={48} color={theme.buttonBg}/>
-                                </View>
-                                {playableUrl ? (
-                                    <TouchableOpacity
-                                        style={style.playButtonOverlay}
-                                        onPress={() => onPlayMedia?.(playableUrl, 'video')}
-                                    >
-                                        <View style={style.playButton}>
-                                            <CompassIcon name='play' size={32} color='#FFFFFF'/>
-                                        </View>
-                                    </TouchableOpacity>
-                                ) : null}
-                            </View>
-                            <View style={style.mediaInfo}>
-                                <CompassIcon name='video-outline' size={20} color={theme.buttonBg}/>
-                                <View style={style.mediaTextInfo}>
-                                    <Text style={style.mediaLabel} numberOfLines={1}>{displayName}</Text>
-                                    {block.meta?.size ? (
-                                        <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                    <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                        <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                            <View style={style.mediaBlock}>
+                                <View style={style.videoPreviewContainer}>
+                                    <View style={style.videoPlaceholder}>
+                                        <CompassIcon name='video-outline' size={48} color={theme.buttonBg}/>
+                                    </View>
+                                    {playableUrl ? (
+                                        <TouchableOpacity
+                                            style={style.playButtonOverlay}
+                                            onPress={() => onPlayMedia?.(playableUrl, 'video')}
+                                        >
+                                            <View style={style.playButton}>
+                                                <CompassIcon name='play' size={32} color='#FFFFFF'/>
+                                            </View>
+                                        </TouchableOpacity>
                                     ) : null}
                                 </View>
+                                <View style={style.mediaInfo}>
+                                    <CompassIcon name='video-outline' size={20} color={theme.buttonBg}/>
+                                    <View style={style.mediaTextInfo}>
+                                        <Text style={style.mediaLabel} numberOfLines={1}>{displayName}</Text>
+                                        {block.meta?.size ? (
+                                            <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                                        ) : null}
+                                    </View>
+                                </View>
                             </View>
-                        </View>
-                        {editable && isSelected && (
-                            <BlockActions
-                                onDelete={() => onDelete(index)}
-                                onAddAfter={() => onAddAfter(index)}
-                                onMoveUp={() => onMoveUp(index)}
-                                onMoveDown={() => onMoveDown(index)}
-                                isFirst={isFirst}
-                                isLast={isLast}
-                                theme={theme}
-                            />
-                        )}
-                    </TouchableOpacity>
+                        </TouchableOpacity>
+                    </BlockWrapper>
                 );
             }
 
             // AUDIO
             return (
-                <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                    <View style={style.mediaBlock}>
-                        <View style={style.audioCard}>
-                            <View style={style.mediaIconContainer}>
-                                <CompassIcon name='microphone-outline' size={32} color={theme.buttonBg}/>
-                            </View>
-                            <View style={style.mediaTextInfo}>
-                                <Text style={style.mediaLabel} numberOfLines={1}>{displayName}</Text>
-                                {block.meta?.size ? (
-                                    <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                    <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                        <View style={style.mediaBlock}>
+                            <View style={style.audioCard}>
+                                <View style={style.mediaIconContainer}>
+                                    <CompassIcon name='microphone-outline' size={32} color={theme.buttonBg}/>
+                                </View>
+                                <View style={style.mediaTextInfo}>
+                                    <Text style={style.mediaLabel} numberOfLines={1}>{displayName}</Text>
+                                    {block.meta?.size ? (
+                                        <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                                    ) : null}
+                                    {block.meta?.duration ? (
+                                        <Text style={style.mediaMeta}>{formatDuration(block.meta.duration)}</Text>
+                                    ) : null}
+                                </View>
+                                {playableUrl ? (
+                                    <TouchableOpacity
+                                        style={style.audioPlayButton}
+                                        onPress={() => onPlayMedia?.(playableUrl, 'audio')}
+                                    >
+                                        <CompassIcon name='play-circle-outline' size={36} color={theme.buttonBg}/>
+                                    </TouchableOpacity>
                                 ) : null}
-                                {block.meta?.duration ? (
-                                    <Text style={style.mediaMeta}>{formatDuration(block.meta.duration)}</Text>
-                                ) : null}
                             </View>
-                            {playableUrl ? (
-                                <TouchableOpacity
-                                    style={style.audioPlayButton}
-                                    onPress={() => onPlayMedia?.(playableUrl, 'audio')}
-                                >
-                                    <CompassIcon name='play-circle-outline' size={36} color={theme.buttonBg}/>
-                                </TouchableOpacity>
-                            ) : null}
                         </View>
-                    </View>
-                    {editable && isSelected && (
-                        <BlockActions
-                            onDelete={() => onDelete(index)}
-                            onAddAfter={() => onAddAfter(index)}
-                            onMoveUp={() => onMoveUp(index)}
-                            onMoveDown={() => onMoveDown(index)}
-                            isFirst={isFirst}
-                            isLast={isLast}
-                            theme={theme}
-                        />
-                    )}
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                </BlockWrapper>
             );
         }
 
@@ -476,57 +501,39 @@ const BlockItem = ({
         };
 
         return (
-            <TouchableOpacity
-                onPress={() => onPreviewImage?.(imageInfo)} // 【关键改造】单击打开全屏预览
-                onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
-                style={style.blockContainer}
-            >
-                <View style={style.mediaBlock}>
-                    <ResponsiveImage
-                        uri={imageUri}
-                        style={style.imageThumbnail}
-                    />
-                    <View style={style.mediaInfo}>
-                        <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
-                        <Text style={style.mediaLabel} numberOfLines={1}>
-                            {block.meta?.fileName || caption || '图片'}
-                        </Text>
-                        {block.meta?.size ? (
-                            <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
-                        ) : null}
+            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                <TouchableOpacity
+                    onPress={() => onPreviewImage?.(imageInfo)} // 【关键改造】单击打开全屏预览
+                    onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
+                    style={style.blockContainer}
+                >
+                    <View style={style.mediaBlock}>
+                        <ResponsiveImage
+                            uri={imageUri}
+                            style={style.imageThumbnail}
+                        />
+                        <View style={style.mediaInfo}>
+                            <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
+                            <Text style={style.mediaLabel} numberOfLines={1}>
+                                {block.meta?.fileName || caption || '图片'}
+                            </Text>
+                            {block.meta?.size ? (
+                                <Text style={style.mediaMeta}>{formatFileSize(block.meta.size)}</Text>
+                            ) : null}
+                        </View>
                     </View>
-                </View>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
+                </TouchableOpacity>
+            </BlockWrapper>
         );
     }
 
     if (block.type === 'divider' || block.type === 'horizontal-rule') {
         return (
-            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                <View style={style.divider}/>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
+            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                    <View style={style.divider}/>
+                </TouchableOpacity>
+            </BlockWrapper>
         );
     }
 
@@ -561,40 +568,31 @@ const BlockItem = ({
         };
 
         return (
-            <TouchableOpacity
-                onPress={() => onPreviewFile?.(fileInfo)} // 单击预览文件
-                onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
-                style={style.blockContainer}
-            >
-                <View style={style.mediaBlock}>
-                    <View style={style.fileCard}>
-                        <View style={style.mediaIconContainer}>
-                            <CompassIcon name={fileIcon} size={32} color={theme.buttonBg}/>
-                        </View>
-                        <View style={style.mediaTextInfo}>
-                            <Text style={style.mediaLabel} numberOfLines={1}>
-                                {fileName}
-                            </Text>
-                            {block.meta?.size ? (
-                                <Text style={style.mediaMeta}>
-                                    {formatFileSize(block.meta.size)}
+            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                <TouchableOpacity
+                    onPress={() => onPreviewFile?.(fileInfo)} // 单击预览文件
+                    onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
+                    style={style.blockContainer}
+                >
+                    <View style={style.mediaBlock}>
+                        <View style={style.fileCard}>
+                            <View style={style.mediaIconContainer}>
+                                <CompassIcon name={fileIcon} size={32} color={theme.buttonBg}/>
+                            </View>
+                            <View style={style.mediaTextInfo}>
+                                <Text style={style.mediaLabel} numberOfLines={1}>
+                                    {fileName}
                                 </Text>
-                            ) : null}
+                                {block.meta?.size ? (
+                                    <Text style={style.mediaMeta}>
+                                        {formatFileSize(block.meta.size)}
+                                    </Text>
+                                ) : null}
+                            </View>
                         </View>
                     </View>
-                </View>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
+                </TouchableOpacity>
+            </BlockWrapper>
         );
     }
 
@@ -607,102 +605,93 @@ const BlockItem = ({
         const blockStyle = getBlockTextStyle();
 
         return (
-            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-                <View style={style.listContainer}>
-                    {items.map((item: any, itemIndex: number) => {
-                        // 获取项目文本
-                        const itemText = typeof item === 'string' ? item : (item.text || '');
-                        const itemChecked = typeof item === 'object' ? (item.checked || false) : false;
+            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                    <View style={style.listContainer}>
+                        {items.map((item: any, itemIndex: number) => {
+                            // 获取项目文本
+                            const itemText = typeof item === 'string' ? item : (item.text || '');
+                            const itemChecked = typeof item === 'object' ? (item.checked || false) : false;
 
-                        // 获取前缀
-                        let prefix = '';
-                        if (block.type === 'bulleted-list') {
-                            prefix = '• ';
-                        } else if (block.type === 'numbered-list') {
-                            prefix = `${itemIndex + 1}. `;
-                        }
-                        // checklist 没有文本前缀，使用复选框
-
-                        // 处理项目内容变化
-                        const handleItemChange = (newText: string) => {
-                            const newItems = [...items];
-                            if (typeof item === 'string') {
-                                newItems[itemIndex] = newText;
-                            } else {
-                                newItems[itemIndex] = {...item, text: newText};
+                            // 获取前缀
+                            let prefix = '';
+                            if (block.type === 'bulleted-list') {
+                                prefix = '• ';
+                            } else if (block.type === 'numbered-list') {
+                                prefix = `${itemIndex + 1}. `;
                             }
-                            onChange(index, {
-                                ...block,
-                                content: newItems.map((i: any) => typeof i === 'string' ? i : i.text).join('\n'),
-                                meta: {
-                                    ...block.meta,
-                                    items: newItems,
-                                },
-                            });
-                        };
+                            // checklist 没有文本前缀，使用复选框
 
-                        // 处理 checklist 切换
-                        const handleToggleCheck = () => {
-                            if (block.type !== 'checklist') return;
-                            const newItems = [...items];
-                            newItems[itemIndex] = {
-                                ...item,
-                                checked: !itemChecked,
+                            // 处理项目内容变化
+                            const handleItemChange = (newText: string) => {
+                                const newItems = [...items];
+                                if (typeof item === 'string') {
+                                    newItems[itemIndex] = newText;
+                                } else {
+                                    newItems[itemIndex] = {...item, text: newText};
+                                }
+                                onChange(index, {
+                                    ...block,
+                                    content: newItems.map((i: any) => typeof i === 'string' ? i : i.text).join('\n'),
+                                    meta: {
+                                        ...block.meta,
+                                        items: newItems,
+                                    },
+                                });
                             };
-                            onChange(index, {
-                                ...block,
-                                content: newItems.map((i: any) => typeof i === 'string' ? i : i.text).join('\n'),
-                                meta: {
-                                    ...block.meta,
-                                    items: newItems,
-                                },
-                            });
-                        };
 
-                        return (
-                            <View key={itemIndex} style={style.listItemRow}>
-                                {block.type === 'checklist' && (
-                                    <TouchableOpacity
-                                        onPress={handleToggleCheck}
-                                        style={style.checkbox}
-                                        activeOpacity={0.7}
-                                    >
-                                        {itemChecked ? (
-                                            <CompassIcon name='check' size={20} color={theme.buttonBg}/>
-                                        ) : (
-                                            <View style={style.checkboxEmpty}/>
-                                        )}
-                                    </TouchableOpacity>
-                                )}
-                                {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
-                                <TextInput
-                                    style={[style.textInput, blockStyle, {flex: 1}]}
-                                    value={itemText}
-                                    onChangeText={handleItemChange}
-                                    onFocus={handleFocus}
-                                    onKeyPress={(e) => handleKeyPress(e, itemIndex)}
-                                    placeholder={itemIndex === 0 ? getPlaceholder() : ''}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                                    multiline
-                                    editable={editable}
-                                    textAlignVertical='top'
-                                />
-                            </View>
-                        );
-                    })}
-                </View>
-                {editable && isSelected && (
-                    <BlockActions
-                        onDelete={() => onDelete(index)}
-                        onAddAfter={() => onAddAfter(index)}
-                        onMoveUp={() => onMoveUp(index)}
-                        onMoveDown={() => onMoveDown(index)}
-                        isFirst={isFirst}
-                        isLast={isLast}
-                        theme={theme}
-                    />
-                )}
-            </TouchableOpacity>
+                            // 处理 checklist 切换
+                            const handleToggleCheck = () => {
+                                if (block.type !== 'checklist') return;
+                                const newItems = [...items];
+                                newItems[itemIndex] = {
+                                    ...item,
+                                    checked: !itemChecked,
+                                };
+                                onChange(index, {
+                                    ...block,
+                                    content: newItems.map((i: any) => typeof i === 'string' ? i : i.text).join('\n'),
+                                    meta: {
+                                        ...block.meta,
+                                        items: newItems,
+                                    },
+                                });
+                            };
+
+                            return (
+                                <View key={itemIndex} style={style.listItemRow}>
+                                    {block.type === 'checklist' && (
+                                        <TouchableOpacity
+                                            onPress={handleToggleCheck}
+                                            style={style.checkbox}
+                                            activeOpacity={0.7}
+                                        >
+                                            {itemChecked ? (
+                                                <CompassIcon name='check' size={20} color={theme.buttonBg}/>
+                                            ) : (
+                                                <View style={style.checkboxEmpty}/>
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+                                    {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
+                                    <TextInput
+                                        style={[style.textInput, blockStyle, {flex: 1}]}
+                                        value={itemText}
+                                        onChangeText={handleItemChange}
+                                        onFocus={handleFocus}
+                                        onKeyPress={(e) => handleKeyPress(e, itemIndex)}
+                                        placeholder={itemIndex === 0 ? getPlaceholder() : ''}
+                                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                                        multiline
+                                        editable={editable}
+                                        textAlignVertical='top'
+                                    />
+                                </View>
+                            );
+                        })}
+                    </View>
+                </TouchableOpacity>
+            </BlockWrapper>
         );
     }
 
@@ -711,70 +700,30 @@ const BlockItem = ({
     const blockStyle = getBlockTextStyle();
 
     return (
-        <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
-            {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
-            <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
-                {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
-                <TextInput
-                    ref={textInputRef}
-                    style={[style.textInput, blockStyle]}
-                    value={block.content}
-                    onChangeText={handleContentChange}
-                    onFocus={handleFocus}
-                    onKeyPress={(e) => handleKeyPress(e)}
-                    placeholder={getPlaceholder()}
-                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
-                    multiline
-                    editable={editable}
-                    textAlignVertical='top'
-                />
-            </View>
-            {editable && isSelected && (
-                <BlockActions
-                    onDelete={() => onDelete(index)}
-                    onAddAfter={() => onAddAfter(index)}
-                    onMoveUp={() => onMoveUp(index)}
-                    onMoveDown={() => onMoveDown(index)}
-                    isFirst={isFirst}
-                    isLast={isLast}
-                    theme={theme}
-                />
-            )}
-        </TouchableOpacity>
+        <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+            <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
+                {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
+                <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
+                    {prefix ? <Text style={style.listPrefix}>{prefix}</Text> : null}
+                    <TextInput
+                        ref={textInputRef}
+                        style={[style.textInput, blockStyle]}
+                        value={block.content}
+                        onChangeText={handleContentChange}
+                        onFocus={handleFocus}
+                        onKeyPress={(e) => handleKeyPress(e)}
+                        placeholder={getPlaceholder()}
+                        placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.3)}
+                        multiline
+                        editable={editable}
+                        textAlignVertical='top'
+                    />
+                </View>
+            </TouchableOpacity>
+        </BlockWrapper>
     );
 };
 
-// ---- Block Actions (move/delete/add) ----
-type BlockActionsProps = {
-    onDelete: () => void;
-    onAddAfter: () => void;
-    onMoveUp: () => void;
-    onMoveDown: () => void;
-    isFirst: boolean;
-    isLast: boolean;
-    theme: Theme;
-};
-
-const BlockActions = ({onDelete, onAddAfter, onMoveUp, onMoveDown, isFirst, isLast, theme}: BlockActionsProps) => {
-    const style = getBlockStyle(theme);
-
-    return (
-        <View style={style.actionsContainer}>
-            <TouchableOpacity onPress={onMoveUp} disabled={isFirst} style={style.actionBtn}>
-                <CompassIcon name='arrow-up' size={16} color={isFirst ? changeOpacity(theme.centerChannelColor, 0.2) : theme.centerChannelColor}/>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onMoveDown} disabled={isLast} style={style.actionBtn}>
-                <CompassIcon name='arrow-down' size={16} color={isLast ? changeOpacity(theme.centerChannelColor, 0.2) : theme.centerChannelColor}/>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onAddAfter} style={style.actionBtn}>
-                <CompassIcon name='plus' size={16} color={theme.centerChannelColor}/>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onDelete} style={style.actionBtn}>
-                <CompassIcon name='trash-can-outline' size={16} color={theme.errorTextColor}/>
-            </TouchableOpacity>
-        </View>
-    );
-};
 
 // ---- Main Block Editor Component ----
 const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedIndexChange, pendingFocusIndex, onFocusApplied, onScrollToBlock, onPreviewFile, onPreviewImage}: BlockEditorProps) => {
@@ -782,8 +731,8 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
     const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
 
-    // FlatList 引用，用于控制滚动
-    const flatListRef = useRef<FlatList>(null);
+    // DraggableFlatList 引用，用于控制滚动
+    const flatListRef = useRef<any>(null);
 
     // 同步光标位置给父组件
     useEffect(() => {
@@ -903,33 +852,28 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
         setNextFocusIndex(index + 1);
     }, [blocks, onChange]);
 
-    const handleMoveUp = useCallback((index: number) => {
-        if (index === 0) return;
+    // 拖拽结束处理：重新排序 blocks
+    const handleDragEnd = useCallback(({from, to}: {from: number; to: number}) => {
+        if (from === to) return;
         const newBlocks = [...blocks];
-        [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+        const [movedBlock] = newBlocks.splice(from, 1);
+        newBlocks.splice(to, 0, movedBlock);
         // Update order
         newBlocks.forEach((b, i) => {
             b.order = i;
         });
         onChange(newBlocks);
-    }, [blocks, onChange]);
-
-    const handleMoveDown = useCallback((index: number) => {
-        if (index === blocks.length - 1) return;
-        const newBlocks = [...blocks];
-        [newBlocks[index], newBlocks[index + 1]] = [newBlocks[index + 1], newBlocks[index]];
-        // Update order
-        newBlocks.forEach((b, i) => {
-            b.order = i;
-        });
-        onChange(newBlocks);
-    }, [blocks, onChange]);
+        // 更新焦点索引
+        if (focusedIndex === from) {
+            setFocusedIndex(to);
+        }
+    }, [blocks, onChange, focusedIndex]);
 
     const handleFocus = useCallback((index: number) => {
         setFocusedIndex(index);
     }, []);
 
-    const renderItem = useCallback(({item, index}: {item: SmartNoteBlock; index: number}) => {
+    const renderItem = useCallback(({item, index, drag, isActive}: {item: SmartNoteBlock; index: number; drag: () => void; isActive: boolean}) => {
         debugLog('smartNotebook', `[BlockEditor.renderItem] index=${index}, id=${item.id}, type=${item.type}, content_len=${item.content?.length || 0}, hasContent=${Boolean(item.content)}`);
         if (item.type === 'file' || item.type === 'image') {
             debugLog('smartNotebook', `[BlockEditor.renderItem] Media block details: caption=${item.meta?.caption}, size=${item.meta?.size}, mimeType=${item.meta?.mimeType}, isLocal=${item.meta?.isLocal}`);
@@ -942,8 +886,6 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 onDelete={handleDelete}
                 onAddAfter={handleAddAfter}
                 onAddAfterWithFocus={handleAddAfterWithFocus}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
                 serverUrl={serverUrl}
                 onPlayMedia={handlePlayMedia}
@@ -952,22 +894,24 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 onScrollToBlock={onScrollToBlock}
                 theme={theme}
                 editable={editable}
-                isFirst={index === 0}
-                isLast={index === blocks.length - 1}
                 isSelected={focusedIndex === index}
                 autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
+                drag={drag}
+                isActive={isActive}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
     return (
         <>
-            <FlatList
+            <DraggableFlatList
+                ref={flatListRef}
                 data={blocks}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
+                onDragEnd={handleDragEnd}
                 contentContainerStyle={style.listContent}
                 keyboardShouldPersistTaps='handled'
                 scrollEnabled={false}
@@ -1250,13 +1194,37 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
         marginVertical: 12,
     },
-    actionsContainer: {
+    // 拖拽相关样式
+    blockRow: {
         flexDirection: 'row',
-        marginLeft: 4,
+        alignItems: 'flex-start',
+        marginBottom: 2,
     },
-    actionBtn: {
-        padding: 4,
-        marginHorizontal: 2,
+    blockRowActive: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        borderRadius: 8,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+    },
+    dragHandle: {
+        width: 28,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 4,
+    },
+    blockContent: {
+        flex: 1,
+    },
+    trashButton: {
+        width: 28,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 4,
     },
     mediaPlayerOverlay: {
         flex: 1,
