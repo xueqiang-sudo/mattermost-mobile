@@ -962,6 +962,9 @@ const SmartNoteDetailScreen = () => {
             // 隐藏保存进度
             setSaveProgress({visible: false, current: 0, total: 0, message: ''});
 
+            // 更新已保存标题，避免保存后误报"未保存更改"
+            setSavedTitle(noteTitle);
+
             debugLog('[SmartNotebook] performSave: 保存成功');
             return true;
         } catch (e) {
@@ -1405,12 +1408,17 @@ const SmartNoteDetailScreen = () => {
                                         setTitleInput('');
                                         setTitle(newTitle);
 
-                                        // 关闭标题对话框
+                                        // 先关闭标题对话框，等待淡出动画完成
+                                        // 避免两个 Modal（标题对话框淡出 + 保存进度淡入）同时切换导致 UI 卡死
                                         setShowTitleDialog(false);
+                                        await new Promise((resolve) => setTimeout(resolve, 300));
 
-                                        // 同步执行保存，完成后返回
+                                        // 执行保存
                                         const saved = await performSave(newTitle);
                                         if (saved) {
+                                            // 等待保存进度 Modal 淡出动画完成后再返回
+                                            // 避免 Modal 关闭动画与导航转换冲突导致卡死
+                                            await new Promise((resolve) => setTimeout(resolve, 300));
                                             navigation.goBack();
                                         }
                                     }}
