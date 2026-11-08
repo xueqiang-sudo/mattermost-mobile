@@ -537,37 +537,12 @@ const SmartNoteDetailScreen = () => {
             return;
         }
 
-        // 显示上传进度
-        setSaveProgress({
-            visible: true,
-            current: 0,
-            total: files.length,
-            message: intl.formatMessage({
-                id: 'smart_notebook.uploading_files',
-                defaultMessage: '正在上传文件...',
-            }),
-        });
-
         const newBlocks: SmartNoteBlock[] = [];
 
-        // 【关键改造】立即上传每个文件
+        // 【关键改造】对齐 webapp：立即上传每个文件，不显示阻塞式进度 Modal
         for (let index = 0; index < files.length; index++) {
             const file = files[index];
             const fileName = file.name || '';
-
-            // 更新进度
-            setSaveProgress({
-                visible: true,
-                current: index + 1,
-                total: files.length,
-                message: intl.formatMessage(
-                    {
-                        id: 'smart_notebook.uploading_progress',
-                        defaultMessage: '正在上传文件 ({current}/{total})...',
-                    },
-                    {current: index + 1, total: files.length},
-                ),
-            });
 
             // 【关键修复】如果 MIME 类型为空，从文件扩展名推断
             let mimeType = file.mime_type || '';
@@ -678,9 +653,6 @@ const SmartNoteDetailScreen = () => {
                 );
             }
         }
-
-        // 隐藏上传进度
-        setSaveProgress({visible: false, current: 0, total: 0, message: ''});
 
         if (newBlocks.length === 0) {
             debugLog('smartNotebook', `[handleFilesSelected] No blocks created (all uploads failed)`);
