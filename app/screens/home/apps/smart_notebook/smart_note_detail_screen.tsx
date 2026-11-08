@@ -8,7 +8,6 @@ import {
     Alert,
     Animated,
     Clipboard,
-    Image,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -20,6 +19,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import {Image} from 'expo-image';
 
 import {SafeAreaView} from 'react-native-safe-area-context';
 
@@ -421,11 +421,18 @@ const SmartNoteDetailScreen = () => {
                             ? note.blocks
                             : [createBlock('paragraph', '')];
 
-                        // 编辑区不显示标题：如果第一个块是 H1 且内容匹配标题，移除它
-                        if (noteBlocks.length > 0 && note.title) {
+                        // 加载时将 <br> 转回 \n（对齐 webapp 的 HTML 格式 → mobile TextInput 格式）
+                        noteBlocks = noteBlocks.map((b) => {
+                            if ((b.type === 'paragraph' || b.type === 'heading' || b.type === 'blockquote') && b.content) {
+                                return {...b, content: b.content.replace(/<br\s*\/?>/gi, '\n')};
+                            }
+                            return b;
+                        });
+
+                        // 编辑区不显示标题：移除第一个 H1 块（标题已在顶部导航栏显示）
+                        if (noteBlocks.length > 0) {
                             const first = noteBlocks[0];
-                            if (first.type === 'heading' && first.meta?.level === 1 &&
-                                first.content?.trim() === note.title.trim()) {
+                            if (first.type === 'heading' && first.meta?.level === 1) {
                                 noteBlocks = noteBlocks.slice(1);
                                 if (noteBlocks.length === 0) {
                                     noteBlocks = [createBlock('paragraph', '')];
@@ -902,7 +909,14 @@ const SmartNoteDetailScreen = () => {
                 order: 0,
                 meta: {level: 1},
             };
-            const blocksToSave: SmartNoteBlock[] = [titleBlock, ...blocks.map((b, i) => ({...b, order: i + 1}))];
+            const blocksToSave: SmartNoteBlock[] = [titleBlock, ...blocks.map((b, i) => {
+                const saved = {...b, order: i + 1};
+                // 对齐 webapp Editor.js：段落中的 \n 转为 <br>，否则 webapp 会折叠为一行
+                if ((saved.type === 'paragraph' || saved.type === 'heading' || saved.type === 'blockquote') && saved.content) {
+                    saved.content = saved.content.replace(/\n/g, '<br>');
+                }
+                return saved;
+            })];
 
             // 显示保存进度
             setSaveProgress({
@@ -993,13 +1007,18 @@ const SmartNoteDetailScreen = () => {
     const handleSave = useCallback(async (): Promise<boolean> => {
         if (!userId || saving) return false;
 
-        // 直接显示标题对话框，让用户输入标题
+        // 已有标题的笔记直接保存，不弹标题输入框
+        if (savedTitle) {
+            return performSave(savedTitle);
+        }
+
+        // 新建笔记才提示输入标题
         Keyboard.dismiss();
         setTimeout(() => {
             setShowTitleDialog(true);
         }, 100);
         return false;
-    }, [userId, saving]);
+    }, [userId, saving, savedTitle, performSave]);
 
     // ---- Enter edit mode ----
     const handleEdit = useCallback(() => {
@@ -1243,7 +1262,9 @@ const SmartNoteDetailScreen = () => {
                                     {saving ? (
                                         <ActivityIndicator size='small' color={theme.sidebarText}/>
                                     ) : (
-                                        <CompassIcon name='content-save' size={20} color={theme.sidebarText}/>
+                                        <Text style={style.headerActionText}>
+                                            {intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'})}
+                                        </Text>
                                     )}
                                 </TouchableOpacity>
                         </>
@@ -1471,7 +1492,7 @@ const SmartNoteDetailScreen = () => {
                                     width: '100%',
                                     height: '100%',
                                 }}
-                                resizeMode='contain'
+                                contentFit='contain'
                             />
                         )}
                     </View>

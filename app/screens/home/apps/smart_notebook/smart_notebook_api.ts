@@ -245,8 +245,8 @@ export async function uploadMedia(
         file.type,
     );
 
-    // 构建文件 URL（与云盘下载 URL 格式一致）
-    const fileUrl = `${serverUrl}/api/v4/teams/${teamId}/drive/files/${driveFile.id}/download`;
+    // 构建文件 URL（对齐 webapp：使用相对路径，不带 serverUrl）
+    const fileUrl = `/api/v4/teams/${teamId}/drive/files/${driveFile.id}/download`;
 
     debugLog('[uploadMedia] 上传成功:', {
         url: fileUrl,

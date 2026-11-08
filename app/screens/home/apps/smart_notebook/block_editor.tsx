@@ -7,7 +7,6 @@ import {
     Alert,
     Dimensions,
     FlatList,
-    Image,
     Modal,
     Platform,
     StyleSheet,
@@ -16,6 +15,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import {Image} from 'expo-image';
 import Video, {type VideoRef} from 'react-native-video';
 
 import CompassIcon from '@components/compass_icon';
@@ -48,6 +48,8 @@ type BlockItemProps = {
     onDelete: (index: number) => void;
     onAddAfter: (index: number, type?: SmartNoteBlock['type'], meta?: any) => void;
     onAddAfterWithFocus: (index: number, type?: SmartNoteBlock['type'], meta?: any) => void;
+    onMoveUp?: (index: number) => void;
+    onMoveDown?: (index: number) => void;
     onFocus: (index: number) => void;
     serverUrl?: string; // 【关键修复】用于构建完整的图片 URL
     onPlayMedia?: (uri: string, type: 'video' | 'audio') => void;
@@ -58,6 +60,8 @@ type BlockItemProps = {
     editable: boolean;
     isSelected: boolean; // 当前是否被选中
     autoFocus?: boolean; // 是否自动聚焦 TextInput
+    isFirst?: boolean;
+    isLast?: boolean;
 };
 
 // ---- Helper to generate unique ID ----
@@ -148,23 +152,6 @@ const createBlock = (type: SmartNoteBlock['type'] = 'paragraph', content = ''): 
 const ResponsiveImage = ({uri, style}: {uri: string; style: any}) => {
     const [aspectRatio, setAspectRatio] = useState(1);
 
-    useEffect(() => {
-        if (uri) {
-            Image.getSize(
-                uri,
-                (width, height) => {
-                    if (width > 0 && height > 0) {
-                        setAspectRatio(width / height);
-                    }
-                },
-                () => {
-                    // 获取失败时使用默认比例
-                    setAspectRatio(1);
-                }
-            );
-        }
-    }, [uri]);
-
     const screenWidth = Dimensions.get('window').width;
     const imageWidth = screenWidth - 40; // 留出边距
     const imageHeight = imageWidth / aspectRatio;
@@ -173,21 +160,32 @@ const ResponsiveImage = ({uri, style}: {uri: string; style: any}) => {
         <Image
             source={{uri}}
             style={[style, {width: imageWidth, height: Math.min(imageHeight, 400)}]}
-            resizeMode='contain'
+            contentFit='contain'
+            onLoad={(evt) => {
+                const {width, height} = evt.source;
+                if (width > 0 && height > 0) {
+                    setAspectRatio(width / height);
+                }
+            }}
             onError={() => {}}
         />
     );
 };
 
-// ---- Block Wrapper with trash icon ----
+// ---- Block Wrapper with toolbar ----
 type BlockWrapperProps = {
     children: React.ReactNode;
     editable: boolean;
     onDelete: () => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+    onAddAfter?: () => void;
+    isFirst?: boolean;
+    isLast?: boolean;
     theme: Theme;
 };
 
-const BlockWrapper = ({children, editable, onDelete, theme}: BlockWrapperProps) => {
+const BlockWrapper = ({children, editable, onDelete, onMoveUp, onMoveDown, onAddAfter, isFirst, isLast, theme}: BlockWrapperProps) => {
     const style = getBlockStyle(theme);
     return (
         <View style={style.blockRow}>
@@ -195,17 +193,54 @@ const BlockWrapper = ({children, editable, onDelete, theme}: BlockWrapperProps) 
                 {children}
             </View>
             {editable && (
-                <TouchableOpacity
-                    onPress={onDelete}
-                    style={style.trashButton}
-                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                >
-                    <CompassIcon
-                        name='trash-can-outline'
-                        size={18}
-                        color={changeOpacity(theme.errorTextColor || '#d24b4e', 0.7)}
-                    />
-                </TouchableOpacity>
+                <View style={style.blockToolbar}>
+                    <TouchableOpacity
+                        onPress={onMoveUp}
+                        disabled={isFirst}
+                        style={style.toolbarButton}
+                        hitSlop={{top: 4, bottom: 4, left: 4, right: 4}}
+                    >
+                        <CompassIcon
+                            name='arrow-up'
+                            size={16}
+                            color={isFirst ? changeOpacity(theme.centerChannelColor, 0.2) : changeOpacity(theme.centerChannelColor, 0.6)}
+                        />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={onMoveDown}
+                        disabled={isLast}
+                        style={style.toolbarButton}
+                        hitSlop={{top: 4, bottom: 4, left: 4, right: 4}}
+                    >
+                        <CompassIcon
+                            name='arrow-down'
+                            size={16}
+                            color={isLast ? changeOpacity(theme.centerChannelColor, 0.2) : changeOpacity(theme.centerChannelColor, 0.6)}
+                        />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={onAddAfter}
+                        style={style.toolbarButton}
+                        hitSlop={{top: 4, bottom: 4, left: 4, right: 4}}
+                    >
+                        <CompassIcon
+                            name='plus'
+                            size={16}
+                            color={changeOpacity(theme.centerChannelColor, 0.6)}
+                        />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={onDelete}
+                        style={style.toolbarButton}
+                        hitSlop={{top: 4, bottom: 4, left: 4, right: 4}}
+                    >
+                        <CompassIcon
+                            name='trash-can-outline'
+                            size={16}
+                            color={changeOpacity(theme.errorTextColor || '#d24b4e', 0.7)}
+                        />
+                    </TouchableOpacity>
+                </View>
             )}
         </View>
     );
@@ -379,7 +414,16 @@ const BlockItem = ({
 
             if (mediaType === 'VIDEO') {
                 return (
-                    <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+                    <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
                         <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                             <View style={style.mediaBlock}>
                                 <View style={style.videoPreviewContainer}>
@@ -414,7 +458,16 @@ const BlockItem = ({
 
             // AUDIO
             return (
-                <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+                <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
                     <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                         <View style={style.mediaBlock}>
                             <View style={style.audioCard}>
@@ -482,7 +535,16 @@ const BlockItem = ({
         };
 
         return (
-            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+            <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
                 <TouchableOpacity
                     onPress={() => onPreviewImage?.(imageInfo)} // 【关键改造】单击打开全屏预览
                     onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
@@ -510,7 +572,16 @@ const BlockItem = ({
 
     if (block.type === 'divider' || block.type === 'horizontal-rule') {
         return (
-            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+            <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
                 <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                     <View style={style.divider}/>
                 </TouchableOpacity>
@@ -549,7 +620,16 @@ const BlockItem = ({
         };
 
         return (
-            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+            <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
                 <TouchableOpacity
                     onPress={() => onPreviewFile?.(fileInfo)} // 单击预览文件
                     onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
@@ -586,7 +666,16 @@ const BlockItem = ({
         const blockStyle = getBlockTextStyle();
 
         return (
-            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+            <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
                 <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                     <View style={style.listContainer}>
                         {items.map((item: any, itemIndex: number) => {
@@ -681,7 +770,16 @@ const BlockItem = ({
     const blockStyle = getBlockTextStyle();
 
     return (
-        <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
+        <BlockWrapper
+                editable={editable}
+                onDelete={() => onDelete(index)}
+                onMoveUp={() => onMoveUp?.(index)}
+                onMoveDown={() => onMoveDown?.(index)}
+                onAddAfter={() => onAddAfterWithFocus(index)}
+                isFirst={isFirst}
+                isLast={isLast}
+                theme={theme}
+            >
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
                 <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
@@ -833,6 +931,24 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
         setNextFocusIndex(index + 1);
     }, [blocks, onChange]);
 
+    const handleMoveUp = useCallback((index: number) => {
+        if (index <= 0) return;
+        const newBlocks = [...blocks];
+        [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+        newBlocks.forEach((b, i) => { b.order = i; });
+        onChange(newBlocks);
+        setFocusedIndex(index - 1);
+    }, [blocks, onChange]);
+
+    const handleMoveDown = useCallback((index: number) => {
+        if (index >= blocks.length - 1) return;
+        const newBlocks = [...blocks];
+        [newBlocks[index], newBlocks[index + 1]] = [newBlocks[index + 1], newBlocks[index]];
+        newBlocks.forEach((b, i) => { b.order = i; });
+        onChange(newBlocks);
+        setFocusedIndex(index + 1);
+    }, [blocks, onChange]);
+
     const handleFocus = useCallback((index: number) => {
         setFocusedIndex(index);
     }, []);
@@ -850,6 +966,8 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 onDelete={handleDelete}
                 onAddAfter={handleAddAfter}
                 onAddAfterWithFocus={handleAddAfterWithFocus}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
                 onFocus={handleFocus}
                 serverUrl={serverUrl}
                 onPlayMedia={handlePlayMedia}
@@ -860,9 +978,11 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 editable={editable}
                 isSelected={focusedIndex === index}
                 autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
+                isFirst={index === 0}
+                isLast={index === blocks.length - 1}
             />
         );
-    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
+    }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleMoveUp, handleMoveDown, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
 
     const keyExtractor = useCallback((item: SmartNoteBlock) => item.id, []);
 
@@ -1164,12 +1284,16 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
     blockContent: {
         flex: 1,
     },
-    trashButton: {
+    blockToolbar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 4,
+    },
+    toolbarButton: {
         width: 28,
-        height: 36,
+        height: 28,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: 4,
     },
     mediaPlayerOverlay: {
         flex: 1,
