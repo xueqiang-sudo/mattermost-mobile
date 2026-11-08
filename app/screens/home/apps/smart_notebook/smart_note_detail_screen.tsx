@@ -158,14 +158,32 @@ const SmartNoteDetailScreen = () => {
         const driveFileId = fileInfo.id;
         debugLog('[SmartNote] Previewing file (drive-based):', {name: fileInfo.name, driveFileId});
 
-        if (!teamId || !driveFileId) {
-            debugLog('[SmartNote] Missing teamId or fileId, falling back to default preview');
+        if (!driveFileId) {
+            debugLog('[SmartNote] Missing fileId, falling back to default preview');
+            downloadAndPreviewFile(fileInfo);
+            return;
+        }
+
+        // 【关键修复】懒加载 teamId，不依赖 init effect
+        let effectiveTeamId = teamId;
+        if (!effectiveTeamId) {
+            try {
+                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                effectiveTeamId = await getCurrentTeamId(database);
+                debugLog('[SmartNote] Lazy-loaded teamId:', effectiveTeamId);
+            } catch (err) {
+                debugLog('[SmartNote] Failed to get teamId:', String(err));
+            }
+        }
+
+        if (!effectiveTeamId) {
+            debugLog('[SmartNote] Still no teamId, falling back to default preview');
             downloadAndPreviewFile(fileInfo);
             return;
         }
 
         try {
-            const downloadUrl = getDriveDownloadUrl(serverUrl, teamId, driveFileId);
+            const downloadUrl = getDriveDownloadUrl(serverUrl, effectiveTeamId, driveFileId);
             const ext = (fileInfo.extension || '').toLowerCase();
             const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
             const isOffice = officeExtensions.includes(ext);
