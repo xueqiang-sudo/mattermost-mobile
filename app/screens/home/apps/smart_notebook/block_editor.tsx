@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import {
     Alert,
     Dimensions,
+    FlatList,
     Image,
     Modal,
     Platform,
@@ -15,7 +16,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import DraggableFlatList from 'react-native-draggable-flatlist';
 import Video, {type VideoRef} from 'react-native-video';
 
 import CompassIcon from '@components/compass_icon';
@@ -58,8 +58,6 @@ type BlockItemProps = {
     editable: boolean;
     isSelected: boolean; // 当前是否被选中
     autoFocus?: boolean; // 是否自动聚焦 TextInput
-    drag?: () => void; // 拖拽触发函数
-    isActive?: boolean; // 是否正在被拖拽
 };
 
 // ---- Helper to generate unique ID ----
@@ -181,33 +179,18 @@ const ResponsiveImage = ({uri, style}: {uri: string; style: any}) => {
     );
 };
 
-// ---- Block Wrapper with drag handle and trash icon ----
+// ---- Block Wrapper with trash icon ----
 type BlockWrapperProps = {
     children: React.ReactNode;
     editable: boolean;
-    onDrag: () => void;
     onDelete: () => void;
-    isActive: boolean;
     theme: Theme;
 };
 
-const BlockWrapper = ({children, editable, onDrag, onDelete, isActive, theme}: BlockWrapperProps) => {
+const BlockWrapper = ({children, editable, onDelete, theme}: BlockWrapperProps) => {
     const style = getBlockStyle(theme);
     return (
-        <View style={[style.blockRow, isActive && style.blockRowActive]}>
-            {editable && (
-                <TouchableOpacity
-                    onPressIn={onDrag}
-                    style={style.dragHandle}
-                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                >
-                    <CompassIcon
-                        name='drag-vertical'
-                        size={20}
-                        color={changeOpacity(theme.centerChannelColor, 0.4)}
-                    />
-                </TouchableOpacity>
-            )}
+        <View style={style.blockRow}>
             <View style={style.blockContent}>
                 {children}
             </View>
@@ -246,8 +229,6 @@ const BlockItem = ({
     editable,
     isSelected,
     autoFocus,
-    drag,
-    isActive,
 }: BlockItemProps) => {
     const intl = useIntl();
     const style = getBlockStyle(theme);
@@ -398,7 +379,7 @@ const BlockItem = ({
 
             if (mediaType === 'VIDEO') {
                 return (
-                    <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                    <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
                         <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                             <View style={style.mediaBlock}>
                                 <View style={style.videoPreviewContainer}>
@@ -433,7 +414,7 @@ const BlockItem = ({
 
             // AUDIO
             return (
-                <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+                <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
                     <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                         <View style={style.mediaBlock}>
                             <View style={style.audioCard}>
@@ -501,7 +482,7 @@ const BlockItem = ({
         };
 
         return (
-            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
                 <TouchableOpacity
                     onPress={() => onPreviewImage?.(imageInfo)} // 【关键改造】单击打开全屏预览
                     onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
@@ -529,7 +510,7 @@ const BlockItem = ({
 
     if (block.type === 'divider' || block.type === 'horizontal-rule') {
         return (
-            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
                 <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                     <View style={style.divider}/>
                 </TouchableOpacity>
@@ -568,7 +549,7 @@ const BlockItem = ({
         };
 
         return (
-            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
                 <TouchableOpacity
                     onPress={() => onPreviewFile?.(fileInfo)} // 单击预览文件
                     onLongPress={() => onFocus(index)} // 【关键改造】长按显示工具栏
@@ -605,7 +586,7 @@ const BlockItem = ({
         const blockStyle = getBlockTextStyle();
 
         return (
-            <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+            <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
                 <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                     <View style={style.listContainer}>
                         {items.map((item: any, itemIndex: number) => {
@@ -700,7 +681,7 @@ const BlockItem = ({
     const blockStyle = getBlockTextStyle();
 
     return (
-        <BlockWrapper editable={editable} onDrag={drag || (() => {})} onDelete={() => onDelete(index)} isActive={isActive || false} theme={theme}>
+        <BlockWrapper editable={editable} onDelete={() => onDelete(index)} theme={theme}>
             <TouchableOpacity onPress={handlePress} style={style.blockContainer}>
                 {block.type === 'blockquote' && <View style={style.blockquoteBorder}/>}
                 <View style={[style.textBlock, block.type === 'blockquote' && style.blockquoteContainer]}>
@@ -731,7 +712,7 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
     const [focusedIndex, setFocusedIndex] = useState<number>(-1);
     const [nextFocusIndex, setNextFocusIndex] = useState<number | null>(null);
 
-    // DraggableFlatList 引用，用于控制滚动
+    // FlatList 引用，用于控制滚动
     const flatListRef = useRef<any>(null);
 
     // 同步光标位置给父组件
@@ -852,28 +833,11 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
         setNextFocusIndex(index + 1);
     }, [blocks, onChange]);
 
-    // 拖拽结束处理：重新排序 blocks
-    const handleDragEnd = useCallback(({from, to}: {from: number; to: number}) => {
-        if (from === to) return;
-        const newBlocks = [...blocks];
-        const [movedBlock] = newBlocks.splice(from, 1);
-        newBlocks.splice(to, 0, movedBlock);
-        // Update order
-        newBlocks.forEach((b, i) => {
-            b.order = i;
-        });
-        onChange(newBlocks);
-        // 更新焦点索引
-        if (focusedIndex === from) {
-            setFocusedIndex(to);
-        }
-    }, [blocks, onChange, focusedIndex]);
-
     const handleFocus = useCallback((index: number) => {
         setFocusedIndex(index);
     }, []);
 
-    const renderItem = useCallback(({item, index, drag, isActive}: {item: SmartNoteBlock; index: number; drag: () => void; isActive: boolean}) => {
+    const renderItem = useCallback(({item, index}: {item: SmartNoteBlock; index: number}) => {
         debugLog('smartNotebook', `[BlockEditor.renderItem] index=${index}, id=${item.id}, type=${item.type}, content_len=${item.content?.length || 0}, hasContent=${Boolean(item.content)}`);
         if (item.type === 'file' || item.type === 'image') {
             debugLog('smartNotebook', `[BlockEditor.renderItem] Media block details: caption=${item.meta?.caption}, size=${item.meta?.size}, mimeType=${item.meta?.mimeType}, isLocal=${item.meta?.isLocal}`);
@@ -896,8 +860,6 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
                 editable={editable}
                 isSelected={focusedIndex === index}
                 autoFocus={pendingFocusIndex === index || nextFocusIndex === index}
-                drag={drag}
-                isActive={isActive}
             />
         );
     }, [handleChange, handleDelete, handleAddAfter, handleAddAfterWithFocus, handleFocus, handlePlayMedia, onPreviewFile, onPreviewImage, onScrollToBlock, theme, editable, blocks.length, focusedIndex, pendingFocusIndex, nextFocusIndex]);
@@ -906,12 +868,11 @@ const BlockEditor = ({blocks, onChange, theme, editable, serverUrl, onFocusedInd
 
     return (
         <>
-            <DraggableFlatList
+            <FlatList
                 ref={flatListRef}
                 data={blocks}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
-                onDragEnd={handleDragEnd}
                 contentContainerStyle={style.listContent}
                 keyboardShouldPersistTaps='handled'
                 scrollEnabled={false}
@@ -1199,22 +1160,6 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         alignItems: 'flex-start',
         marginBottom: 2,
-    },
-    blockRowActive: {
-        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
-        borderRadius: 8,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
-    dragHandle: {
-        width: 28,
-        height: 36,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 4,
     },
     blockContent: {
         flex: 1,
