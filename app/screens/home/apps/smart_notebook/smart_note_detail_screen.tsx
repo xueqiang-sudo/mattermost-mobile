@@ -412,9 +412,22 @@ const SmartNoteDetailScreen = () => {
                     if (note) {
                         setTitle(note.title);
                         setSavedTitle(note.title); // 初始化保存的标题
-                        const noteBlocks = note.blocks && note.blocks.length > 0
+                        let noteBlocks = note.blocks && note.blocks.length > 0
                             ? note.blocks
                             : [createBlock('paragraph', '')];
+
+                        // 编辑区不显示标题：如果第一个块是 H1 且内容匹配标题，移除它
+                        if (noteBlocks.length > 0 && note.title) {
+                            const first = noteBlocks[0];
+                            if (first.type === 'heading' && first.meta?.level === 1 &&
+                                first.content?.trim() === note.title.trim()) {
+                                noteBlocks = noteBlocks.slice(1);
+                                if (noteBlocks.length === 0) {
+                                    noteBlocks = [createBlock('paragraph', '')];
+                                }
+                            }
+                        }
+
                         setBlocks(noteBlocks);
                         setOriginalBlocks(JSON.parse(JSON.stringify(noteBlocks)));
                     }
@@ -888,7 +901,16 @@ const SmartNoteDetailScreen = () => {
         });
 
         try {
-            const blocksToSave = blocks;
+            // 保存时把标题作为 H1 块加回开头（服务端需要标题在 blocks 中）
+            const noteTitle = overrideTitle || title.trim() || extractTitleFromBlocks(blocks);
+            const titleBlock: SmartNoteBlock = {
+                id: 'title_h1',
+                type: 'heading',
+                content: noteTitle,
+                order: 0,
+                meta: {level: 1},
+            };
+            const blocksToSave: SmartNoteBlock[] = [titleBlock, ...blocks.map((b, i) => ({...b, order: i + 1}))];
 
             // 显示保存进度
             setSaveProgress({
@@ -900,9 +922,6 @@ const SmartNoteDetailScreen = () => {
                     defaultMessage: '正在保存笔记...',
                 }),
             });
-
-            // 保存笔记 - 使用 overrideTitle（从对话框传入）或当前 title 状态
-            const noteTitle = overrideTitle || title.trim() || extractTitleFromBlocks(blocksToSave);
 
             debugLog('[SmartNotebook] handleSave: 开始保存', {
                 isNew,
