@@ -1018,28 +1018,13 @@ const SmartNoteDetailScreen = () => {
     const handleSave = useCallback(async (): Promise<boolean> => {
         if (!userId || saving) return false;
 
-        // 检查是否有 H1 标题
-        const hasH1Title = blocks.some(block =>
-            block.type === 'heading' && block.meta?.level === 1 && block.content?.trim()
-        );
-
-        // 如果没有 H1 标题且用户没有手动输入标题，显示对话框
-        if (!hasH1Title && !title.trim()) {
-            Keyboard.dismiss();
-            setTimeout(() => {
-                setShowTitleDialog(true);
-            }, 100);
-            return false;
-        }
-
-        const saved = await performSave();
-        if (saved) {
-            // 等待保存进度 Modal 关闭动画完成后再返回，避免 Modal 关闭和导航转换冲突导致卡死
-            await new Promise((resolve) => setTimeout(resolve, 300));
-            navigation.goBack();
-        }
-        return saved;
-    }, [userId, saving, title, blocks, performSave, navigation]);
+        // 直接显示标题对话框，让用户输入标题
+        Keyboard.dismiss();
+        setTimeout(() => {
+            setShowTitleDialog(true);
+        }, 100);
+        return false;
+    }, [userId, saving]);
 
     // ---- Enter edit mode ----
     const handleEdit = useCallback(() => {
@@ -1448,15 +1433,12 @@ const SmartNoteDetailScreen = () => {
                                         setTitleInput('');
                                         setTitle(newTitle);
 
-                                        // 先关闭对话框，等待动画完成后再启动保存流程
-                                        // 避免两个 Modal（标题对话框关闭 + 保存进度打开）同时切换导致卡死
+                                        // 关闭标题对话框
                                         setShowTitleDialog(false);
-                                        await new Promise((resolve) => setTimeout(resolve, 300));
 
+                                        // 同步执行保存，完成后返回
                                         const saved = await performSave(newTitle);
                                         if (saved) {
-                                            // 等待保存进度 Modal 关闭动画完成后再返回
-                                            await new Promise((resolve) => setTimeout(resolve, 300));
                                             navigation.goBack();
                                         }
                                     }}
