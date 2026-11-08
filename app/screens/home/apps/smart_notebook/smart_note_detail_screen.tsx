@@ -1424,13 +1424,17 @@ const SmartNoteDetailScreen = () => {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={async () => {
-                                        setShowTitleDialog(false);
                                         const newTitle = titleInput.trim() || intl.formatMessage({
                                             id: 'smart_notebook.untitled',
                                             defaultMessage: '无标题',
                                         });
                                         setTitleInput('');
                                         setTitle(newTitle);
+
+                                        // 先关闭对话框，等待动画完成后再启动保存流程
+                                        // 避免两个 Modal（标题对话框关闭 + 保存进度打开）同时切换导致卡死
+                                        setShowTitleDialog(false);
+                                        await new Promise((resolve) => setTimeout(resolve, 300));
 
                                         const saved = await performSave(newTitle);
                                         if (saved) {
