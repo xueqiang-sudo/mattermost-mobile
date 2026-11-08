@@ -8,6 +8,7 @@ import {
     Alert,
     Animated,
     Clipboard,
+    Image,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -31,11 +32,15 @@ import {useDownloadFileAndPreview} from '@hooks/files';
 import {useVoiceRecorder, type VoiceRecorderErrorCode} from '@hooks/use_voice_recorder';
 import {useVoiceStream} from '@hooks/use_voice_stream';
 import {getServerCredentials} from '@init/credentials';
-import {getCurrentUserId} from '@queries/servers/system';
+import NetworkManager from '@managers/network_manager';
+import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
 import {showSmartNotebookFilePicker} from '@screens/file_picker/show_modal';
 import {debugLog} from '@store/debug_log';
+import {openUnifiedFileViewer} from '@utils/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import {getDriveDownloadUrl} from '../workbench_api';
 
 import type {FileInfo} from '@mattermost/types/files';
 
@@ -126,6 +131,8 @@ const SmartNoteDetailScreen = () => {
 
     const textInputRef = useRef<TextInput>(null);
     const editorScrollViewRef = useRef<ScrollView>(null);
+    // 【关键修复】保存后跳过 init 重新获取，避免竞态覆盖本地状态
+    const skipNextInitRef = useRef(false);
 
     // 滚动到指定 block 的处理函数
     const handleScrollToBlock = useCallback((index: number) => {
@@ -146,13 +153,122 @@ const SmartNoteDetailScreen = () => {
         }, 200); // 等待键盘动画和布局更新
     }, []);
 
-    // 【关键修复】文件预览功能
-    const {downloadAndPreviewFile, PreviewLoadingModal} = useDownloadFileAndPreview(true);
+    // 【关键修复】文件预览功能（对齐云盘预览逻辑）
+    const {downloadAndPreviewFile, PreviewLoadingModal, showPreviewLoading, hidePreviewLoading} = useDownloadFileAndPreview(true);
 
-    const handlePreviewFile = useCallback((fileInfo: FileInfo) => {
-        debugLog('[SmartNote] Previewing file:', {name: fileInfo.name, id: fileInfo.id});
-        downloadAndPreviewFile(fileInfo);
-    }, [downloadAndPreviewFile]);
+    const handlePreviewFile = useCallback(async (fileInfo: FileInfo) => {
+        const driveFileId = fileInfo.id;
+        debugLog('[SmartNote] Previewing file (drive-based):', {name: fileInfo.name, driveFileId});
+
+        if (!teamId || !driveFileId) {
+            debugLog('[SmartNote] Missing teamId or fileId, falling back to default preview');
+            downloadAndPreviewFile(fileInfo);
+            return;
+        }
+
+        try {
+            const downloadUrl = getDriveDownloadUrl(serverUrl, teamId, driveFileId);
+            const ext = (fileInfo.extension || '').toLowerCase();
+            const officeExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp'];
+            const isOffice = officeExtensions.includes(ext);
+
+            // 对齐云盘：Office 文件需要 mm_file_id 才能进行 PDF 转换
+            const mmFileId = (fileInfo as any).mm_file_id || driveFileId;
+
+            // 尝试获取完整文件信息（包含 pdf_preview_id）
+            let enrichedFileInfo: FileInfo | null = null;
+            if (mmFileId) {
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const timestamp = Date.now();
+                    try {
+                        enrichedFileInfo = await client.getFileInfo(`${mmFileId}?_t=${timestamp}`);
+                    } catch {
+                        enrichedFileInfo = await client.getFileInfo(mmFileId);
+                    }
+                    debugLog('[SmartNote] Got file info', {
+                        pdf_preview_id: enrichedFileInfo?.pdf_preview_id,
+                        pdf_conversion_status: (enrichedFileInfo as any)?.pdf_conversion_status,
+                    });
+                } catch (err) {
+                    debugLog('[SmartNote] getFileInfo failed, using manual construction', String(err));
+                }
+            }
+
+            const finalFileInfo: FileInfo = enrichedFileInfo || {
+                ...fileInfo,
+                id: mmFileId,
+                uri: downloadUrl,
+                link: downloadUrl,
+            };
+
+            // 对齐云盘：Office 文件如果没有 mm_file_id 就无法转换
+            if (isOffice && !enrichedFileInfo?.pdf_preview_id && !(enrichedFileInfo as any)?.mm_file_id) {
+                debugLog('[SmartNote] Office file without mm_file_id, showing error');
+                Alert.alert(
+                    intl.formatMessage({id: 'smart_notebook.preview_error', defaultMessage: '预览失败'}),
+                    intl.formatMessage({
+                        id: 'smart_notebook.office_preview_unavailable',
+                        defaultMessage: '此 Office 文件暂时无法预览，请稍后再试。',
+                    }),
+                );
+                return;
+            }
+
+            // 如果有 Mattermost 文件 ID（有 pdf_preview_id 或 mm_file_id），走标准预览流程
+            if (enrichedFileInfo?.id) {
+                debugLog('[SmartNote] Using Mattermost preview pipeline');
+                downloadAndPreviewFile(finalFileInfo);
+            } else {
+                // 没有 mm_file_id，直接从云盘下载后打开
+                debugLog('[SmartNote] No mm_file_id, downloading from drive API');
+                showPreviewLoading({
+                    visible: true,
+                    fileName: fileInfo.name,
+                    currentStep: 'downloading',
+                    steps: ['downloading', 'opening'],
+                    canCancel: false,
+                });
+
+                const {cacheDirectory, downloadAsync, makeDirectoryAsync} = await import('expo-file-system');
+                const timestamp = Date.now();
+                const safeName = fileInfo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                const tempPath = `${cacheDirectory}smartnote_preview_${timestamp}/${safeName}`;
+                const dir = tempPath.substring(0, tempPath.lastIndexOf('/'));
+                await makeDirectoryAsync(dir, {intermediates: true});
+
+                const client = NetworkManager.getClient(serverUrl);
+                const headers = client.getRequestHeaders('GET');
+
+                debugLog('[SmartNote] Downloading from drive:', {downloadUrl, tempPath});
+                const downloadResult = await downloadAsync(downloadUrl, tempPath, {headers});
+
+                if (!downloadResult.uri) {
+                    throw new Error('Download failed - no URI returned');
+                }
+
+                debugLog('[SmartNote] Download complete:', downloadResult.uri);
+
+                const localFileInfo: FileInfo = {
+                    ...finalFileInfo,
+                    localPath: downloadResult.uri,
+                };
+
+                showPreviewLoading((prev: any) => ({...prev, currentStep: 'opening', canCancel: false}));
+                await new Promise((resolve) => setTimeout(resolve, 200));
+
+                openUnifiedFileViewer(localFileInfo, theme);
+                hidePreviewLoading();
+            }
+        } catch (err) {
+            debugLog('[SmartNote] Preview error:', err instanceof Error ? err.message : String(err));
+            hidePreviewLoading();
+            Alert.alert(
+                intl.formatMessage({id: 'smart_notebook.preview_error', defaultMessage: '预览失败'}),
+                intl.formatMessage({id: 'smart_notebook.preview_failed', defaultMessage: '无法打开此文件。'}),
+            );
+        }
+    }, [downloadAndPreviewFile, teamId, serverUrl, intl, theme, showPreviewLoading, hidePreviewLoading]);
 
     // 【关键改造】图片全屏预览
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -166,6 +282,7 @@ const SmartNoteDetailScreen = () => {
     }, []);
 
     const [userId, setUserId] = useState('');
+    const [teamId, setTeamId] = useState('');
     const [bearerToken, setBearerToken] = useState('');
     const [title, setTitle] = useState(noteTitle || '');
     const [blocks, setBlocks] = useState<SmartNoteBlock[]>([createBlock('paragraph', '')]);
@@ -257,11 +374,23 @@ const SmartNoteDetailScreen = () => {
 
     // ---- Init ----
     useEffect(() => {
+        // 【关键修复】保存后 currentNoteId 变化触发此 effect，跳过冗余的重新获取
+        if (skipNextInitRef.current) {
+            skipNextInitRef.current = false;
+            return;
+        }
+
         const init = async () => {
             try {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const uid = await getCurrentUserId(database);
                 setUserId(uid);
+
+                // 获取 teamId（用于云盘文件预览）
+                const tid = await getCurrentTeamId(database);
+                if (tid) {
+                    setTeamId(tid);
+                }
 
                 // Get bearer token for WebSocket connection (real-time voice)
                 const credentials = await getServerCredentials(serverUrl);
@@ -788,6 +917,8 @@ const SmartNoteDetailScreen = () => {
                         debugLog('[SmartNotebook] handleSave: 更新新笔记成功');
 
                         // 【关键修复】创建成功后更新 noteId，避免下次保存时再次创建
+                        // 设置标志，防止 init effect 因 currentNoteId 变化而重新获取
+                        skipNextInitRef.current = true;
                         setCurrentNoteId(createdNote.id);
                     } else {
                         debugLog('[SmartNotebook] handleSave: 创建笔记失败', {createdNote});
@@ -981,6 +1112,8 @@ const SmartNoteDetailScreen = () => {
 
     // ---- Go back with confirmation ----
     const handleGoBack = useCallback(() => {
+        // 【关键修复】先收起键盘，避免 UI 卡顿或 Alert 被键盘遮挡
+        Keyboard.dismiss();
         if (hasChanges) {
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.unsaved_changes', defaultMessage: '未保存的更改'}),

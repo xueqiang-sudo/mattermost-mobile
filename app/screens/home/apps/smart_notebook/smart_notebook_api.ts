@@ -4,7 +4,7 @@
 // Smart Notebook API layer for mobile
 // Uses PostgreSQL backend via fact-extractor plugin
 
-import {DatabaseManager} from '@database/manager';
+import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {debugLog} from '@store/debug_log';

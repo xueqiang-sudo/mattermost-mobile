@@ -65,11 +65,8 @@ export function useVoiceStream(serverUrl: string, token: string) {
             'VoiceStreamConnected',
             () => {
                 console.log('[useVoiceStream] ✅ WebSocket 已连接事件');
-                debugLog('VOICE_STREAM', '[useVoiceStream] ✅ WebSocket 已连接');
-                // 【关键修复】连接成功后，由 JS 层发送 start 控制消息
-                // 这样可以在 JS 层控制何时启动 ASR，更灵活且易于调试
-                debugLog('VOICE_STREAM', '[useVoiceStream] 📤 发送 start 控制消息');
-                VoiceRecorder.sendControlMessage({type: 'start'});
+                debugLog('VOICE_STREAM', '[useVoiceStream] ✅ WebSocket 已连接（ASR 由服务器自动启动）');
+                // 【优化】不再发送 start 消息 — 服务器在 WebSocket 连接建立时自动启动 ASR
             }
         );
 
@@ -235,10 +232,9 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 return false;
             }
 
-            // 【关键修复】不再手动发送 start 控制消息
-            // iOS 端会在 WebSocket 连接成功后自动发送 start 消息
-            // 这样可以确保 start 消息在音频数据之前到达服务器
-            debugLog('VOICE_STREAM', '[startStreaming] Step 7: (start 消息由 iOS 自动发送)');
+            // 【优化】无需发送 start 控制消息
+            // 服务器在 WebSocket 连接建立时自动启动 ASR
+            debugLog('VOICE_STREAM', '[startStreaming] Step 7: (ASR 由服务器在连接时自动启动)');
 
             debugLog('VOICE_STREAM', '[startStreaming] Step 8: Set state to recording');
             setState('recording');
@@ -268,12 +264,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
         debugLog('VOICE_STREAM', '[stopStreaming] Stopping stream（原生直传模式）...');
 
         try {
-            // 【关键修复】由 JS 层发送 stop 控制消息，保持与 start 一致的架构
+            // 发送 stop 消息通知服务器 finalize ASR 并返回最终文本
             debugLog('VOICE_STREAM', '[stopStreaming] 📤 发送 stop 控制消息');
             VoiceRecorder.sendControlMessage({type: 'stop'});
 
-            // 等待一小段时间让服务器处理 stop 消息
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待服务器处理 stop 并发送 completed 响应
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             // 停止录音并断开 WebSocket
             await stopRealtimeRecording();
