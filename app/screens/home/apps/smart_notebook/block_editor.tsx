@@ -5,6 +5,7 @@ import React, {useCallback, useRef, useState, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {
     Alert,
+    Dimensions,
     FlatList,
     Image,
     Modal,
@@ -145,6 +146,42 @@ const createBlock = (type: SmartNoteBlock['type'] = 'paragraph', content = ''): 
     content,
     order: 0,
 });
+
+// ---- Responsive Image Component ----
+// 动态获取图片尺寸，按原始宽高比等比缩放
+const ResponsiveImage = ({uri, style}: {uri: string; style: any}) => {
+    const [aspectRatio, setAspectRatio] = useState(1);
+
+    useEffect(() => {
+        if (uri) {
+            Image.getSize(
+                uri,
+                (width, height) => {
+                    if (width > 0 && height > 0) {
+                        setAspectRatio(width / height);
+                    }
+                },
+                () => {
+                    // 获取失败时使用默认比例
+                    setAspectRatio(1);
+                }
+            );
+        }
+    }, [uri]);
+
+    const screenWidth = Dimensions.get('window').width;
+    const imageWidth = screenWidth - 40; // 留出边距
+    const imageHeight = imageWidth / aspectRatio;
+
+    return (
+        <Image
+            source={{uri}}
+            style={[style, {width: imageWidth, height: Math.min(imageHeight, 400)}]}
+            resizeMode='contain'
+            onError={() => {}}
+        />
+    );
+};
 
 // ---- Block Item Component ----
 const BlockItem = ({
@@ -445,11 +482,9 @@ const BlockItem = ({
                 style={style.blockContainer}
             >
                 <View style={style.mediaBlock}>
-                    <Image
-                        source={{uri: imageUri}}
-                        style={style.imageThumbnail} // 【关键改造】使用缩略图样式（更小）
-                        resizeMode='cover'
-                        onError={() => {}}
+                    <ResponsiveImage
+                        uri={imageUri}
+                        style={style.imageThumbnail}
                     />
                     <View style={style.mediaInfo}>
                         <CompassIcon name='image-outline' size={20} color={theme.centerChannelColor}/>
@@ -1108,9 +1143,8 @@ const getBlockStyle = makeStyleSheetFromTheme((theme: Theme) => ({
         borderRadius: 8,
     },
     imageThumbnail: {
-        width: '100%',
-        height: 120, // 【关键改造】缩略图更小，节省屏幕空间
         borderRadius: 8,
+        backgroundColor: '#f5f5f5',
     },
     videoPreviewContainer: {
         width: '100%',

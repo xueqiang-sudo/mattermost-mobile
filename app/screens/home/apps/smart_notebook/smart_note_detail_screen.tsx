@@ -218,25 +218,30 @@ const SmartNoteDetailScreen = () => {
                 link: downloadUrl,
             };
 
-            // 对齐云盘：Office 文件如果没有 mm_file_id 就无法转换
-            if (isOffice && !enrichedFileInfo?.pdf_preview_id && !(enrichedFileInfo as any)?.mm_file_id) {
-                debugLog('[SmartNote] Office file without mm_file_id, showing error');
-                Alert.alert(
-                    intl.formatMessage({id: 'smart_notebook.preview_error', defaultMessage: '预览失败'}),
-                    intl.formatMessage({
-                        id: 'smart_notebook.office_preview_unavailable',
-                        defaultMessage: '此 Office 文件暂时无法预览，请稍后再试。',
-                    }),
-                );
-                return;
-            }
-
-            // 如果有 Mattermost 文件 ID（有 pdf_preview_id 或 mm_file_id），走标准预览流程
-            if (enrichedFileInfo?.id) {
-                debugLog('[SmartNote] Using Mattermost preview pipeline');
-                downloadAndPreviewFile(finalFileInfo);
+            // 如果有 Mattermost 文件 ID，走标准预览流程（自动触发转换+轮询+下载）
+            if (mmFileId) {
+                debugLog('[SmartNote] Using Mattermost preview pipeline (mm_file_id exists)');
+                // 构建完整的 FileInfo 用于 downloadAndPreviewFile
+                const previewFileInfo: FileInfo = {
+                    id: mmFileId,
+                    name: fileInfo.name,
+                    extension: ext,
+                    mime_type: fileInfo.mime_type,
+                    size: fileInfo.size,
+                    user_id: enrichedFileInfo?.user_id || '',
+                    create_at: enrichedFileInfo?.create_at || 0,
+                    update_at: enrichedFileInfo?.update_at || 0,
+                    delete_at: 0,
+                    post_id: '',
+                    channel_id: '',
+                    has_preview_image: enrichedFileInfo?.has_preview_image || false,
+                    height: 0,
+                    width: 0,
+                    pdf_preview_id: enrichedFileInfo?.pdf_preview_id,
+                };
+                downloadAndPreviewFile(previewFileInfo);
             } else {
-                // 没有 mm_file_id，直接从云盘下载后打开
+                // 没有 mm_file_id，直接从云盘下载后打开（旧文件）
                 debugLog('[SmartNote] No mm_file_id, downloading from drive API');
                 showPreviewLoading({
                     visible: true,
@@ -598,19 +603,34 @@ const SmartNoteDetailScreen = () => {
             const blockId = generateId();
             const extension = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
 
-            debugLog('smartNotebook', `[handleFilesSelected] Uploading file: ${fileName}`);
+            debugLog('smartNotebook', `[handleFilesSelected] Processing file: ${fileName}, id=${file.id}, uri=${file.uri}`);
 
             try {
-                // 【关键改造】立即上传文件
-                const uploadResult = await uploadMedia(serverUrl, userId, {
-                    uri: file.uri!,
-                    name: fileName,
-                    type: mimeType,
-                });
+                let uploadResult: {url: string; fileId: string; mmFileId: string};
+
+                // 如果文件已有 id（来自群组文件/云盘），直接使用，无需重新上传
+                if (file.id) {
+                    debugLog('smartNotebook', `[handleFilesSelected] File already on server, using existing id: ${file.id}`);
+                    const teamId = await getCurrentTeamId(DatabaseManager.getServerDatabaseAndOperator(serverUrl).database);
+                    uploadResult = {
+                        url: file.uri || `${serverUrl}/api/v4/teams/${teamId}/drive/files/${file.id}/download`,
+                        fileId: file.id,
+                        mmFileId: (file as any).mm_file_id || file.id,
+                    };
+                } else {
+                    // 本地文件，需要上传
+                    debugLog('smartNotebook', `[handleFilesSelected] Uploading local file: ${fileName}`);
+                    uploadResult = await uploadMedia(serverUrl, userId, {
+                        uri: file.uri!,
+                        name: fileName,
+                        type: mimeType,
+                    });
+                }
 
                 debugLog('smartNotebook', `[handleFilesSelected] Upload success:`, {
                     url: uploadResult.url,
                     fileId: uploadResult.fileId,
+                    mmFileId: uploadResult.mmFileId,
                 });
 
                 // 对齐 webapp：视频/音频存为 image 类型，caption 编码实际 URL
@@ -642,7 +662,7 @@ const SmartNoteDetailScreen = () => {
                         fileId: uploadResult.fileId || '',
                         // mobile 额外字段
                         size: file.size || 0,
-                        mimeType: file.mime_type || '',
+                        mimeType: file.mime_type || mimeType,
                         isLocal: false,  // 【关键改造】已上传，不是本地文件
                     },
                 });
@@ -1014,7 +1034,8 @@ const SmartNoteDetailScreen = () => {
 
         const saved = await performSave();
         if (saved) {
-            // 【简化】保存成功后直接返回，列表页 useFocusEffect 会自动刷新
+            // 等待保存进度 Modal 关闭动画完成后再返回，避免 Modal 关闭和导航转换冲突导致卡死
+            await new Promise((resolve) => setTimeout(resolve, 300));
             navigation.goBack();
         }
         return saved;
@@ -1190,25 +1211,8 @@ const SmartNoteDetailScreen = () => {
 
                     {/* 右侧：操作按钮组 */}
                     <View style={style.headerActions}>
-                        {/* 查看模式：显示复制和编辑文字按钮 */}
-                        {mode === 'viewing' && (
-                            <>
-                                <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
-                                    <Text style={[style.headerActionText, {color: theme.sidebarText}]}>
-                                        {intl.formatMessage({id: 'smart_notebook.copy', defaultMessage: '复制'})}
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={handleEdit} style={style.headerActionBtn}>
-                                    <Text style={[style.headerActionText, {color: theme.sidebarText}]}>
-                                        {intl.formatMessage({id: 'smart_notebook.edit', defaultMessage: '编辑'})}
-                                    </Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-
-                        {/* 编辑/新建模式：显示工具栏按钮 */}
-                        {mode !== 'viewing' && (
-                            <>
+                        {/* 工具栏按钮（新建和已有笔记始终显示） */}
+                        <>
                                 {/* +号：在末尾添加段落并聚焦 */}
                                 <TouchableOpacity
                                     onPress={() => {
@@ -1282,8 +1286,7 @@ const SmartNoteDetailScreen = () => {
                                         <CompassIcon name='content-save' size={20} color={theme.sidebarText}/>
                                     )}
                                 </TouchableOpacity>
-                            </>
-                        )}
+                        </>
                     </View>
                 </View>
 
@@ -1298,7 +1301,7 @@ const SmartNoteDetailScreen = () => {
                         blocks={blocks}
                         onChange={handleBlocksChange}
                         theme={theme}
-                        editable={mode !== 'viewing'}
+                        editable={true}
                         serverUrl={serverUrl}
                         onFocusedIndexChange={handleFocusedIndexChange}
                         pendingFocusIndex={pendingFocusIndex}
@@ -1452,6 +1455,8 @@ const SmartNoteDetailScreen = () => {
 
                                         const saved = await performSave(newTitle);
                                         if (saved) {
+                                            // 等待保存进度 Modal 关闭动画完成后再返回
+                                            await new Promise((resolve) => setTimeout(resolve, 300));
                                             navigation.goBack();
                                         }
                                     }}
@@ -1536,8 +1541,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
     },
     headerActionBtn: {
-        padding: 8,
-        marginRight: 4,
+        padding: 10,
+        marginHorizontal: 2,
+        minWidth: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerActionText: {
         ...typography('Body', 100, 'SemiBold'),

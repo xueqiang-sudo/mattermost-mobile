@@ -344,7 +344,13 @@ const SmartNotebookScreen = () => {
 
     // ---- Go back ----
     const goBack = useCallback(() => {
-        navigation.goBack();
+        // 使用 setTimeout 确保当前事件循环完成后再导航
+        // 避免 iOS 上 react-freeze 解冻和导航转换同时发生导致卡死
+        setTimeout(() => {
+            if (navigation.canGoBack()) {
+                navigation.goBack();
+            }
+        }, 50);
     }, [navigation]);
 
     // ---- Create new note ----

@@ -264,15 +264,12 @@ export function useVoiceStream(serverUrl: string, token: string) {
         debugLog('VOICE_STREAM', '[stopStreaming] Stopping stream（原生直传模式）...');
 
         try {
-            // 发送 stop 消息通知服务器 finalize ASR 并返回最终文本
-            debugLog('VOICE_STREAM', '[stopStreaming] 📤 发送 stop 控制消息');
-            VoiceRecorder.sendControlMessage({type: 'stop'});
-
-            // 等待服务器处理 stop 并发送 completed 响应
-            await new Promise(resolve => setTimeout(resolve, 500));
-
             // 停止录音并断开 WebSocket
+            // 服务器检测到 WebSocket 断开会自动 finalize ASR
             await stopRealtimeRecording();
+
+            // 等待服务器处理并发送最终结果
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const finalText = result.finalText || result.partialText;
 
