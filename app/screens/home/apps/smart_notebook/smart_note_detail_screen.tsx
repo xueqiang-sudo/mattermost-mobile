@@ -1190,11 +1190,20 @@ const SmartNoteDetailScreen = () => {
 
                     {/* 右侧：操作按钮组 */}
                     <View style={style.headerActions}>
-                        {/* 查看模式：显示复制图标 */}
+                        {/* 查看模式：显示复制和编辑文字按钮 */}
                         {mode === 'viewing' && (
-                            <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
-                                <CompassIcon name='content-copy' size={20} color={theme.sidebarText}/>
-                            </TouchableOpacity>
+                            <>
+                                <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
+                                    <Text style={[style.headerActionText, {color: theme.sidebarText}]}>
+                                        {intl.formatMessage({id: 'smart_notebook.copy', defaultMessage: '复制'})}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={handleEdit} style={style.headerActionBtn}>
+                                    <Text style={[style.headerActionText, {color: theme.sidebarText}]}>
+                                        {intl.formatMessage({id: 'smart_notebook.edit', defaultMessage: '编辑'})}
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
                         )}
 
                         {/* 编辑/新建模式：显示工具栏按钮 */}
@@ -1260,12 +1269,17 @@ const SmartNoteDetailScreen = () => {
                                     </TouchableOpacity>
                                 )}
 
+                                {/* 复制按钮 */}
+                                <TouchableOpacity onPress={handleCopy} style={style.headerActionBtn}>
+                                    <CompassIcon name='content-copy' size={20} color={theme.sidebarText}/>
+                                </TouchableOpacity>
+
                                 {/* 保存按钮 */}
                                 <TouchableOpacity onPress={handleSave} style={style.headerActionBtn} disabled={saving}>
                                     {saving ? (
                                         <ActivityIndicator size='small' color={theme.sidebarText}/>
                                     ) : (
-                                        <CompassIcon name='check-circle' size={22} color={theme.sidebarText}/>
+                                        <CompassIcon name='content-save' size={20} color={theme.sidebarText}/>
                                     )}
                                 </TouchableOpacity>
                             </>
@@ -1284,7 +1298,7 @@ const SmartNoteDetailScreen = () => {
                         blocks={blocks}
                         onChange={handleBlocksChange}
                         theme={theme}
-                        editable={true}
+                        editable={mode !== 'viewing'}
                         serverUrl={serverUrl}
                         onFocusedIndexChange={handleFocusedIndexChange}
                         pendingFocusIndex={pendingFocusIndex}
