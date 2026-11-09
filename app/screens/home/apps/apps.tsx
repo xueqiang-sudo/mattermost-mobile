@@ -10,6 +10,7 @@ import {Dimensions, ScrollView, Text, TouchableOpacity, View} from 'react-native
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import {switchToChannelById} from '@actions/remote/channel';
 import {fetchTeamById} from '@actions/remote/team';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
@@ -26,6 +27,7 @@ import {isSystemAdmin} from '@utils/user';
 
 import {type AppsStackParamList} from './apps_stack_param_list';
 import {APPS, getDashboardAccess, type AppDef, type DashboardAccess} from './api';
+import {getOrCreateSmartNotebookChannel} from './smart_notebook/smart_notebook_api';
 
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
@@ -236,7 +238,16 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 navigation.navigate(Screens.APPS_NOTEBOOK);
                 break;
             case 'smart_notebook':
-                navigation.navigate(Screens.APPS_SMART_NOTEBOOK);
+                (async () => {
+                    try {
+                        const channel = await getOrCreateSmartNotebookChannel(serverUrl);
+                        if (channel?.id) {
+                            await switchToChannelById(serverUrl, channel.id);
+                        }
+                    } catch (err) {
+                        console.error('Failed to enter smart notebook:', err);
+                    }
+                })();
                 break;
             case 'conversations':
                 navigation.navigate(Screens.APPS_CONVERSATIONS);

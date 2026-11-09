@@ -51,15 +51,6 @@ type QuickNoteData = {
 
 // ---- Helpers ----
 
-function formatDate(timestamp: number): string {
-    const d = new Date(timestamp);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${mm}-${dd} ${hh}:${mi}`;
-}
-
 function formatQuickNoteDate(timestamp: number): string {
     const d = new Date(timestamp);
     const now = new Date();
@@ -82,18 +73,25 @@ function formatQuickNoteDate(timestamp: number): string {
     return `${d.getFullYear()}/${mm}/${dd} ${hh}:${mi}`;
 }
 
-function extractTitle(message: string): string {
-    const firstLine = message.split('\n')[0].trim();
-    if (firstLine.length > 50) {
-        return firstLine.substring(0, 50) + '...';
-    }
-    return firstLine || '无标题';
-}
+function formatTimelineDate(timestamp: number, intl: {formatMessage: (desc: {id: string; defaultMessage: string}) => string}): {dateLabel: string; timeLabel: string} {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterday = today - 86400000;
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    const timeLabel = `${hh}:${mi}`;
 
-function extractPreview(message: string): string {
-    const lines = message.split('\n').filter(l => l.trim()).slice(0, 3);
-    const preview = lines.join('\n');
-    return preview.length > 150 ? preview.substring(0, 150) + '...' : preview;
+    if (timestamp >= today) {
+        return {dateLabel: intl.formatMessage({id: 'smart_notebook.date.today', defaultMessage: 'Today'}), timeLabel};
+    }
+    if (timestamp >= yesterday) {
+        return {dateLabel: intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: 'Yesterday'}), timeLabel};
+    }
+    if (d.getFullYear() === now.getFullYear()) {
+        return {dateLabel: `${d.getMonth() + 1}/${d.getDate()}`, timeLabel};
+    }
+    return {dateLabel: `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`, timeLabel};
 }
 
 function getQuickNoteData(post: Post): QuickNoteData {
@@ -178,17 +176,15 @@ const SmartNotebookScreen = () => {
         try {
             const result = await getChannelPosts(serverUrl, channel.id, 100);
 
-            // Split by props.quick_note
-            const knowledge: Post[] = [];
+            // Split: quick_notes are filtered by props.quick_note marker
+            // Timeline shows ALL posts (matching webapp behavior)
             const quick: Post[] = [];
             for (const post of result) {
                 if (post.props?.quick_note && post.user_id === userId) {
                     quick.push(post);
-                } else if (!post.props?.quick_note) {
-                    knowledge.push(post);
                 }
             }
-            setPosts(knowledge);
+            setPosts(result);
             setQuickNotes(quick);
         } catch {
             setPosts([]);
@@ -242,53 +238,12 @@ const SmartNotebookScreen = () => {
         }, [channel, loadAllPosts]),
     );
 
-    // ---- Open knowledge note detail ----
-    const openDetail = useCallback((post: Post) => {
-        needsRefresh.current = true;
-        navigation.navigate(Screens.SMART_NOTE_DETAIL, {
-            postId: post.id,
-            channelId: channel?.id,
-            postTitle: extractTitle(post.message),
-        });
-    }, [navigation, channel]);
+    // ---- Click timeline item → go back to channel ----
+    const onTimelineItemClick = useCallback((post: Post) => {
+        // 返回频道（和 webapp RHS 面板行为一致：点击条目回到频道查看帖子）
+        navigation.goBack();
+    }, [navigation]);
 
-    // ---- Create new knowledge note ----
-    const onCreateNote = useCallback(() => {
-        needsRefresh.current = true;
-        navigation.navigate(Screens.SMART_NOTE_DETAIL, {
-            postId: 'new',
-            channelId: channel?.id,
-            postTitle: '',
-        });
-    }, [navigation, channel]);
-
-    // ---- Delete knowledge post ----
-    const onDeletePost = useCallback((post: Post) => {
-        Alert.alert(
-            intl.formatMessage({id: 'smart_notebook.delete_title', defaultMessage: '删除笔记'}),
-            intl.formatMessage({id: 'smart_notebook.delete_confirm', defaultMessage: '确定要删除这条笔记吗？'}),
-            [
-                {
-                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
-                    style: 'cancel',
-                },
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.delete', defaultMessage: '删除'}),
-                    style: 'destructive',
-                    onPress: async () => {
-                        const success = await deletePost(serverUrl, post.id);
-                        if (success) {
-                            loadAllPosts();
-                        } else {
-                            Alert.alert(
-                                intl.formatMessage({id: 'smart_notebook.delete_failed', defaultMessage: '删除失败'}),
-                            );
-                        }
-                    },
-                },
-            ],
-        );
-    }, [intl, serverUrl, loadAllPosts]);
 
     // ---- Open quick note detail ----
     const openQuickNote = useCallback((note: Post) => {
@@ -380,23 +335,6 @@ const SmartNotebookScreen = () => {
         }, 50);
     }, [navigation]);
 
-    // ---- Render right actions for swipe (knowledge notes) ----
-    const renderRightActions = useCallback((post: Post) => {
-        return (
-            <View style={style.swipeActionsContainer}>
-                <TouchableOpacity
-                    style={[style.swipeActionBtn, style.swipeActionBtnDanger]}
-                    onPress={() => onDeletePost(post)}
-                >
-                    <CompassIcon name='trash-can-outline' size={20} color={theme.buttonColor}/>
-                    <Text style={style.swipeActionText}>
-                        {intl.formatMessage({id: 'smart_notebook.delete', defaultMessage: '删除'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }, [style, theme, intl, onDeletePost]);
-
     // ---- Render right actions for swipe (quick notes) ----
     const renderQnRightActions = useCallback((note: Post) => {
         return (
@@ -414,28 +352,25 @@ const SmartNotebookScreen = () => {
         );
     }, [style, theme, intl, onDeleteQuickNote]);
 
-    // ---- Render knowledge post item ----
+    // ---- Render timeline post item ----
     const renderPostItem = useCallback(({item}: {item: Post}) => {
+        const {dateLabel, timeLabel} = formatTimelineDate(item.create_at, intl);
         return (
-            <GestureHandlerRootView>
-                <ReanimatedSwipeable
-                    rightThreshold={40}
-                    renderRightActions={() => renderRightActions(item)}
-                >
-                    <TouchableOpacity
-                        style={style.card}
-                        onPress={() => openDetail(item)}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={style.cardDate}>{formatDate(item.create_at)}</Text>
-                        <Text style={style.cardTitle} numberOfLines={2}>
-                            {extractPreview(item.message)}
-                        </Text>
-                    </TouchableOpacity>
-                </ReanimatedSwipeable>
-            </GestureHandlerRootView>
+            <TouchableOpacity
+                style={style.timelineItem}
+                onPress={() => onTimelineItemClick(item)}
+                activeOpacity={0.7}
+            >
+                <View style={style.timelineTime}>
+                    <Text style={style.timelineDate}>{dateLabel}</Text>
+                    <Text style={style.timelineClock}>{timeLabel}</Text>
+                </View>
+                <Text style={style.timelineContent}>
+                    {item.message}
+                </Text>
+            </TouchableOpacity>
         );
-    }, [style, openDetail, renderRightActions]);
+    }, [style, onTimelineItemClick, intl]);
 
     // ---- Render quick note item ----
     const renderQuickNoteItem = useCallback(({item}: {item: Post}) => {
@@ -629,14 +564,6 @@ const SmartNotebookScreen = () => {
                                 );
                             })()}
 
-                            {/* FAB */}
-                            <TouchableOpacity
-                                style={style.fab}
-                                onPress={onCreateNote}
-                                activeOpacity={0.8}
-                            >
-                                <CompassIcon name='plus' size={28} color={theme.buttonColor}/>
-                            </TouchableOpacity>
                         </>
                     )}
 
@@ -667,25 +594,16 @@ const SmartNotebookScreen = () => {
                             ) : (
                                 <FlatList
                                     data={(() => {
-                                        const relCountMap = new Map<string, number>();
-                                        graphEntities.forEach(e => relCountMap.set(e.uuid, 0));
-                                        graphRelations.forEach(rel => {
-                                            const src = graphEntities.find(e => e.uuid === rel.source || e.name === rel.source);
-                                            const tgt = graphEntities.find(e => e.uuid === rel.target || e.name === rel.target);
-                                            if (src) relCountMap.set(src.uuid, (relCountMap.get(src.uuid) || 0) + 1);
-                                            if (tgt) relCountMap.set(tgt.uuid, (relCountMap.get(tgt.uuid) || 0) + 1);
-                                        });
-
                                         const filter = graphSearchQuery.toLowerCase();
                                         return [...graphEntities]
                                             .filter(e => {
                                                 if (!filter) return true;
                                                 return e.name.toLowerCase().includes(filter) ||
                                                        (e.summary || '').toLowerCase().includes(filter);
-                                            })
-                                            .sort((a, b) => (relCountMap.get(b.uuid) || 0) - (relCountMap.get(a.uuid) || 0));
+                                            });
                                     })()}
                                     keyExtractor={(item) => item.uuid}
+                                    extraData={expandedEntity}
                                     refreshing={false}
                                     onRefresh={loadGraph}
                                     contentContainerStyle={style.listContent}
@@ -716,9 +634,6 @@ const SmartNotebookScreen = () => {
                                                                 {item.summary}
                                                             </Text>
                                                         ) : null}
-                                                    </View>
-                                                    <View style={style.entityBadge}>
-                                                        <Text style={style.entityBadgeText}>{relations.length}</Text>
                                                     </View>
                                                 </TouchableOpacity>
 
@@ -961,23 +876,31 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         paddingBottom: 80,
     },
 
-    // ---- Knowledge note card ----
-    card: {
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+    // ---- Timeline item ----
+    timelineItem: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
-    cardDate: {
+    timelineTime: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 6,
+    },
+    timelineDate: {
+        ...typography('Body', 75, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    timelineClock: {
         ...typography('Body', 50),
         color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginBottom: 4,
     },
-    cardTitle: {
+    timelineContent: {
         ...typography('Body', 100),
         color: theme.centerChannelColor,
+        lineHeight: 22,
     },
 
     // ---- Quick note card ----
@@ -1105,20 +1028,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         ...typography('Heading', 100, 'SemiBold'),
         color: theme.centerChannelColor,
     },
-    entityBadge: {
-        backgroundColor: theme.buttonBg,
-        borderRadius: 10,
-        minWidth: 20,
-        height: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 6,
-        marginLeft: 8,
-    },
-    entityBadgeText: {
-        ...typography('Body', 50, 'SemiBold'),
-        color: theme.buttonColor,
-    },
     entitySummary: {
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.7),
@@ -1175,23 +1084,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         color: changeOpacity(theme.centerChannelColor, 0.5),
     },
 
-    // ---- FAB ----
-    fab: {
-        position: 'absolute',
-        right: 20,
-        bottom: 20,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: theme.buttonBg,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
 }));
 
 export default SmartNotebookScreen;

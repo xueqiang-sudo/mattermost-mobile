@@ -250,6 +250,13 @@ const ChannelHeader = ({
         goToScreen(Screens.AI_ASSISTANT_PANEL, title, {channelId, teamId});
     }, [channelId, teamId, intl]);
 
+    const openKnowledgeNotes = useCallback(() => {
+        const title = intl.formatMessage({id: 'channel_header.knowledge_notes', defaultMessage: '知识笔记'});
+        goToScreen(Screens.APPS_SMART_NOTEBOOK, title, {});
+    }, [intl]);
+
+    const isSmartNotebookChannel = channelName?.startsWith('sn_');
+
     const {openPlusMenu} = usePlusMenu();
 
     const onChannelQuickAction = useCallback((event: any) => {
@@ -285,6 +292,15 @@ const ChannelHeader = ({
             testID: 'channel_header.overflow.group_summary',
         });
 
+        if (isSmartNotebookChannel) {
+            menuItems.push({
+                labelId: 'channel_header.knowledge_notes',
+                defaultLabel: '知识笔记',
+                onPress: openKnowledgeNotes,
+                testID: 'channel_header.overflow.knowledge_notes',
+            });
+        }
+
         menuItems.push({
             labelId: 'screens.group_info',
             defaultLabel: 'Group Info',
@@ -303,7 +319,7 @@ const ChannelHeader = ({
             anchorTop: (pageY || 0) + buttonHeight + 4, // 4px gap below button
             items: menuItems,
         });
-    }, [channelType, isGM, channelBots, openAICustomerService, openConsultation, openAIAssistant, onTitlePress, openPlusMenu]);
+    }, [channelType, isGM, channelBots, isSmartNotebookChannel, openAICustomerService, openConsultation, openAIAssistant, openKnowledgeNotes, onTitlePress, openPlusMenu]);
 
     const openPlaybooksRuns = useCallback(() => {
         // If no active runs, create a new one instead
