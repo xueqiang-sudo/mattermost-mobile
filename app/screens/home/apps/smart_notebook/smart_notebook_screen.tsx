@@ -834,14 +834,14 @@ const SmartNotebookScreen = () => {
                             contentContainerStyle={style.listContent}
                             renderItem={renderQuickNoteItem}
                             ListEmptyComponent={
-                                <View style={style.emptyContainer}>
-                                    <CompassIcon name='note-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
-                                    <Text style={style.emptyText}>
-                                        {qnSearchQuery
-                                            ? intl.formatMessage({id: 'quick_note.no_results', defaultMessage: '没有找到匹配的随手记'})
-                                            : intl.formatMessage({id: 'quick_note.empty', defaultMessage: '还没有随手记，点击「新建」开始记录'})}
-                                    </Text>
-                                </View>
+                                qnSearchQuery ? (
+                                    <View style={style.emptyContainer}>
+                                        <CompassIcon name='note-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
+                                        <Text style={style.emptyText}>
+                                            {intl.formatMessage({id: 'quick_note.no_results', defaultMessage: '没有找到匹配的随手记'})}
+                                        </Text>
+                                    </View>
+                                ) : null
                             }
                         />
                     )}
