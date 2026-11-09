@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import Reanimated, {useAnimatedStyle, useSharedValue} from 'react-native-reanimated';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
@@ -29,34 +28,46 @@ import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import {
-    listNotes,
-    deleteNote,
-    searchNotes,
-    updateNote,
-    pushToGraphiti,
+    getOrCreateSmartNotebookChannel,
+    getChannelPosts,
+    deletePost,
     getGraphEntities,
     getGraphRelations,
-    type SmartNoteSummary,
+    type Post,
+    type Channel,
     type GraphEntity,
     type GraphRelation,
 } from './smart_notebook_api';
-import KnowledgeGraph from './knowledge_graph';
 
 // ---- Constants ----
 
-const NOTE_LIMIT = 50;
-
-// Date group keys for i18n
-const DATE_GROUP_KEYS = ['pinned', 'today', 'yesterday', '7_days', '30_days', 'older'] as const;
+const DATE_GROUP_KEYS = ['today', 'yesterday', '7_days', '30_days', 'older'] as const;
 
 // ---- Helpers ----
 
-function formatDate(val: string | number): string {
-    if (!val) return '';
-    // Handle Unix timestamp (seconds) or string
-    const ms = typeof val === 'number' && val < 1e12 ? val * 1000 : typeof val === 'string' ? new Date(val).getTime() : val;
-    const d = new Date(ms);
-    if (isNaN(d.getTime())) return String(val);
+function getDateGroupKey(timestamp: number): string {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterday = today - 86400000;
+    const weekAgo = today - 7 * 86400000;
+    const monthAgo = today - 30 * 86400000;
+
+    if (timestamp >= today) return 'today';
+    if (timestamp >= yesterday) return 'yesterday';
+    if (timestamp >= weekAgo) return '7_days';
+    if (timestamp >= monthAgo) return '30_days';
+    return 'older';
+}
+
+function formatTime(timestamp: number): string {
+    const d = new Date(timestamp);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+}
+
+function formatDate(timestamp: number): string {
+    const d = new Date(timestamp);
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     const hh = String(d.getHours()).padStart(2, '0');
@@ -64,38 +75,24 @@ function formatDate(val: string | number): string {
     return `${mm}-${dd} ${hh}:${mi}`;
 }
 
-function getDateGroupKey(val: string | number): string {
-    if (!val) return 'older';
-    const ms = typeof val === 'number' && val < 1e12 ? val * 1000 : typeof val === 'string' ? new Date(val).getTime() : val;
-    const ts = isNaN(ms) ? 0 : ms;
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const yesterday = today - 86400000;
-    const weekAgo = today - 7 * 86400000;
-    const monthAgo = today - 30 * 86400000;
-
-    if (ts >= today) return 'today';
-    if (ts >= yesterday) return 'yesterday';
-    if (ts >= weekAgo) return '7_days';
-    if (ts >= monthAgo) return '30_days';
-    return 'older';
+/**
+ * 提取帖子首行作为标题
+ */
+function extractTitle(message: string): string {
+    const firstLine = message.split('\n')[0].trim();
+    if (firstLine.length > 50) {
+        return firstLine.substring(0, 50) + '...';
+    }
+    return firstLine || '无标题';
 }
 
-function groupNotesByDate(entries: SmartNoteSummary[]): {pinned: SmartNoteSummary[]; groups: Map<string, SmartNoteSummary[]>} {
-    const pinned = entries.filter(n => n.pinned);
-    const unpinned = entries.filter(n => !n.pinned);
-    const groups = new Map<string, SmartNoteSummary[]>();
-
-    for (const entry of unpinned) {
-        const key = getDateGroupKey(entry.updatedAt);
-        if (!groups.has(key)) {
-            groups.set(key, []);
-        }
-        groups.get(key)!.push(entry);
-    }
-
-    return {pinned, groups};
+/**
+ * 提取帖子预览内容（前3行）
+ */
+function extractPreview(message: string): string {
+    const lines = message.split('\n').filter(l => l.trim()).slice(0, 3);
+    const preview = lines.join('\n');
+    return preview.length > 150 ? preview.substring(0, 150) + '...' : preview;
 }
 
 // ---- Component ----
@@ -108,174 +105,147 @@ const SmartNotebookScreen = () => {
     const style = getStyleSheet(theme);
 
     // View mode (tabs)
-    const [viewMode, setViewMode] = useState<'notes' | 'list'>('notes');
+    const [viewMode, setViewMode] = useState<'timeline' | 'entities'>('timeline');
 
-    // User ID
+    // User ID & Channel
     const [userId, setUserId] = useState('');
+    const [channel, setChannel] = useState<Channel | null>(null);
+    const [initializing, setInitializing] = useState(true);
 
-    // Data
-    const [notes, setNotes] = useState<SmartNoteSummary[]>([]);
+    // Timeline data (posts)
+    const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     // Search
     const [searchQuery, setSearchQuery] = useState('');
-    const [searching, setSearching] = useState(false);
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Refresh flag (set when returning from note detail)
+    // Refresh flag
     const needsRefresh = useRef(false);
 
-    // Graph (list tab)
+    // Graph (entities tab)
     const [graphEntities, setGraphEntities] = useState<GraphEntity[]>([]);
     const [graphRelations, setGraphRelations] = useState<GraphRelation[]>([]);
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphSearchQuery, setGraphSearchQuery] = useState('');
     const [expandedEntity, setExpandedEntity] = useState<string | null>(null);
 
-    // ---- Init: get userId ----
+    // ---- Init: get userId and channel ----
     useEffect(() => {
         const init = async () => {
             try {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                 const uid = await getCurrentUserId(database);
                 setUserId(uid);
-            } catch {
-                // ignore
+
+                // 获取或创建频道
+                const ch = await getOrCreateSmartNotebookChannel(serverUrl);
+                setChannel(ch);
+            } catch (err) {
+                console.error('Smart notebook init failed:', err);
+            } finally {
+                setInitializing(false);
             }
         };
         init();
     }, [serverUrl]);
 
-    // ---- Load notes ----
-    const loadNotes = useCallback(async () => {
-        if (!userId) return;
+    // ---- Load posts ----
+    const loadPosts = useCallback(async () => {
+        if (!channel?.id) return;
         setLoading(true);
         try {
-            const result = await listNotes(serverUrl, userId, 'private');
-            const entries = result?.entries || [];
-            setNotes(entries);
+            const result = await getChannelPosts(serverUrl, channel.id, 100);
+            setPosts(result);
         } catch {
-            setNotes([]);
+            setPosts([]);
         } finally {
             setLoading(false);
         }
-    }, [serverUrl, userId]);
+    }, [serverUrl, channel]);
 
     useEffect(() => {
-        loadNotes();
-    }, [loadNotes]);
-
-    // ---- Search (debounced) ----
-    const doSearch = useCallback(async (query: string) => {
-        if (!userId) return;
-        if (!query.trim()) {
-            setSearching(false);
-            loadNotes();
-            return;
+        if (channel?.id) {
+            loadPosts();
         }
-        setSearching(true);
-        try {
-            const result = await searchNotes(serverUrl, userId, query.trim(), NOTE_LIMIT, 'private');
-            const entries = result?.entries || [];
-            setNotes(entries);
-        } catch {
-            // keep current list
-        } finally {
-            setSearching(false);
-        }
-    }, [serverUrl, userId, loadNotes]);
+    }, [channel, loadPosts]);
 
-    // Refresh notes list when screen comes into focus
-    // Only refresh if needsRefresh flag is set (after creating/editing a note)
-    useFocusEffect(
-        useCallback(() => {
-            if (needsRefresh.current && userId) {
-                needsRefresh.current = false;
-                if (searchQuery.trim()) {
-                    doSearch(searchQuery);
-                } else {
-                    loadNotes();
-                }
-            }
-        }, [userId, searchQuery, doSearch, loadNotes]),
-    );
+    // ---- Search (client-side filter) ----
+    const filteredPosts = searchQuery
+        ? posts.filter(p => p.message.toLowerCase().includes(searchQuery.toLowerCase()))
+        : posts;
 
     const onSearchChange = useCallback((text: string) => {
         setSearchQuery(text);
-        if (searchTimer.current) {
-            clearTimeout(searchTimer.current);
-        }
-        searchTimer.current = setTimeout(() => {
-            doSearch(text);
-        }, 400);
-    }, [doSearch]);
+    }, []);
 
     // ---- Refresh ----
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        if (searchQuery.trim()) {
-            await doSearch(searchQuery);
-        } else {
-            await loadNotes();
-        }
+        await loadPosts();
         setRefreshing(false);
-    }, [searchQuery, doSearch, loadNotes]);
+    }, [loadPosts]);
+
+    // ---- Refresh on focus ----
+    useFocusEffect(
+        useCallback(() => {
+            if (needsRefresh.current && channel?.id) {
+                needsRefresh.current = false;
+                loadPosts();
+            }
+        }, [channel, loadPosts]),
+    );
 
     // ---- Open detail ----
-    const openDetail = useCallback((item: SmartNoteSummary) => {
+    const openDetail = useCallback((post: Post) => {
         needsRefresh.current = true;
         navigation.navigate(Screens.SMART_NOTE_DETAIL, {
-            noteId: item.id,
-            noteTitle: item.title || '笔记详情',
+            postId: post.id,
+            channelId: channel?.id,
+            postTitle: extractTitle(post.message),
         });
-    }, [navigation]);
+    }, [navigation, channel]);
 
-    // ---- Pin/Unpin note ----
-    const onTogglePin = useCallback(async (item: SmartNoteSummary) => {
-        try {
-            await updateNote(serverUrl, userId, item.id, {pinned: !item.pinned});
-            if (searchQuery.trim()) {
-                doSearch(searchQuery);
-            } else {
-                loadNotes();
-            }
-        } catch {
-            Alert.alert(
-                intl.formatMessage({id: 'smart_notebook.pin_failed', defaultMessage: '操作失败'}),
-            );
-        }
-    }, [serverUrl, userId, searchQuery, doSearch, loadNotes, intl]);
+    // ---- Create new note (navigate to channel) ----
+    const onCreateNote = useCallback(() => {
+        // 跳转到频道发帖
+        // 由于移动端没有标准频道页面，我们直接打开详情页面创建新帖子
+        needsRefresh.current = true;
+        navigation.navigate(Screens.SMART_NOTE_DETAIL, {
+            postId: 'new',
+            channelId: channel?.id,
+            postTitle: '',
+        });
+    }, [navigation, channel]);
 
-    // ---- Push note to Graphiti ----
-    const onPushNote = useCallback(async (item: SmartNoteSummary) => {
-        try {
-            const result = await pushToGraphiti(serverUrl, userId, item.id);
-            if (result.pushed) {
-                Alert.alert(
-                    intl.formatMessage({id: 'smart_notebook.push_success', defaultMessage: '推送成功'}),
-                    intl.formatMessage({id: 'smart_notebook.push_success_message', defaultMessage: '笔记已推送到知识图谱'}),
-                    [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
-                );
-                // Refresh graph data if in list tab
-                if (viewMode === 'list') {
-                    loadGraph();
-                }
-            } else {
-                Alert.alert(
-                    intl.formatMessage({id: 'smart_notebook.push_failed', defaultMessage: '推送失败'}),
-                    result.message || intl.formatMessage({id: 'smart_notebook.push_failed_message', defaultMessage: '无法推送笔记到知识图谱'}),
-                    [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
-                );
-            }
-        } catch {
-            Alert.alert(
-                intl.formatMessage({id: 'smart_notebook.push_failed', defaultMessage: '推送失败'}),
-                intl.formatMessage({id: 'smart_notebook.push_error_message', defaultMessage: '推送过程中发生错误'}),
-                [{text: intl.formatMessage({id: 'common.ok', defaultMessage: '确定'})}],
-            );
-        }
-    }, [serverUrl, userId, viewMode, intl]);
+    // ---- Delete post ----
+    const onDeletePost = useCallback((post: Post) => {
+        Alert.alert(
+            intl.formatMessage({id: 'smart_notebook.delete_title', defaultMessage: '删除笔记'}),
+            intl.formatMessage({id: 'smart_notebook.delete_confirm', defaultMessage: '确定要删除这条笔记吗？'}),
+            [
+                {
+                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
+                    style: 'cancel',
+                },
+                {
+                    text: intl.formatMessage({id: 'smart_notebook.delete', defaultMessage: '删除'}),
+                    style: 'destructive',
+                    onPress: async () => {
+                        const success = await deletePost(serverUrl, post.id);
+                        if (success) {
+                            loadPosts();
+                        } else {
+                            Alert.alert(
+                                intl.formatMessage({id: 'smart_notebook.delete_failed', defaultMessage: '删除失败'}),
+                            );
+                        }
+                    },
+                },
+            ],
+        );
+    }, [intl, serverUrl, loadPosts]);
 
     // ---- Load graph data ----
     const loadGraph = useCallback(async () => {
@@ -295,9 +265,9 @@ const SmartNotebookScreen = () => {
         }
     }, [serverUrl, userId]);
 
-    // Load graph when switching to list tab
+    // Load graph when switching to entities tab
     useEffect(() => {
-        if (viewMode === 'list' && userId) {
+        if (viewMode === 'entities' && userId) {
             loadGraph();
         }
     }, [viewMode, userId, loadGraph]);
@@ -306,46 +276,17 @@ const SmartNotebookScreen = () => {
     const getEntityRelations = useCallback((entityUuid: string, entityName: string): GraphRelation[] => {
         return graphRelations.filter(rel =>
             rel.source === entityUuid || rel.source === entityName ||
-            rel.target === entityUuid || rel.target === entityName
+            rel.target === entityUuid || rel.target === entityName,
         );
     }, [graphRelations]);
 
-    // ---- Delete note ----
-    const onDeleteNote = useCallback((item: SmartNoteSummary) => {
-        Alert.alert(
-            intl.formatMessage({id: 'smart_notebook.delete_title', defaultMessage: '删除笔记'}),
-            intl.formatMessage({id: 'smart_notebook.delete_confirm', defaultMessage: '确定要删除这条笔记吗？'}),
-            [
-                {
-                    text: intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'}),
-                    style: 'cancel',
-                },
-                {
-                    text: intl.formatMessage({id: 'smart_notebook.delete', defaultMessage: '删除'}),
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteNote(serverUrl, userId, item.id);
-                            if (searchQuery.trim()) {
-                                doSearch(searchQuery);
-                            } else {
-                                loadNotes();
-                            }
-                        } catch {
-                            Alert.alert(
-                                intl.formatMessage({id: 'smart_notebook.delete_failed', defaultMessage: '删除失败'}),
-                            );
-                        }
-                    },
-                },
-            ],
-        );
-    }, [intl, serverUrl, userId, searchQuery, doSearch, loadNotes]);
+    // ---- Open knowledge graph ----
+    const openKnowledgeGraph = useCallback(() => {
+        navigation.navigate('KnowledgeGraph', {userId});
+    }, [navigation, userId]);
 
     // ---- Go back ----
     const goBack = useCallback(() => {
-        // 使用 setTimeout 确保当前事件循环完成后再导航
-        // 避免 iOS 上 react-freeze 解冻和导航转换同时发生导致卡死
         setTimeout(() => {
             if (navigation.canGoBack()) {
                 navigation.goBack();
@@ -353,46 +294,13 @@ const SmartNotebookScreen = () => {
         }, 50);
     }, [navigation]);
 
-    // ---- Create new note ----
-    const onCreateNote = useCallback(() => {
-        needsRefresh.current = true;
-        navigation.navigate(Screens.SMART_NOTE_DETAIL, {
-            noteId: 'new',
-            noteTitle: '',
-        });
-    }, [navigation]);
-
     // ---- Render right actions for swipe ----
-    const renderRightActions = useCallback((item: SmartNoteSummary, drag: any) => {
+    const renderRightActions = useCallback((post: Post) => {
         return (
             <View style={style.swipeActionsContainer}>
                 <TouchableOpacity
-                    style={[style.swipeActionBtn, item.pinned ? style.swipeActionBtnActive : null]}
-                    onPress={() => onTogglePin(item)}
-                >
-                    <CompassIcon
-                        name={item.pinned ? 'pin' : 'pin-outline'}
-                        size={20}
-                        color={theme.buttonColor}
-                    />
-                    <Text style={style.swipeActionText}>
-                        {item.pinned
-                            ? intl.formatMessage({id: 'smart_notebook.unpin', defaultMessage: '取消置顶'})
-                            : intl.formatMessage({id: 'smart_notebook.pin', defaultMessage: '置顶'})}
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={style.swipeActionBtn}
-                    onPress={() => onPushNote(item)}
-                >
-                    <CompassIcon name='send-outline' size={20} color={theme.buttonColor}/>
-                    <Text style={style.swipeActionText}>
-                        {intl.formatMessage({id: 'smart_notebook.push', defaultMessage: '推送'})}
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                     style={[style.swipeActionBtn, style.swipeActionBtnDanger]}
-                    onPress={() => onDeleteNote(item)}
+                    onPress={() => onDeletePost(post)}
                 >
                     <CompassIcon name='trash-can-outline' size={20} color={theme.buttonColor}/>
                     <Text style={style.swipeActionText}>
@@ -401,41 +309,35 @@ const SmartNotebookScreen = () => {
                 </TouchableOpacity>
             </View>
         );
-    }, [style, theme, intl, onTogglePin, onPushNote, onDeleteNote]);
+    }, [style, theme, intl, onDeletePost]);
 
-    // ---- Render item ----
-    const renderItem = useCallback(({item}: {item: SmartNoteSummary}) => {
-        const dateStr = formatDate(item.updatedAt);
+    // ---- Render post item ----
+    const renderPostItem = useCallback(({item}: {item: Post}) => {
         return (
             <GestureHandlerRootView>
                 <ReanimatedSwipeable
                     rightThreshold={40}
-                    renderRightActions={(_, drag) => renderRightActions(item, drag)}
+                    renderRightActions={() => renderRightActions(item)}
                 >
                     <TouchableOpacity
                         style={style.card}
                         onPress={() => openDetail(item)}
                         activeOpacity={0.7}
                     >
-                        <View style={style.cardHeader}>
-                            <Text style={style.cardTitle} numberOfLines={1}>
-                                {item.title || intl.formatMessage({id: 'smart_notebook.untitled', defaultMessage: '无标题'})}
-                            </Text>
-                            {item.pinned && (
-                                <CompassIcon name='pin' size={14} color={theme.buttonBg}/>
-                            )}
-                        </View>
-                        <Text style={style.cardDate}>{dateStr}</Text>
+                        <Text style={style.cardDate}>{formatDate(item.create_at)}</Text>
+                        <Text style={style.cardTitle} numberOfLines={2}>
+                            {extractPreview(item.message)}
+                        </Text>
                     </TouchableOpacity>
                 </ReanimatedSwipeable>
             </GestureHandlerRootView>
         );
-    }, [style, theme, intl, openDetail, renderRightActions]);
+    }, [style, openDetail, renderRightActions]);
 
-    const keyExtractor = useCallback((item: SmartNoteSummary) => item.id, []);
+    const keyExtractor = useCallback((item: Post) => item.id, []);
 
     // ---- Render ----
-    if (loading) {
+    if (initializing) {
         return (
             <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
                 <View style={style.header}>
@@ -449,6 +351,31 @@ const SmartNotebookScreen = () => {
                 </View>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
+                    <Text style={style.loadingText}>
+                        {intl.formatMessage({id: 'smart_notebook.initializing', defaultMessage: '正在初始化智能笔记...'})}
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!channel) {
+        return (
+            <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
+                <View style={style.header}>
+                    <TouchableOpacity onPress={goBack} style={style.headerBtn}>
+                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
+                    </TouchableOpacity>
+                    <Text style={style.headerTitle}>
+                        {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
+                    </Text>
+                    <View style={style.headerBtn}/>
+                </View>
+                <View style={style.emptyContainer}>
+                    <CompassIcon name='alert-circle-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
+                    <Text style={style.emptyText}>
+                        {intl.formatMessage({id: 'smart_notebook.error', defaultMessage: '无法加载笔记频道'})}
+                    </Text>
                 </View>
             </SafeAreaView>
         );
@@ -456,7 +383,7 @@ const SmartNotebookScreen = () => {
 
     return (
         <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-            {/* Header - 对齐云盘样式 */}
+            {/* Header */}
             <View style={style.header}>
                 <TouchableOpacity onPress={goBack} style={style.headerBtn}>
                     <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
@@ -464,7 +391,7 @@ const SmartNotebookScreen = () => {
                 <Text style={style.headerTitle}>
                     {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
                 </Text>
-                <TouchableOpacity onPress={loadNotes} style={style.headerBtn}>
+                <TouchableOpacity onPress={loadPosts} style={style.headerBtn}>
                     <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
                 </TouchableOpacity>
             </View>
@@ -472,25 +399,25 @@ const SmartNotebookScreen = () => {
             {/* Tabs */}
             <View style={style.tabsContainer}>
                 <TouchableOpacity
-                    style={[style.tab, viewMode === 'notes' && style.tabActive]}
-                    onPress={() => setViewMode('notes')}
+                    style={[style.tab, viewMode === 'timeline' && style.tabActive]}
+                    onPress={() => setViewMode('timeline')}
                 >
-                    <Text style={[style.tabText, viewMode === 'notes' && style.tabTextActive]}>
-                        {intl.formatMessage({id: 'smart_notebook.tab.notes', defaultMessage: '笔记'})}
+                    <Text style={[style.tabText, viewMode === 'timeline' && style.tabTextActive]}>
+                        {intl.formatMessage({id: 'smart_notebook.tab.timeline', defaultMessage: '时间线'})}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[style.tab, viewMode === 'list' && style.tabActive]}
-                    onPress={() => setViewMode('list')}
+                    style={[style.tab, viewMode === 'entities' && style.tabActive]}
+                    onPress={() => setViewMode('entities')}
                 >
-                    <Text style={[style.tabText, viewMode === 'list' && style.tabTextActive]}>
-                        {intl.formatMessage({id: 'smart_notebook.tab.list', defaultMessage: '列表'})}
+                    <Text style={[style.tabText, viewMode === 'entities' && style.tabTextActive]}>
+                        {intl.formatMessage({id: 'smart_notebook.tab.entities', defaultMessage: '实体'})}
                     </Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Search - Notes Tab (with New button) */}
-            {viewMode === 'notes' && (
+            {/* Search - Timeline Tab */}
+            {viewMode === 'timeline' && (
                 <View style={style.searchContainer}>
                     <TextInput
                         style={style.searchInput}
@@ -501,22 +428,16 @@ const SmartNotebookScreen = () => {
                         autoCapitalize='none'
                         autoCorrect={false}
                     />
-                    {searchQuery.length > 0 ? (
-                        <TouchableOpacity onPress={() => onSearchChange('')} style={style.searchActionBtn}>
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')} style={style.searchActionBtn}>
                             <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity onPress={onCreateNote} style={style.newNoteBtn}>
-                            <Text style={style.newNoteBtnText}>
-                                {intl.formatMessage({id: 'smart_notebook.new', defaultMessage: '新建'})}
-                            </Text>
                         </TouchableOpacity>
                     )}
                 </View>
             )}
 
-            {/* Search - List Tab */}
-            {viewMode === 'list' && (
+            {/* Search - Entities Tab */}
+            {viewMode === 'entities' && (
                 <View style={style.searchContainer}>
                     <TextInput
                         style={style.searchInput}
@@ -535,58 +456,34 @@ const SmartNotebookScreen = () => {
                 </View>
             )}
 
-            {/* Notes Tab Content - Grouped by date */}
-            {viewMode === 'notes' && (() => {
-                const {pinned, groups} = searching ? {pinned: [], groups: new Map()} : groupNotesByDate(notes);
-                const searchNotes = searching ? notes : [];
-
-                // Build flat list data with section headers
-                type ListItem = {type: 'header'; key: string; title: string; icon?: string} | {type: 'note'; item: SmartNoteSummary};
-                const listData: ListItem[] = [];
-
-                if (searching) {
-                    searchNotes.forEach(n => listData.push({type: 'note', item: n}));
-                } else {
-                    // Pinned section
-                    if (pinned.length > 0) {
-                        listData.push({type: 'header', key: 'pinned', title: intl.formatMessage({id: 'smart_notebook.pinned', defaultMessage: '置顶'}), icon: 'pin'});
-                        pinned.forEach(n => listData.push({type: 'note', item: n}));
+            {/* Timeline Tab Content */}
+            {viewMode === 'timeline' && (() => {
+                // 按日期分组，每天只显示最后一条帖子
+                const dayMap = new Map<string, Post>();
+                for (const post of filteredPosts) {
+                    const dayKey = new Date(post.create_at).toISOString().split('T')[0];
+                    const existing = dayMap.get(dayKey);
+                    if (!existing || post.create_at > existing.create_at) {
+                        dayMap.set(dayKey, post);
                     }
-                    // Date groups
-                    DATE_GROUP_KEYS.filter(k => k !== 'pinned').forEach(key => {
-                        const items = groups.get(key);
-                        if (items && items.length > 0) {
-                            listData.push({type: 'header', key, title: intl.formatMessage({id: `smart_notebook.date_group.${key}`, defaultMessage: key})});
-                            items.forEach(n => listData.push({type: 'note', item: n}));
-                        }
-                    });
                 }
+                const dailyPosts = Array.from(dayMap.values()).sort((a, b) => b.create_at - a.create_at);
 
                 return (
                     <FlatList
-                        data={listData}
-                        keyExtractor={(item, index) => item.type === 'header' ? `header_${item.key}` : item.item.id}
+                        data={dailyPosts}
+                        keyExtractor={keyExtractor}
                         refreshing={refreshing}
                         onRefresh={onRefresh}
                         contentContainerStyle={style.listContent}
-                        renderItem={({item}) => {
-                            if (item.type === 'header') {
-                                return (
-                                    <View style={style.dateGroupHeader}>
-                                        {item.icon && <CompassIcon name={item.icon as any} size={14} color={theme.buttonBg}/>}
-                                        <Text style={style.dateGroupTitle}>{item.title}</Text>
-                                    </View>
-                                );
-                            }
-                            return renderItem({item: item.item});
-                        }}
+                        renderItem={renderPostItem}
                         ListEmptyComponent={
                             <View style={style.emptyContainer}>
                                 <CompassIcon name='notebook-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
                                 <Text style={style.emptyText}>
-                                    {searching
+                                    {searchQuery
                                         ? intl.formatMessage({id: 'smart_notebook.no_results', defaultMessage: '没有找到匹配的笔记'})
-                                        : intl.formatMessage({id: 'smart_notebook.empty', defaultMessage: '暂无笔记'})}
+                                        : intl.formatMessage({id: 'smart_notebook.empty', defaultMessage: '在频道中写笔记，自动同步到这里'})}
                                 </Text>
                             </View>
                         }
@@ -594,8 +491,8 @@ const SmartNotebookScreen = () => {
                 );
             })()}
 
-            {/* List Tab Content - Entities and Relations */}
-            {viewMode === 'list' && (
+            {/* Entities Tab Content */}
+            {viewMode === 'entities' && (
                 graphLoading ? (
                     <View style={style.loadingContainer}>
                         <ActivityIndicator size='large' color={theme.buttonBg}/>
@@ -603,7 +500,7 @@ const SmartNotebookScreen = () => {
                 ) : (
                     <FlatList
                         data={(() => {
-                            // Build relation count map
+                            // 按关系数排序
                             const relCountMap = new Map<string, number>();
                             graphEntities.forEach(e => relCountMap.set(e.uuid, 0));
                             graphRelations.forEach(rel => {
@@ -613,7 +510,6 @@ const SmartNotebookScreen = () => {
                                 if (tgt) relCountMap.set(tgt.uuid, (relCountMap.get(tgt.uuid) || 0) + 1);
                             });
 
-                            // Filter and sort by relation count (descending)
                             const filter = graphSearchQuery.toLowerCase();
                             return [...graphEntities]
                                 .filter(e => {
@@ -633,7 +529,6 @@ const SmartNotebookScreen = () => {
 
                             return (
                                 <View style={style.entityCard}>
-                                    {/* Entity Header - Clickable */}
                                     <TouchableOpacity
                                         style={[style.entityHeader, isSelected && style.entityHeaderExpanded]}
                                         onPress={() => setExpandedEntity(isSelected ? null : item.uuid)}
@@ -661,31 +556,14 @@ const SmartNotebookScreen = () => {
                                         </View>
                                     </TouchableOpacity>
 
-                                    {/* Entity Details - When Expanded */}
                                     {isSelected && (
                                         <View style={style.entityDetails}>
-                                            {/* Attributes */}
-                                            {item.attributes && Object.keys(item.attributes).length > 0 && (
-                                                <View style={style.entitySection}>
-                                                    <Text style={style.entitySectionTitle}>
-                                                        {intl.formatMessage({id: 'smart_notebook.entity.attributes', defaultMessage: '属性'})}
-                                                    </Text>
-                                                    {Object.entries(item.attributes).map(([key, value]) => (
-                                                        <View key={key} style={style.attributeRow}>
-                                                            <Text style={style.attributeKey}>{key}:</Text>
-                                                            <Text style={style.attributeValue}>{String(value)}</Text>
-                                                        </View>
-                                                    ))}
-                                                </View>
-                                            )}
-
-                                            {/* Relations */}
-                                            {relations.length > 0 && (
+                                            {relations.length > 0 ? (
                                                 <View style={style.entitySection}>
                                                     <Text style={style.entitySectionTitle}>
                                                         {intl.formatMessage(
                                                             {id: 'smart_notebook.entity.relations', defaultMessage: '关联关系 ({count})'},
-                                                            {count: relations.length}
+                                                            {count: relations.length},
                                                         )}
                                                     </Text>
                                                     {relations.map((rel, idx) => {
@@ -718,10 +596,7 @@ const SmartNotebookScreen = () => {
                                                         );
                                                     })}
                                                 </View>
-                                            )}
-
-                                            {/* No Relations */}
-                                            {relations.length === 0 && (
+                                            ) : (
                                                 <View style={style.noRelationsContainer}>
                                                     <Text style={style.noRelationsText}>
                                                         {intl.formatMessage({id: 'smart_notebook.entity.no_relations', defaultMessage: '暂无关联关系'})}
@@ -737,12 +612,23 @@ const SmartNotebookScreen = () => {
                             <View style={style.emptyContainer}>
                                 <CompassIcon name='share-variant-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
                                 <Text style={style.emptyText}>
-                                    {intl.formatMessage({id: 'smart_notebook.graph.empty', defaultMessage: '暂无实体数据，请先推送笔记到图谱'})}
+                                    {intl.formatMessage({id: 'smart_notebook.graph.empty', defaultMessage: '暂无知识图谱数据，写笔记后自动同步'})}
                                 </Text>
                             </View>
                         }
                     />
                 )
+            )}
+
+            {/* FAB - Create new note */}
+            {viewMode === 'timeline' && (
+                <TouchableOpacity
+                    style={style.fab}
+                    onPress={onCreateNote}
+                    activeOpacity={0.8}
+                >
+                    <CompassIcon name='plus' size={28} color={theme.buttonColor}/>
+                </TouchableOpacity>
             )}
         </SafeAreaView>
     );
@@ -750,7 +636,7 @@ const SmartNotebookScreen = () => {
 
 // ---- Styles ----
 
-const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
+const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     container: {
         flex: 1,
     },
@@ -769,107 +655,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.sidebarText,
         flex: 1,
     },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    searchInput: {
-        flex: 1,
-        height: 36,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        ...typography('Body', 100),
-        color: theme.centerChannelColor,
-    },
-    listContent: {
-        paddingHorizontal: 16,
-        paddingTop: 8,
-    },
-    card: {
-        backgroundColor: theme.centerChannelBg,
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 4,
-    },
-    cardTitle: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.centerChannelColor,
-        flex: 1,
-    },
-    cardDate: {
-        ...typography('Body', 50),
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-    },
-    searchActionBtn: {
-        padding: 8,
-        marginLeft: 4,
-    },
-    newNoteBtn: {
-        backgroundColor: theme.buttonBg,
-        borderRadius: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        marginLeft: 8,
-    },
-    newNoteBtnText: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.buttonColor,
-    },
-    swipeActionsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        marginBottom: 12,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    swipeActionBtn: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.6),
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        height: '100%',
-        minWidth: 70,
-    },
-    swipeActionBtnActive: {
-        backgroundColor: theme.buttonBg,
-    },
-    swipeActionBtnDanger: {
-        backgroundColor: theme.dndIndicator,
-    },
-    swipeActionText: {
-        ...typography('Body', 50),
-        color: theme.buttonColor,
-        marginTop: 4,
-    },
     loadingContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 64,
-    },
-    emptyText: {
-        ...typography('Body', 200),
-        color: changeOpacity(theme.centerChannelColor, 0.5),
+    loadingText: {
+        ...typography('Body', 100),
+        color: changeOpacity(theme.centerChannelColor, 0.6),
         marginTop: 16,
-        textAlign: 'center',
     },
     tabsContainer: {
         flexDirection: 'row',
@@ -894,20 +688,83 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     tabTextActive: {
         color: theme.buttonBg,
     },
-    dateGroup: {
-        marginTop: 8,
-    },
-    dateGroupHeader: {
+    searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingTop: 16,
-        paddingBottom: 8,
-        paddingHorizontal: 4,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
     },
-    dateGroupTitle: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.7),
+    searchInput: {
+        flex: 1,
+        height: 36,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+    },
+    searchActionBtn: {
+        padding: 8,
         marginLeft: 4,
+    },
+    listContent: {
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: 80,
+    },
+    card: {
+        backgroundColor: theme.centerChannelBg,
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    cardDate: {
+        ...typography('Body', 50),
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginBottom: 4,
+    },
+    cardTitle: {
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+    },
+    swipeActionsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        marginBottom: 8,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    swipeActionBtn: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.6),
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        height: '100%',
+        minWidth: 70,
+    },
+    swipeActionBtnDanger: {
+        backgroundColor: theme.dndIndicator,
+    },
+    swipeActionText: {
+        ...typography('Body', 50),
+        color: theme.buttonColor,
+        marginTop: 4,
+    },
+    emptyContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 64,
+    },
+    emptyText: {
+        ...typography('Body', 200),
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginTop: 16,
+        textAlign: 'center',
     },
     entityCard: {
         backgroundColor: theme.centerChannelBg,
@@ -955,10 +812,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.7),
         marginTop: 4,
     },
-    entityCardExpanded: {
-        borderColor: theme.buttonBg,
-        borderWidth: 1.5,
-    },
     entityDetails: {
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
@@ -972,20 +825,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75, 'SemiBold'),
         color: theme.buttonBg,
         marginBottom: 8,
-    },
-    attributeRow: {
-        flexDirection: 'row',
-        paddingVertical: 4,
-    },
-    attributeKey: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.7),
-        minWidth: 80,
-    },
-    attributeValue: {
-        ...typography('Body', 75),
-        color: theme.centerChannelColor,
-        flex: 1,
     },
     relationRow: {
         flexDirection: 'row',
@@ -1023,21 +862,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.5),
     },
-    entityRelations: {
-        marginTop: 12,
-        paddingTop: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    relationItem: {
-        flexDirection: 'row',
+    fab: {
+        position: 'absolute',
+        right: 20,
+        bottom: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: theme.buttonBg,
+        justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 6,
-    },
-    relationName: {
-        ...typography('Body', 75),
-        color: theme.centerChannelColor,
-        flex: 1,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
     },
 }));
 

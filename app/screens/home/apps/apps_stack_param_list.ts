@@ -46,8 +46,9 @@ export type AppsStackParamList = {
     };
     [Screens.APPS_SMART_NOTEBOOK]: undefined;
     [Screens.SMART_NOTE_DETAIL]: {
-        noteId: string;
-        noteTitle?: string;
+        postId: string;
+        channelId: string;
+        postTitle: string;
     };
     [Screens.APPS_CONVERSATIONS]: undefined;
     [Screens.APPS_APPROVALS]: undefined;
