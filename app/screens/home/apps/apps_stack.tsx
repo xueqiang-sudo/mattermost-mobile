@@ -26,6 +26,7 @@ import NoteDetailScreen from './notebook/note_detail_screen';
 import NotebookScreen from './notebook/notebook_screen';
 import SmartNotebookScreen from './smart_notebook/smart_notebook_screen';
 import SmartNoteDetailScreen from './smart_notebook/smart_note_detail_screen';
+import QuickNoteDetailScreen from './smart_notebook/quick_note_detail_screen';
 import PriceListScreen from './price_list/price_list_screen';
 import PromotionScreen from './promotion/promotion_screen';
 import RoleManagementScreen from './role_management/role_management_screen';
@@ -73,6 +74,7 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.NOTE_ADD} component={NoteAddScreen}/>
                 <Stack.Screen name={Screens.APPS_SMART_NOTEBOOK} component={SmartNotebookScreen}/>
                 <Stack.Screen name={Screens.SMART_NOTE_DETAIL} component={SmartNoteDetailScreen}/>
+                <Stack.Screen name={Screens.QUICK_NOTE_DETAIL} component={QuickNoteDetailScreen}/>
                 <Stack.Screen name={Screens.APPS_PRICE_LIST} component={PriceListScreen}/>
                 <Stack.Screen name={Screens.APPS_PROMOTION} component={PromotionScreen}/>
                 <Stack.Screen name={Screens.APPS_ROLE_MANAGEMENT} component={RoleManagementScreen}/>

@@ -50,6 +50,12 @@ export type AppsStackParamList = {
         channelId: string;
         postTitle: string;
     };
+    [Screens.QUICK_NOTE_DETAIL]: {
+        postId: string;
+        channelId: string;
+        title?: string;
+        content?: string;
+    };
     [Screens.APPS_CONVERSATIONS]: undefined;
     [Screens.APPS_APPROVALS]: undefined;
     [Screens.APPS_FINANCE]: undefined;

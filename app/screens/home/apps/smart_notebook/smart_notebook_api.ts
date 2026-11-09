@@ -23,6 +23,7 @@ export type Post = {
     update_at: number;
     delete_at: number;
     file_ids?: string[];
+    props?: Record<string, any>;
 };
 
 export type Channel = {
@@ -217,6 +218,61 @@ export async function deletePost(
         return true;
     } catch {
         return false;
+    }
+}
+
+// ── Quick Note API ──
+
+/**
+ * 创建随手记（帖子 + props.quick_note 标记）
+ */
+export async function createQuickNote(
+    serverUrl: string,
+    channelId: string,
+    title: string,
+    content: string,
+): Promise<Post | null> {
+    try {
+        const post = await doFetch(serverUrl, `${API_BASE}/posts`, {
+            method: 'post',
+            body: {
+                channel_id: channelId,
+                message: title,
+                props: {
+                    quick_note: {title, content},
+                },
+            },
+        });
+        return post?.id ? post : null;
+    } catch (err) {
+        console.error('Failed to create quick note:', err);
+        return null;
+    }
+}
+
+/**
+ * 编辑随手记
+ */
+export async function editQuickNote(
+    serverUrl: string,
+    postId: string,
+    title: string,
+    content: string,
+): Promise<Post | null> {
+    try {
+        const post = await doFetch(serverUrl, `${API_BASE}/posts/${postId}/patch`, {
+            method: 'put',
+            body: {
+                message: title,
+                props: {
+                    quick_note: {title, content},
+                },
+            },
+        });
+        return post?.id ? post : null;
+    } catch (err) {
+        console.error('Failed to edit quick note:', err);
+        return null;
     }
 }
 
