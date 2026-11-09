@@ -24,6 +24,43 @@ TurboLogger.configure({
     maximumNumberOfFiles: 2,
 });
 
+// 隐私合规：读取原生层日志（在 React Native 初始化前记录的 SDK 初始化步骤）
+if (Platform.OS === 'android') {
+    (async () => {
+        try {
+            const {cacheDirectory, readAsStringAsync, deleteAsync} = require('expo-file-system');
+            const {debugLog} = require('./app/store/debug_log');
+
+            const nativeLogFile = `${cacheDirectory}native_privacy.log`;
+            try {
+                const content = await readAsStringAsync(nativeLogFile);
+                if (content) {
+                    // 解析原生日志并合并到 debugLog
+                    const lines = content.split('\n').filter((line: string) => line.trim());
+                    lines.forEach((line: string) => {
+                        // 格式: [HH:mm:ss.SSS] [Tag] Message
+                        const match = line.match(/^\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)$/);
+                        if (match) {
+                            const [, time, tag, message] = match;
+                            debugLog(`Native:${tag}`, `[${time}] ${message}`);
+                        } else {
+                            debugLog('Native', line);
+                        }
+                    });
+                    debugLog('PrivacyVerify', `已加载 ${lines.length} 条原生层日志`);
+
+                    // 读取后删除文件，避免重复加载
+                    await deleteAsync(nativeLogFile, {idempotent: true});
+                }
+            } catch (e) {
+                // 文件不存在或读取失败，忽略
+            }
+        } catch (e) {
+            // 模块加载失败，忽略
+        }
+    })();
+}
+
 if (__DEV__) {
     LogBox.ignoreLogs([
         'new NativeEventEmitter',

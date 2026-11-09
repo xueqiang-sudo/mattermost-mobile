@@ -39,7 +39,11 @@ class PrivacyConsentActivity : Activity() {
     }
 
     private fun saveConsent() {
+        MainApplication.nativeLog(this, "PrivacyVerify", "=== 用户点击同意，保存同意状态 ===")
         getSharedPreferences(PREF_NAME, MODE_PRIVATE).edit().putBoolean(KEY_CONSENT, true).apply()
+        // 隐私合规：用户同意后初始化 SDK
+        MainApplication.nativeLog(this, "PrivacyVerify", "=== 开始调用 initializeSdk() ===")
+        (application as? MainApplication)?.initializeSdk()
     }
 
     private fun showConsentDialog() {
