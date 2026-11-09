@@ -539,11 +539,6 @@ const SmartNotebookScreen = () => {
                     style={[style.tab, topTab === 'knowledge' && style.tabActive]}
                     onPress={() => setTopTab('knowledge')}
                 >
-                    <CompassIcon
-                        name='lightbulb-outline'
-                        size={16}
-                        color={topTab === 'knowledge' ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.5)}
-                    />
                     <Text style={[style.tabText, topTab === 'knowledge' && style.tabTextActive]}>
                         {intl.formatMessage({id: 'smart_notebook.tab.knowledge', defaultMessage: '知识笔记'})}
                     </Text>
@@ -552,11 +547,6 @@ const SmartNotebookScreen = () => {
                     style={[style.tab, topTab === 'quick_notes' && style.tabActive]}
                     onPress={() => setTopTab('quick_notes')}
                 >
-                    <CompassIcon
-                        name='note-outline'
-                        size={16}
-                        color={topTab === 'quick_notes' ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.5)}
-                    />
                     <Text style={[style.tabText, topTab === 'quick_notes' && style.tabTextActive]}>
                         {intl.formatMessage({id: 'smart_notebook.tab.quick_notes', defaultMessage: '随手记'})}
                     </Text>
@@ -905,8 +895,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         paddingVertical: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 6,
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
