@@ -16,6 +16,9 @@ import NetworkManager from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {fetchMyChannelsForTeam} from '@actions/remote/channel';
 import {fetchCategories} from '@actions/remote/category';
+import {addChannelToDefaultCategory} from '@actions/local/category';
+import {getChannelById} from '@queries/servers/channel';
+import DatabaseManager from '@database/manager';
 import {debugLog} from '@store/debug_log';
 
 import CollapsibleChannelList from './collapsible_channel_list';
@@ -135,8 +138,7 @@ const Categories = ({
                 });
                 debugLog('[SmartNotebook] API result', {result, channelId: result?.channel_id});
 
-                // 对齐 webapp：调用 API 后只刷新数据，不显式添加频道到分类
-                // 服务器端通过 channelteams 表自动处理跨团队频道的分类可见性
+                // 刷新当前团队的频道和分类数据
                 debugLog('[SmartNotebook] Fetching channels and categories for team', {
                     currentTeamId,
                     channelId: result?.channel_id,
@@ -146,6 +148,25 @@ const Categories = ({
                     fetchCategories(serverUrl, currentTeamId),
                 ]);
                 debugLog('[SmartNotebook] Channels and categories fetched successfully');
+
+                // 智能笔记本频道是用户级别的，同一个 channel_id 跨多个团队共享。
+                // mobile 端的分类显示依赖本地 category_channels 表，必须显式把这个
+                // 跨团队频道加到当前团队的默认分类（内部群），否则用户看不到。
+                if (result?.channel_id) {
+                    try {
+                        debugLog('[SmartNotebook] Adding channel to default category', {channelId: result.channel_id, currentTeamId});
+                        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                        const channel = await getChannelById(database, result.channel_id);
+                        if (channel) {
+                            await addChannelToDefaultCategory(serverUrl, channel, false);
+                            debugLog('[SmartNotebook] Channel added to default category successfully');
+                        } else {
+                            debugLog('[SmartNotebook] Channel not found in database after fetch');
+                        }
+                    } catch (error) {
+                        debugLog('[SmartNotebook] Failed to add channel to default category', {error: String(error)});
+                    }
+                }
             } catch (error) {
                 debugLog('[SmartNotebook] API error', {error: String(error)});
             }
