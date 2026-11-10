@@ -35,6 +35,7 @@ import {dismissModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getLastPictureUpdate} from '@utils/user';
+import {debugLog} from '@store/debug_log';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -220,12 +221,46 @@ type Props = {
 };
 
 const ContactsInternalMemberAddScreen = ({componentId, ownerId, companyId, companyName, onBack}: Props) => {
+    debugLog('[InternalMemberAdd] Component mounted', {
+        componentId,
+        ownerId,
+        companyId,
+        companyName,
+        hasOnBack: Boolean(onBack),
+    });
+
+    // 检查必要参数
+    if (!ownerId) {
+        debugLog('[InternalMemberAdd] ERROR: ownerId is undefined');
+        return (
+            <SafeAreaView edges={edges} style={{flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center'}}>
+                <Text>错误：无法获取企业所有者信息</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (!companyId) {
+        debugLog('[InternalMemberAdd] ERROR: companyId is undefined');
+        return (
+            <SafeAreaView edges={edges} style={{flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center'}}>
+                <Text>错误：无法获取企业信息</Text>
+            </SafeAreaView>
+        );
+    }
+
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
+    debugLog('[InternalMemberAdd] Theme and server URL loaded', {
+        themeType: theme?.type,
+        serverUrl,
+    });
+
     const kind = MMEmployeeContactTypes.External;
+
+    debugLog('[InternalMemberAdd] Component initialized successfully, ready to render');
 
     const handleGoBack = useCallback(() => {
         if (onBack) {

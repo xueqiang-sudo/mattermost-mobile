@@ -453,17 +453,30 @@ const ContactsEmployeeProfile = ({
 
             // 处理部门变更
             if (fromManage && companyIdProp && selectedDeptId !== undefined && selectedDeptId !== departmentId) {
+                debugLog('[EmployeeProfile] 部门变更', {
+                    employeeId: employee?.id,
+                    oldDeptId: departmentId,
+                    newDeptId: selectedDeptId,
+                    defaultDeptId,
+                    isMovingToDefault: selectedDeptId === defaultDeptId,
+                });
                 try {
                     if (departmentId !== undefined) {
                         // 从旧部门移到新部门
-                        await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee?.id, departmentId, selectedDeptId);
+                        debugLog('[EmployeeProfile] 移动成员到新部门');
+                        const result = await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee?.id, departmentId, selectedDeptId);
+                        debugLog('[EmployeeProfile] 移动结果', {result});
                     } else {
                         // 原来没有部门，添加到选中的部门
+                        debugLog('[EmployeeProfile] 添加成员到部门');
                         const client = NetworkManager.getClient(serverUrl);
                         await client.addDepartmentMember(companyIdProp, selectedDeptId, {
                             user_id: employee?.id,
                         });
                     }
+                    // 发送刷新事件，通知部门详情页更新列表
+                    DeviceEventEmitter.emit(Events.CONTACTS_LIST_REFRESH);
+                    debugLog('[EmployeeProfile] 已发送通讯录刷新事件');
                 } catch (e) {
                     debugLog('[EmployeeProfile] 部门变更失败', {error: String(e)});
                 }

@@ -4,7 +4,7 @@
 
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {Navigation} from 'react-native-navigation';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
@@ -26,7 +26,7 @@ import {CustomInputModal, useCustomInputModal} from '@components/custom_input_mo
 import Loading from '@components/loading';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
-import {Screens} from '@constants';
+import {Events, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -53,8 +53,6 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
 const DEPT_SEARCH_BUTTON_ID = 'contacts-department-detail-search';
-const DEPT_MANAGE_BUTTON_ID = 'contacts-department-detail-manage';
-const DEPT_EXIT_MANAGE_BUTTON_ID = 'contacts-department-detail-exit-manage';
 const DEPT_MORE_BUTTON_ID = 'contacts-department-detail-more';
 
 type Props = {
@@ -354,8 +352,16 @@ const ContactsDepartmentDetail = ({
     const [employees, setEmployees] = useState<UserProfile[]>([]);
     const [memberCount, setMemberCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
-    const [manageMode, setManageMode] = useState(initialManageMode);
+    // 管理模式状态：非 ERP 企业默认可编辑，ERP 企业不可编辑
+    const [manageMode, setManageMode] = useState(true);
     const [isErpEnterprise, setIsErpEnterprise] = useState(false);
+
+    // 根据 isErpEnterprise 自动设置管理模式
+    useEffect(() => {
+        // ERP 企业：不可编辑，退出管理模式
+        // 非 ERP 企业：可编辑，进入管理模式
+        setManageMode(!isErpEnterprise);
+    }, [isErpEnterprise]);
 
     /** 标签数据：优先使用 props 传入，否则组件内部加载 */
     const [localOwnerId, setLocalOwnerId] = useState<string | undefined>();
@@ -663,16 +669,6 @@ const ContactsDepartmentDetail = ({
         );
     }, [baseBreadcrumb, companyId, departmentId, departmentName, companyName, intl, manageMode]));
 
-    const handleEnterManage = usePreventDoubleTap(useCallback(() => {
-        if (isErpEnterprise) {
-            return;
-        }
-        setManageMode(true);
-    }, [isErpEnterprise]));
-
-    const handleExitManage = usePreventDoubleTap(useCallback(() => {
-        setManageMode(false);
-    }, []));
 
     const openManagerModal = usePreventDoubleTap(useCallback(async () => {
         await dismissBottomSheet();
@@ -685,22 +681,71 @@ const ContactsDepartmentDetail = ({
         );
     }, [companyId, intl]));
 
-    const handleAddMember = usePreventDoubleTap(useCallback(() => {
+    const handleAddMember = usePreventDoubleTap(useCallback(async () => {
+        debugLog('[DepartmentDetail] handleAddMember called', {
+            hasOnAddMember: Boolean(onAddMember),
+            companyId,
+            resolvedOwnerId,
+            enterpriseDisplayName,
+            companyName,
+        });
+
+        // 先关闭底部菜单（与 openManagerModal 保持一致）
+        await dismissBottomSheet();
+        debugLog('[DepartmentDetail] Bottom sheet dismissed');
+
+        // 检查必要的参数
+        if (!resolvedOwnerId) {
+            debugLog('[DepartmentDetail] handleAddMember: ownerId is undefined, cannot proceed');
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'contacts.owner_id_required', defaultMessage: '无法获取企业所有者信息，请返回重试'}),
+            );
+            return;
+        }
+
+        if (!companyId) {
+            debugLog('[DepartmentDetail] handleAddMember: companyId is undefined, cannot proceed');
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.error', defaultMessage: 'Error'}),
+                intl.formatMessage({id: 'contacts.company_id_required', defaultMessage: '无法获取企业信息，请返回重试'}),
+            );
+            return;
+        }
+
         if (onAddMember) {
-            onAddMember();
+            debugLog('[DepartmentDetail] Calling onAddMember callback');
+            try {
+                onAddMember();
+            } catch (error) {
+                debugLog('[DepartmentDetail] onAddMember callback failed', {error: String(error)});
+            }
         } else {
             // Fallback: 直接导航到添加成员页面
+            debugLog('[DepartmentDetail] Using fallback navigation');
             const title = intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});
-            goToScreen(
-                Screens.INTERNAL_MEMBER_ADD,
+            debugLog('[DepartmentDetail] Navigating to INTERNAL_MEMBER_ADD', {
+                screen: Screens.INTERNAL_MEMBER_ADD,
                 title,
-                {
-                    ownerId: resolvedOwnerId,
-                    companyId,
-                    companyName: enterpriseDisplayName ?? companyName,
-                },
-                {useBackIcon: true},
-            );
+                ownerId: resolvedOwnerId,
+                companyId,
+                companyName: enterpriseDisplayName ?? companyName,
+            });
+            try {
+                goToScreen(
+                    Screens.INTERNAL_MEMBER_ADD,
+                    title,
+                    {
+                        ownerId: resolvedOwnerId,
+                        companyId,
+                        companyName: enterpriseDisplayName ?? companyName,
+                    },
+                    {useBackIcon: true},
+                );
+                debugLog('[DepartmentDetail] Navigation to INTERNAL_MEMBER_ADD completed');
+            } catch (error) {
+                debugLog('[DepartmentDetail] Navigation failed', {error: String(error)});
+            }
         }
     }, [onAddMember, intl, resolvedOwnerId, companyId, enterpriseDisplayName, companyName]));
 
@@ -850,10 +895,7 @@ const ContactsDepartmentDetail = ({
                 <SlideUpPanelItem
                     leftIcon='account-plus-outline'
                     text={intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        handleAddMember();
-                    }}
+                    onPress={handleAddMember}
                     testID='contacts.department_detail.manage.more.add_member'
                 />
                 {/* 添加子部门（原底部按钮2） */}
@@ -1019,8 +1061,6 @@ const ContactsDepartmentDetail = ({
     }, [companyId, departmentId, departmentName, intl, isCurrentUserOwner, memberCount, fetchData, serverUrl, theme, handleClose, handleModifyDepartmentName, handleModifyEnterpriseName, openManagerModal, handleDissolveEnterprise]));
 
     useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
-    useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleEnterManage, [handleEnterManage]);
-    useNavButtonPressed(DEPT_EXIT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleExitManage, [handleExitManage]);
     useNavButtonPressed(DEPT_MORE_BUTTON_ID, effectiveCloseButtonId, handleMore, [handleMore]);
 
     // 更新 RNN 标题栏显示成员数量（非 Stack 模式时）
@@ -1043,22 +1083,12 @@ const ContactsDepartmentDetail = ({
         }
         const searchIcon = CompassIcon.getImageSourceSync('magnify', 24, theme.sidebarHeaderTextColor);
 
-        if (manageMode) {
-            const closeIcon = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
-            const moreIcon = CompassIcon.getImageSourceSync('dots-vertical', 24, theme.sidebarHeaderTextColor);
+        // 右上角直接弹出菜单（不再显示三个点按钮）
+        // ERP 企业不显示菜单按钮，只显示搜索按钮
+        if (isErpEnterprise) {
             mergeNavigationOptions(effectiveCloseButtonId, {
                 topBar: {
                     rightButtons: [
-                        {
-                            id: DEPT_EXIT_MANAGE_BUTTON_ID,
-                            icon: closeIcon,
-                            testID: 'contacts.department_detail.exit_manage.button',
-                        },
-                        {
-                            id: DEPT_MORE_BUTTON_ID,
-                            icon: moreIcon,
-                            testID: 'contacts.department_detail.more.button',
-                        },
                         {
                             id: DEPT_SEARCH_BUTTON_ID,
                             icon: searchIcon,
@@ -1068,38 +1098,23 @@ const ContactsDepartmentDetail = ({
                 },
             });
         } else {
-            // For ERP enterprises, hide the management button and only show search button
-            if (isErpEnterprise) {
-                mergeNavigationOptions(effectiveCloseButtonId, {
-                    topBar: {
-                        rightButtons: [
-                            {
-                                id: DEPT_SEARCH_BUTTON_ID,
-                                icon: searchIcon,
-                                testID: 'contacts.department_detail.search.button',
-                            },
-                        ],
-                    },
-                });
-            } else {
-                const manageIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
-                mergeNavigationOptions(effectiveCloseButtonId, {
-                    topBar: {
-                        rightButtons: [
-                            {
-                                id: DEPT_MANAGE_BUTTON_ID,
-                                icon: manageIcon,
-                                testID: 'contacts.department_detail.manage.button',
-                            },
-                            {
-                                id: DEPT_SEARCH_BUTTON_ID,
-                                icon: searchIcon,
-                                testID: 'contacts.department_detail.search.button',
-                            },
-                        ],
-                    },
-                });
-            }
+            const menuIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
+            mergeNavigationOptions(effectiveCloseButtonId, {
+                topBar: {
+                    rightButtons: [
+                        {
+                            id: DEPT_MORE_BUTTON_ID,
+                            icon: menuIcon,
+                            testID: 'contacts.department_detail.menu.button',
+                        },
+                        {
+                            id: DEPT_SEARCH_BUTTON_ID,
+                            icon: searchIcon,
+                            testID: 'contacts.department_detail.search.button',
+                        },
+                    ],
+                },
+            });
         }
     }, [effectiveCloseButtonId, manageMode, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor, isErpEnterprise]);
 
@@ -1168,6 +1183,15 @@ const ContactsDepartmentDetail = ({
 
     useOnComponentWillAppear(componentId, fetchData);
     useOnComponentWillAppear(rnnHomeComponentId, fetchData);
+
+    // 监听通讯录刷新事件
+    useEffect(() => {
+        const listener = DeviceEventEmitter.addListener(Events.CONTACTS_LIST_REFRESH, () => {
+            debugLog('[DepartmentDetail] 收到通讯录刷新事件，重新获取数据');
+            fetchData();
+        });
+        return () => listener.remove();
+    }, [fetchData]);
 
     /** 当调用方未传入标签数据时，组件内部加载 ownerId 和 currentUserId */
     useEffect(() => {
@@ -1395,6 +1419,20 @@ const ContactsDepartmentDetail = ({
                         />
                     </View>
                     <View style={styles.stackHeaderActions}>
+                        {/* 菜单按钮：直接弹出菜单 */}
+                        {!isErpEnterprise && (
+                            <TouchableOpacity
+                                onPress={handleMore}
+                                style={styles.stackHeaderBack}
+                                testID='contacts.department_detail.menu.button'
+                            >
+                                <CompassIcon
+                                    name='format-list-bulleted'
+                                    size={24}
+                                    color={theme.sidebarHeaderTextColor}
+                                />
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             onPress={handleSearch}
                             style={styles.stackHeaderBack}
@@ -1406,44 +1444,6 @@ const ContactsDepartmentDetail = ({
                                 color={theme.sidebarHeaderTextColor}
                             />
                         </TouchableOpacity>
-                        {manageMode ? (
-                            <>
-                                <TouchableOpacity
-                                    onPress={handleMore}
-                                    style={styles.stackHeaderBack}
-                                    testID='contacts.department_detail.more.button'
-                                >
-                                    <CompassIcon
-                                        name='dots-vertical'
-                                        size={24}
-                                        color={theme.sidebarHeaderTextColor}
-                                    />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={handleExitManage}
-                                    style={styles.stackHeaderBack}
-                                    testID='contacts.department_detail.exit_manage.button'
-                                >
-                                    <CompassIcon
-                                        name='close'
-                                        size={24}
-                                        color={theme.sidebarHeaderTextColor}
-                                    />
-                                </TouchableOpacity>
-                            </>
-                        ) : !isErpEnterprise ? (
-                            <TouchableOpacity
-                                onPress={handleEnterManage}
-                                style={styles.stackHeaderBack}
-                                testID='contacts.department_detail.manage.button'
-                            >
-                                <CompassIcon
-                                    name='format-list-bulleted'
-                                    size={24}
-                                    color={theme.sidebarHeaderTextColor}
-                                />
-                            </TouchableOpacity>
-                        ) : null}
                     </View>
                 </View>
             ) : null}
