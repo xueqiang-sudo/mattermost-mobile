@@ -16,9 +16,6 @@ import NetworkManager from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {fetchMyChannelsForTeam} from '@actions/remote/channel';
 import {fetchCategories} from '@actions/remote/category';
-import {addChannelToDefaultCategory} from '@actions/local/category';
-import {getChannelById} from '@queries/servers/channel';
-import DatabaseManager from '@database/manager';
 import {debugLog} from '@store/debug_log';
 
 import CollapsibleChannelList from './collapsible_channel_list';
@@ -138,27 +135,17 @@ const Categories = ({
                 });
                 debugLog('[SmartNotebook] API result', {result, channelId: result?.channel_id});
 
-                // Always fetch channels and categories after ensure, regardless of result
-                debugLog('[SmartNotebook] Fetching channels and categories for team', {currentTeamId});
+                // 对齐 webapp：调用 API 后只刷新数据，不显式添加频道到分类
+                // 服务器端通过 channelteams 表自动处理跨团队频道的分类可见性
+                debugLog('[SmartNotebook] Fetching channels and categories for team', {
+                    currentTeamId,
+                    channelId: result?.channel_id,
+                });
                 await Promise.all([
                     fetchMyChannelsForTeam(serverUrl, currentTeamId),
                     fetchCategories(serverUrl, currentTeamId),
                 ]);
                 debugLog('[SmartNotebook] Channels and categories fetched successfully');
-
-                // If we got a channel_id, ensure it's in the default category
-                if (result?.channel_id) {
-                    debugLog('[SmartNotebook] Adding channel to default category', {channelId: result.channel_id});
-                    const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                    const channel = await getChannelById(database, result.channel_id);
-                    if (channel) {
-                        debugLog('[SmartNotebook] Channel found in database, adding to category', {channelTeamId: channel.teamId});
-                        await addChannelToDefaultCategory(serverUrl, channel, false);
-                        debugLog('[SmartNotebook] Channel added to default category successfully');
-                    } else {
-                        debugLog('[SmartNotebook] Channel not found in database after fetch');
-                    }
-                }
             } catch (error) {
                 debugLog('[SmartNotebook] API error', {error: String(error)});
             }
