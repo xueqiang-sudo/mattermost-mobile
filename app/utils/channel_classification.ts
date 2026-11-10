@@ -24,6 +24,11 @@ export function classifyChannel(
     gmMemberIds: ReadonlyMap<string, string[]>,
     botUserIds: ReadonlySet<string>,
 ): 'internal' | 'external' {
+    // Smart notebook channels are always internal
+    if (channel.name?.startsWith('sn_')) {
+        return 'internal';
+    }
+
     // Public channels always internal
     if (channel.type === General.OPEN_CHANNEL) {
         return 'internal';

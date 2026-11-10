@@ -40,6 +40,30 @@ type Props = {
     postTitle: string;
 };
 
+// ---- Helpers ----
+
+function formatPostDate(timestamp: number, intl: {formatMessage: (desc: {id: string; defaultMessage: string}) => string}): string {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterday = today - 86400000;
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+
+    if (timestamp >= today) {
+        return `${intl.formatMessage({id: 'smart_notebook.date.today', defaultMessage: '今天'})} ${hh}:${mi}`;
+    }
+    if (timestamp >= yesterday) {
+        return `${intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: '昨天'})} ${hh}:${mi}`;
+    }
+    const mm = d.getMonth() + 1;
+    const dd = d.getDate();
+    if (d.getFullYear() === now.getFullYear()) {
+        return `${mm}/${dd} ${hh}:${mi}`;
+    }
+    return `${d.getFullYear()}/${mm}/${dd} ${hh}:${mi}`;
+}
+
 // ---- Component ----
 
 const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
@@ -201,7 +225,7 @@ const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
             {!isNew && post && (
                 <View style={style.timeContainer}>
                     <Text style={style.timeText}>
-                        {new Date(post.create_at).toLocaleString()}
+                        {formatPostDate(post.create_at, intl)}
                     </Text>
                 </View>
             )}

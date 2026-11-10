@@ -68,9 +68,17 @@ async function pluginFetch(serverUrl: string, path: string, options: {method: st
 /**
  * 获取或创建智能笔记本频道 sn_{userId}
  * 对齐 webapp：笔记存储在私有频道帖子中
+ *
+ * 流程：
+ * 1. 在当前 team 查找频道
+ * 2. 如果当前 team 没有，跨所有 team 搜索
+ * 3. 如果都不存在，创建频道 + 欢迎帖
+ * 4. 调用 ensure_team API 绑定当前 team
  */
 export async function getOrCreateSmartNotebookChannel(
     serverUrl: string,
+    displayName: string,
+    welcomeMessage?: string,
 ): Promise<Channel | null> {
     const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
     const userId = await getCurrentUserId(database);
@@ -81,37 +89,79 @@ export async function getOrCreateSmartNotebookChannel(
     }
 
     const channelName = 'sn_' + userId;
+    let channel: Channel | null = null;
 
-    // 尝试查找已存在的频道
+    // 1. 在当前 team 查找频道
     try {
-        const channel = await doFetch(serverUrl, `${API_BASE}/teams/${teamId}/channels/name/${channelName}`, {
+        channel = await doFetch(serverUrl, `${API_BASE}/teams/${teamId}/channels/name/${channelName}`, {
             method: 'get',
         });
-        if (channel?.id) {
-            return channel;
-        }
     } catch {
-        // 频道不存在，需要创建
+        // 频道不在当前 team
     }
 
-    // 创建私有频道
-    try {
-        const channel = await doFetch(serverUrl, `${API_BASE}/channels`, {
-            method: 'post',
-            body: {
-                team_id: teamId,
-                name: channelName,
-                display_name: '智能笔记本',
-                type: 'P',
-                header: '在这里记录你的想法，自动同步到知识图谱',
-                purpose: '智能笔记本',
-            },
-        });
-        return channel;
-    } catch (err) {
-        console.error('Failed to create smart notebook channel:', err);
-        return null;
+    // 2. 如果当前 team 没有，跨所有 team 搜索
+    if (!channel?.id) {
+        try {
+            const userChannels = await doFetch(serverUrl, `${API_BASE}/users/${userId}/channels`, {
+                method: 'get',
+            });
+            if (Array.isArray(userChannels)) {
+                channel = userChannels.find((c: Channel) => c.name === channelName) || null;
+            }
+        } catch {
+            // 搜索失败，继续创建
+        }
     }
+
+    // 3. 如果都不存在，创建频道 + 欢迎帖
+    if (!channel?.id) {
+        try {
+            channel = await doFetch(serverUrl, `${API_BASE}/channels`, {
+                method: 'post',
+                body: {
+                    team_id: teamId,
+                    name: channelName,
+                    display_name: displayName,
+                    type: 'P',
+                    header: '',
+                    purpose: displayName,
+                },
+            });
+
+            // 发送欢迎帖子（对齐 webapp）
+            if (channel?.id && welcomeMessage) {
+                try {
+                    await doFetch(serverUrl, `${API_BASE}/posts`, {
+                        method: 'post',
+                        body: {
+                            channel_id: channel.id,
+                            message: welcomeMessage,
+                            props: {from_webhook: true, welcome_post: true},
+                        },
+                    });
+                } catch {
+                    // 欢迎帖子失败不影响频道创建
+                }
+            }
+        } catch (err) {
+            console.error('Failed to create smart notebook channel:', err);
+            return null;
+        }
+    }
+
+    // 4. 调用 ensure_team API 绑定当前 team
+    if (channel?.id) {
+        try {
+            await doFetch(serverUrl, `${API_BASE}/channels/${channel.id}/ensure_team`, {
+                method: 'post',
+            });
+        } catch {
+            // ensure_team 失败不影响使用
+        }
+    }
+
+    return channel;
 }
 
 // ── Posts API (CRUD) ──

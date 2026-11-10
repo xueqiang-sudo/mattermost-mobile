@@ -24,6 +24,7 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentUserId} from '@queries/servers/system';
 import {goToScreen, popTopScreen} from '@screens/navigation';
+import {isSystemMessage} from '@utils/post';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -63,7 +64,7 @@ function formatQuickNoteDate(timestamp: number, intl: {formatMessage: (desc: {id
         return `${hh}:${mi}`;
     }
     if (timestamp >= yesterday) {
-        return `${intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: 'Yesterday'})} ${hh}:${mi}`;
+        return `${intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: '昨天'})} ${hh}:${mi}`;
     }
     const mm = d.getMonth() + 1;
     const dd = d.getDate();
@@ -83,10 +84,10 @@ function formatTimelineDate(timestamp: number, intl: {formatMessage: (desc: {id:
     const timeLabel = `${hh}:${mi}`;
 
     if (timestamp >= today) {
-        return {dateLabel: intl.formatMessage({id: 'smart_notebook.date.today', defaultMessage: 'Today'}), timeLabel};
+        return {dateLabel: intl.formatMessage({id: 'smart_notebook.date.today', defaultMessage: '今天'}), timeLabel};
     }
     if (timestamp >= yesterday) {
-        return {dateLabel: intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: 'Yesterday'}), timeLabel};
+        return {dateLabel: intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: '昨天'}), timeLabel};
     }
     if (d.getFullYear() === now.getFullYear()) {
         return {dateLabel: `${d.getMonth() + 1}/${d.getDate()}`, timeLabel};
@@ -164,7 +165,12 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                     // channelId passed from goToScreen (channel header menu)
                     setChannel({id: propChannelId, name: '', display_name: '', team_id: '', type: ''});
                 } else {
-                    const ch = await getOrCreateSmartNotebookChannel(serverUrl);
+                    const displayName = intl.formatMessage({id: 'smart_notebook.channel_display_name', defaultMessage: '智能笔记本'});
+                    const welcomeMessage = intl.formatMessage({
+                        id: 'smart_notebook.welcome_post',
+                        defaultMessage: '📒 **欢迎使用智能笔记本**\n\n**随手记** — 随时发送消息，自动同步到知识图谱，帮你构建个人知识网络。\n\n**备忘录** — 结构化的标题+内容笔记，适合记录待办事项、会议纪要等，不同步到知识图谱。',
+                    });
+                    const ch = await getOrCreateSmartNotebookChannel(serverUrl, displayName, welcomeMessage);
                     setChannel(ch);
                 }
             } catch (err) {
@@ -184,13 +190,13 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         try {
             const result = await getChannelPosts(serverUrl, channel.id, 100);
 
-            // Split: timeline shows knowledge posts (no quick_note), 备忘录 shows quick_note posts
+            // Split: timeline shows knowledge posts (no quick_note, no system posts, no welcome_post), 备忘录 shows quick_note posts
             const knowledge: Post[] = [];
             const quick: Post[] = [];
             for (const post of result) {
                 if (post.props?.quick_note && post.user_id === userId) {
                     quick.push(post);
-                } else if (!post.props?.quick_note) {
+                } else if (!post.props?.quick_note && !post.props?.welcome_post && !isSystemMessage(post)) {
                     knowledge.push(post);
                 }
             }
