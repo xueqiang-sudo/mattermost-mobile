@@ -251,7 +251,7 @@ const ChannelHeader = ({
     }, [channelId, teamId, intl]);
 
     const openKnowledgeNotes = useCallback(() => {
-        const title = intl.formatMessage({id: 'channel_header.knowledge_notes', defaultMessage: '知识笔记'});
+        const title = intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'});
         goToScreen(Screens.APPS_SMART_NOTEBOOK, title, {channelId});
     }, [intl, channelId]);
 
@@ -263,6 +263,12 @@ const ChannelHeader = ({
         // Public channel: directly open channel info, skip dropdown menu
         if (channelType === General.OPEN_CHANNEL) {
             onTitlePress();
+            return;
+        }
+
+        // 智能笔记本频道：直接打开知识笔记页面，不弹下拉菜单
+        if (isSmartNotebookChannel) {
+            openKnowledgeNotes();
             return;
         }
 

@@ -51,7 +51,7 @@ type QuickNoteData = {
 
 // ---- Helpers ----
 
-function formatQuickNoteDate(timestamp: number): string {
+function formatQuickNoteDate(timestamp: number, intl: {formatMessage: (desc: {id: string; defaultMessage: string}) => string}): string {
     const d = new Date(timestamp);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -63,7 +63,7 @@ function formatQuickNoteDate(timestamp: number): string {
         return `${hh}:${mi}`;
     }
     if (timestamp >= yesterday) {
-        return `昨天 ${hh}:${mi}`;
+        return `${intl.formatMessage({id: 'smart_notebook.date.yesterday', defaultMessage: 'Yesterday'})} ${hh}:${mi}`;
     }
     const mm = d.getMonth() + 1;
     const dd = d.getDate();
@@ -184,15 +184,17 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         try {
             const result = await getChannelPosts(serverUrl, channel.id, 100);
 
-            // Split: quick_notes are filtered by props.quick_note marker
-            // Timeline shows ALL posts (matching webapp behavior)
+            // Split: timeline shows knowledge posts (no quick_note), 备忘录 shows quick_note posts
+            const knowledge: Post[] = [];
             const quick: Post[] = [];
             for (const post of result) {
                 if (post.props?.quick_note && post.user_id === userId) {
                     quick.push(post);
+                } else if (!post.props?.quick_note) {
+                    knowledge.push(post);
                 }
             }
-            setPosts(result);
+            setPosts(knowledge);
             setQuickNotes(quick);
         } catch {
             setPosts([]);
@@ -327,11 +329,6 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         );
     }, [graphRelations]);
 
-    // ---- Go back ----
-    const goBack = useCallback(() => {
-        popTopScreen();
-    }, []);
-
     // ---- Render right actions for swipe (quick notes) ----
     const renderQnRightActions = useCallback((note: Post) => {
         return (
@@ -388,7 +385,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                                 {data.title}
                             </Text>
                             <Text style={style.qnCardDate}>
-                                {formatQuickNoteDate(item.create_at)}
+                                {formatQuickNoteDate(item.create_at, intl)}
                             </Text>
                         </View>
                         {data.content ? (
@@ -408,15 +405,6 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     if (initializing) {
         return (
             <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-                <View style={style.header}>
-                    <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
-                    </Text>
-                    <View style={style.headerBtn}/>
-                </View>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                     <Text style={style.loadingText}>
@@ -430,15 +418,6 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     if (!channel) {
         return (
             <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-                <View style={style.header}>
-                    <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
-                    </Text>
-                    <View style={style.headerBtn}/>
-                </View>
                 <View style={style.emptyContainer}>
                     <CompassIcon name='alert-circle-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
                     <Text style={style.emptyText}>
@@ -452,27 +431,14 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     // ---- Render ----
     return (
         <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'})}
-                </Text>
-                <TouchableOpacity onPress={loadAllPosts} style={style.headerBtn}>
-                    <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            </View>
-
-            {/* Top-level Tabs: 知识笔记 | 随手记 */}
+            {/* Top-level Tabs: 随手记 | 备忘录 */}
             <View style={style.tabsContainer}>
                 <TouchableOpacity
                     style={[style.tab, topTab === 'knowledge' && style.tabActive]}
                     onPress={() => setTopTab('knowledge')}
                 >
                     <Text style={[style.tabText, topTab === 'knowledge' && style.tabTextActive]}>
-                        {intl.formatMessage({id: 'smart_notebook.tab.knowledge', defaultMessage: '知识笔记'})}
+                        {intl.formatMessage({id: 'smart_notebook.tab.knowledge', defaultMessage: '随手记'})}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -480,7 +446,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                     onPress={() => setTopTab('quick_notes')}
                 >
                     <Text style={[style.tabText, topTab === 'quick_notes' && style.tabTextActive]}>
-                        {intl.formatMessage({id: 'smart_notebook.tab.quick_notes', defaultMessage: '随手记'})}
+                        {intl.formatMessage({id: 'smart_notebook.tab.quick_notes', defaultMessage: '备忘录'})}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -533,7 +499,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                                 for (const post of filteredPosts) {
                                     const dayKey = new Date(post.create_at).toISOString().split('T')[0];
                                     const existing = dayMap.get(dayKey);
-                                    if (!existing || post.create_at > existing.create_at) {
+                                    if (!existing || post.create_at < existing.create_at) {
                                         dayMap.set(dayKey, post);
                                     }
                                 }
@@ -767,21 +733,6 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     container: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: theme.sidebarBg,
-    },
-    headerBtn: {
-        padding: 8,
-    },
-    headerTitle: {
-        ...typography('Heading', 200, 'SemiBold'),
-        color: theme.sidebarText,
         flex: 1,
     },
     loadingContainer: {

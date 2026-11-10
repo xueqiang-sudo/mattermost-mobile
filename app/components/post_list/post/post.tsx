@@ -285,6 +285,11 @@ const Post = ({
     const isProductionUpdate = post.type === PostTypes.CUSTOM_PRODUCTION_UPDATE;
     const hasBeenDeleted = (post.deleteAt !== 0);
     const isWebHook = isFromWebhook(post);
+
+    // 隐藏随手记 posts（quick_note）
+    if (post.props?.quick_note) {
+        return null;
+    }
     const hasSameRoot = useMemo(() => {
         if (isFirstReply) {
             return false;
