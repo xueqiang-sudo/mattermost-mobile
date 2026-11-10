@@ -11,49 +11,28 @@ import ContactAvatar from '@components/contact_avatar';
 import {MESSAGE_TYPE, SNACK_BAR_TYPE} from '@constants/snack_bar';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import NetworkManager from '@managers/network_manager';
-import {dismissModal, popTopScreen} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {mergeNavigationOptions} from '@utils/navigation';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const SAFE_AREA_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
+const SAFE_AREA_EDGES: Edge[] = ['bottom', 'left', 'right'];
+const CONFIRM_BUTTON_ID = 'transfer-ownership-confirm';
 
 type Props = {
     componentId: AvailableScreens;
     companyId: string;
-    onBack?: () => void;
-    onSuccess?: () => void;
-    testIDPrefix?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: theme.sidebarBg,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.sidebarText, 0.1),
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    headerTitle: {
-        flex: 1,
-        ...typography('Heading', 300, 'SemiBold'),
-        color: theme.sidebarText,
-        textAlign: 'center',
     },
     searchWrap: {
         paddingHorizontal: 16,
@@ -77,6 +56,25 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
     },
+    radio: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    radioSelected: {
+        borderColor: theme.linkColor,
+    },
+    radioDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: theme.linkColor,
+    },
     nameWrap: {
         flex: 1,
         marginLeft: 12,
@@ -84,46 +82,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     displayName: {
         ...typography('Body', 200, 'SemiBold'),
         color: theme.centerChannelColor,
-    },
-    username: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 2,
-    },
-    confirmWrap: {
-        padding: 20,
-    },
-    confirmText: {
-        ...typography('Body', 200),
-        color: theme.centerChannelColor,
-        marginBottom: 20,
-    },
-    btnRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    cancelBtn: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
-        alignItems: 'center',
-    },
-    cancelBtnText: {
-        ...typography('Body', 200, 'SemiBold'),
-        color: theme.centerChannelColor,
-    },
-    confirmBtn: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 8,
-        backgroundColor: theme.errorTextColor,
-        alignItems: 'center',
-    },
-    confirmBtnText: {
-        ...typography('Body', 200, 'SemiBold'),
-        color: '#ffffff',
     },
     emptyText: {
         ...typography('Body', 200),
@@ -133,7 +91,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, testIDPrefix = 'transfer_ownership'}: Props) => {
+const TransferOwnershipScreen = ({componentId, companyId}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
@@ -141,16 +99,12 @@ const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, tes
 
     const [transferMembers, setTransferMembers] = useState<UserProfile[]>([]);
     const [transferSearch, setTransferSearch] = useState('');
-    const [transferConfirmUser, setTransferConfirmUser] = useState<UserProfile | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [transferring, setTransferring] = useState(false);
 
     const handleClose = useCallback(() => {
-        if (onBack) {
-            onBack();
-        } else {
-            popTopScreen(componentId);
-        }
-    }, [onBack, componentId]);
+        popTopScreen(componentId);
+    }, [componentId]);
 
     // Load members when screen opens
     useEffect(() => {
@@ -158,7 +112,7 @@ const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, tes
             return;
         }
         setTransferSearch('');
-        setTransferConfirmUser(null);
+        setSelectedUserId(null);
         const loadMembers = async () => {
             try {
                 const client = NetworkManager.getClient(serverUrl);
@@ -180,6 +134,23 @@ const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, tes
         loadMembers();
     }, [serverUrl, companyId]);
 
+    // Set up navigation bar confirm button
+    useEffect(() => {
+        const confirmText = intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'});
+        mergeNavigationOptions(componentId, {
+            topBar: {
+                rightButtons: [
+                    {
+                        id: CONFIRM_BUTTON_ID,
+                        text: selectedUserId ? confirmText : '',
+                        enabled: Boolean(selectedUserId) && !transferring,
+                        testID: 'transfer_ownership.confirm',
+                    },
+                ],
+            },
+        });
+    }, [componentId, selectedUserId, transferring, intl]);
+
     const filteredTransferMembers = useMemo(() => {
         const term = transferSearch.trim().toLowerCase();
         if (!term) {
@@ -195,22 +166,41 @@ const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, tes
     }, [transferMembers, transferSearch]);
 
     const handleTransferConfirm = useCallback(async () => {
-        if (!serverUrl || !companyId || !transferConfirmUser) {
+        if (!serverUrl || !companyId || !selectedUserId) {
             return;
         }
+        const selectedUser = transferMembers.find((u) => u.id === selectedUserId);
+        if (!selectedUser) {
+            return;
+        }
+
+        const ok = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+                intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: '转移控制权'}),
+                intl.formatMessage(
+                    {id: 'contacts.transfer_confirm_message', defaultMessage: '将 {name} 设为该企业的新所有者？'},
+                    {name: selectedUser.nickname || selectedUser.username},
+                ),
+                [
+                    {text: intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'}), style: 'cancel', onPress: () => resolve(false)},
+                    {text: intl.formatMessage({id: 'common.confirm', defaultMessage: 'Confirm'}), onPress: () => resolve(true)},
+                ],
+            );
+        });
+        if (!ok) {
+            return;
+        }
+
         setTransferring(true);
         try {
             const client = NetworkManager.getClient(serverUrl);
-            await client.transferTeamOwnership(companyId, transferConfirmUser.id);
+            await client.transferTeamOwnership(companyId, selectedUserId);
             showSnackBar({
                 barType: SNACK_BAR_TYPE.INFO_COPIED,
                 type: MESSAGE_TYPE.SUCCESS,
                 message: intl.formatMessage({id: 'contacts.transfer_ownership_success', defaultMessage: '控制权转移成功'}),
             });
-            setTransferConfirmUser(null);
-            setTransferMembers([]);
             handleClose();
-            onSuccess?.();
         } catch {
             Alert.alert(
                 intl.formatMessage({id: 'contacts.transfer_ownership_failed', defaultMessage: '转移控制权失败，请重试。'}),
@@ -218,100 +208,49 @@ const TransferOwnershipScreen = ({componentId, companyId, onBack, onSuccess, tes
         } finally {
             setTransferring(false);
         }
-    }, [serverUrl, companyId, transferConfirmUser, intl, handleClose, onSuccess]);
+    }, [serverUrl, companyId, selectedUserId, transferMembers, intl, handleClose]);
+
+    useNavButtonPressed(CONFIRM_BUTTON_ID, componentId, handleTransferConfirm, [handleTransferConfirm]);
 
     return (
         <SafeAreaView edges={SAFE_AREA_EDGES} style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backBtn}
-                    onPress={handleClose}
-                    testID={`${testIDPrefix}.back`}
-                >
-                    <CompassIcon
-                        name='arrow-left'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                    {transferConfirmUser ?
-                        intl.formatMessage({id: 'contacts.transfer_confirm', defaultMessage: '确认转移'}) :
-                        intl.formatMessage({id: 'contacts.transfer_ownership', defaultMessage: '转移控制权'})
-                    }
-                </Text>
-                <View style={styles.backBtn}/>
+            <View style={styles.searchWrap}>
+                <TextInput
+                    style={styles.searchInput}
+                    value={transferSearch}
+                    onChangeText={setTransferSearch}
+                    placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: '输入手机号,昵称...'})}
+                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
+                    testID='transfer_ownership.search'
+                />
             </View>
-
-            {transferConfirmUser ? (
-                <View style={styles.confirmWrap}>
-                    <Text style={styles.confirmText}>
-                        {intl.formatMessage(
-                            {id: 'contacts.transfer_confirm_message', defaultMessage: '将 {name} 设为该企业的新所有者？'},
-                            {name: transferConfirmUser.nickname || transferConfirmUser.username},
-                        )}
+            <FlatList
+                data={filteredTransferMembers}
+                keyExtractor={(item) => item.id}
+                renderItem={({item}) => {
+                    const displayName = item.nickname || `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username;
+                    const isSelected = selectedUserId === item.id;
+                    return (
+                        <TouchableOpacity
+                            style={styles.row}
+                            onPress={() => setSelectedUserId(isSelected ? null : item.id)}
+                        >
+                            <View style={[styles.radio, isSelected && styles.radioSelected]}>
+                                {isSelected && <View style={styles.radioDot}/>}
+                            </View>
+                            <ContactAvatar employee={item} size={36}/>
+                            <View style={styles.nameWrap}>
+                                <Text style={styles.displayName} numberOfLines={1}>{displayName}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    );
+                }}
+                ListEmptyComponent={
+                    <Text style={styles.emptyText}>
+                        {intl.formatMessage({id: 'contacts.transfer_no_members', defaultMessage: '没有匹配的成员'})}
                     </Text>
-                    <View style={styles.btnRow}>
-                        <TouchableOpacity
-                            style={styles.cancelBtn}
-                            onPress={() => setTransferConfirmUser(null)}
-                        >
-                            <Text style={styles.cancelBtnText}>
-                                {intl.formatMessage({id: 'common.cancel', defaultMessage: '取消'})}
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.confirmBtn}
-                            onPress={handleTransferConfirm}
-                            disabled={transferring}
-                        >
-                            <Text style={styles.confirmBtnText}>
-                                {transferring ?
-                                    intl.formatMessage({id: 'mobile.post.saving', defaultMessage: '保存中...'}) :
-                                    intl.formatMessage({id: 'contacts.transfer', defaultMessage: '转移'})
-                                }
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            ) : (
-                <View style={{flex: 1}}>
-                    <View style={styles.searchWrap}>
-                        <TextInput
-                            style={styles.searchInput}
-                            value={transferSearch}
-                            onChangeText={setTransferSearch}
-                            placeholder={intl.formatMessage({id: 'contacts.transfer_search_placeholder', defaultMessage: '输入手机号,昵称...'})}
-                            placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
-                            testID={`${testIDPrefix}.search`}
-                        />
-                    </View>
-                    <FlatList
-                        data={filteredTransferMembers}
-                        keyExtractor={(item) => item.id}
-                        renderItem={({item}) => {
-                            const displayName = item.nickname || `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username;
-                            return (
-                                <TouchableOpacity
-                                    style={styles.row}
-                                    onPress={() => setTransferConfirmUser(item)}
-                                >
-                                    <ContactAvatar employee={item} size={36}/>
-                                    <View style={styles.nameWrap}>
-                                        <Text style={styles.displayName} numberOfLines={1}>{displayName}</Text>
-                                        <Text style={styles.username} numberOfLines={1}>@{item.username}{item.email ? ` · ${item.email}` : ''}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        }}
-                        ListEmptyComponent={
-                            <Text style={styles.emptyText}>
-                                {intl.formatMessage({id: 'contacts.transfer_no_members', defaultMessage: '没有匹配的成员'})}
-                            </Text>
-                        }
-                    />
-                </View>
-            )}
+                }
+            />
         </SafeAreaView>
     );
 };
