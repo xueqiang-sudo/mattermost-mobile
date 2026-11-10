@@ -242,6 +242,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 const ContactsDepartmentAddMembersScreen = ({
     companyId,
+    companyName,
     targetDepartmentId,
     targetDepartmentName,
     onBack,

@@ -31,7 +31,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal} from '@screens/navigation';
+import {dismissModal, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getLastPictureUpdate} from '@utils/user';

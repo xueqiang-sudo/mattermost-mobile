@@ -52,7 +52,6 @@ import type {MMDepartment} from '@client/rest/team_department';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
 const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
-const DEPT_SEARCH_BUTTON_ID = 'contacts-department-detail-search';
 const DEPT_MORE_BUTTON_ID = 'contacts-department-detail-more';
 
 type Props = {
@@ -90,9 +89,6 @@ type Props = {
 
     /** 从个人信息页部门浏览 Wrapper 内嵌时为 true：不渲染顶栏与搜索/管理按钮，由 Wrapper 提供返回/关闭 */
     fromEmployeeProfile?: boolean;
-
-    /** 通讯录栈内：由 Wrapper 传入，打开通讯录搜索屏 */
-    onSearchPress?: () => void;
 
     /** 通讯录栈内：由 Wrapper 传入，打开添加成员屏 */
     onAddMember?: () => void;
@@ -333,7 +329,6 @@ const ContactsDepartmentDetail = ({
     onNavigateToDepartment,
     onBreadcrumbPress,
     fromEmployeeProfile = false,
-    onSearchPress,
     onAddMember,
     rnnHomeComponentId,
     managerIds,
@@ -425,31 +420,6 @@ const ContactsDepartmentDetail = ({
         );
         return () => listener.remove();
     }, [effectiveCloseButtonId, componentId, isStackScreen]);
-
-    const handleSearch = useCallback(() => {
-        if (onSearchPress) {
-            onSearchPress();
-            return;
-        }
-        const t = intl.formatMessage({id: 'contacts.search.title', defaultMessage: 'Search contacts'});
-        const closeId = `close-contacts-search-${companyId}-${departmentId ?? 'all'}`;
-        goToScreen(
-            Screens.CONTACTS_SEARCH,
-            t,
-            closeId,
-            {
-                companyId,
-                companyName,
-                ...(departmentId != null ?{
-                    departmentId,
-                    departmentName,
-                    departmentBreadcrumb: baseBreadcrumb,
-                } :{}),
-                closeButtonId: closeId,
-            },
-            {useBackIcon: true},
-        );
-    }, [baseBreadcrumb, companyId, companyName, departmentId, departmentName, intl, onSearchPress]);
 
     const handleDepartmentPress = usePreventDoubleTap(useCallback((dept: MMDepartment) => {
         const newBreadcrumb = [...baseBreadcrumb, dept.name];
@@ -1060,7 +1030,6 @@ const ContactsDepartmentDetail = ({
         });
     }, [companyId, departmentId, departmentName, intl, isCurrentUserOwner, memberCount, fetchData, serverUrl, theme, handleClose, handleModifyDepartmentName, handleModifyEnterpriseName, openManagerModal, handleDissolveEnterprise]));
 
-    useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
     useNavButtonPressed(DEPT_MORE_BUTTON_ID, effectiveCloseButtonId, handleMore, [handleMore]);
 
     // 更新 RNN 标题栏显示成员数量（非 Stack 模式时）
@@ -1081,41 +1050,24 @@ const ContactsDepartmentDetail = ({
         if (onBack || fromEmployeeProfile) {
             return;
         }
-        const searchIcon = CompassIcon.getImageSourceSync('magnify', 24, theme.sidebarHeaderTextColor);
 
-        // 右上角直接弹出菜单（不再显示三个点按钮）
-        // ERP 企业不显示菜单按钮，只显示搜索按钮
+        // ERP 企业不显示任何按钮；非 ERP 企业只显示菜单按钮
         if (isErpEnterprise) {
-            mergeNavigationOptions(effectiveCloseButtonId, {
-                topBar: {
-                    rightButtons: [
-                        {
-                            id: DEPT_SEARCH_BUTTON_ID,
-                            icon: searchIcon,
-                            testID: 'contacts.department_detail.search.button',
-                        },
-                    ],
-                },
-            });
-        } else {
-            const menuIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
-            mergeNavigationOptions(effectiveCloseButtonId, {
-                topBar: {
-                    rightButtons: [
-                        {
-                            id: DEPT_MORE_BUTTON_ID,
-                            icon: menuIcon,
-                            testID: 'contacts.department_detail.menu.button',
-                        },
-                        {
-                            id: DEPT_SEARCH_BUTTON_ID,
-                            icon: searchIcon,
-                            testID: 'contacts.department_detail.search.button',
-                        },
-                    ],
-                },
-            });
+            return;
         }
+
+        const menuIcon = CompassIcon.getImageSourceSync('format-list-bulleted', 24, theme.sidebarHeaderTextColor);
+        mergeNavigationOptions(effectiveCloseButtonId, {
+            topBar: {
+                rightButtons: [
+                    {
+                        id: DEPT_MORE_BUTTON_ID,
+                        icon: menuIcon,
+                        testID: 'contacts.department_detail.menu.button',
+                    },
+                ],
+            },
+        });
     }, [effectiveCloseButtonId, manageMode, onBack, fromEmployeeProfile, theme.sidebarHeaderTextColor, isErpEnterprise]);
 
     const fetchData = useCallback(async () => {
@@ -1433,17 +1385,6 @@ const ContactsDepartmentDetail = ({
                                 />
                             </TouchableOpacity>
                         )}
-                        <TouchableOpacity
-                            onPress={handleSearch}
-                            style={styles.stackHeaderBack}
-                            testID='contacts.department_detail.search.button'
-                        >
-                            <CompassIcon
-                                name='magnify'
-                                size={24}
-                                color={theme.sidebarHeaderTextColor}
-                            />
-                        </TouchableOpacity>
                     </View>
                 </View>
             ) : null}

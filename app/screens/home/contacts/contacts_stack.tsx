@@ -4,7 +4,6 @@
 import {useFocusEffect, useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import {createStackNavigator, type StackNavigationProp} from '@react-navigation/stack';
 import React, {createContext, useContext, useState, useCallback, useRef} from 'react';
-import {useIntl} from 'react-intl';
 
 import {Screens} from '@constants';
 
@@ -33,7 +32,6 @@ type ContactsStackProps = {
 };
 
 function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
-    const intl = useIntl();
     const rnnHomeComponentId = useContext(ContactsRnnHomeComponentIdContext);
     const route = useRoute<RouteProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList, typeof Screens.CONTACTS_DEPARTMENT_DETAIL>>();
@@ -81,22 +79,6 @@ function DepartmentDetailWrapper({currentUserId}: {currentUserId?: string}) {
                     ownerId: nextParams.ownerId ?? params.ownerId,
                     currentUserId: nextParams.currentUserId ?? params.currentUserId ?? currentUserId,
                     initialManageMode: nextParams.initialManageMode,
-                });
-            }}
-            onSearchPress={() => {
-                const enterpriseLabel = intl.formatMessage({
-                    id: 'contacts.enterprise',
-                    defaultMessage: 'Enterprise Contacts',
-                });
-                const departmentBreadcrumb =
-                    params.breadcrumb && params.breadcrumb.length > 0 ?params.breadcrumb :[enterpriseLabel, params.departmentName];
-                navigation.navigate(Screens.CONTACTS_SEARCH, {
-                    companyId: params.companyId,
-                    companyName: params.companyName,
-                    departmentId: params.departmentId,
-                    departmentName: params.departmentName,
-                    departmentBreadcrumb,
-                    currentUserId,
                 });
             }}
             onAddMember={() => {
