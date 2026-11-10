@@ -19,10 +19,10 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -31,29 +31,24 @@ import {
     editQuickNote,
 } from './smart_notebook_api';
 
-type RouteParams = {
-    QuickNoteDetail: {
-        postId: string;
-        channelId: string;
-        title?: string;
-        content?: string;
-    };
+type Props = {
+    postId: string;
+    channelId: string;
+    title?: string;
+    content?: string;
 };
 
-const QuickNoteDetailScreen = () => {
+const QuickNoteDetailScreen = ({postId, channelId, title: initialTitle, content: initialContent}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute<RouteProp<RouteParams, 'QuickNoteDetail'>>();
     const style = getStyleSheet(theme);
 
-    const {postId, channelId} = route.params;
     const isNew = postId === 'new';
 
     // State
-    const [title, setTitle] = useState(route.params.title || '');
-    const [content, setContent] = useState(route.params.content || '');
+    const [title, setTitle] = useState(initialTitle || '');
+    const [content, setContent] = useState(initialContent || '');
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
 
@@ -78,7 +73,7 @@ const QuickNoteDetailScreen = () => {
             }
 
             if (success) {
-                navigation.goBack();
+                popTopScreen();
             } else {
                 Alert.alert(
                     intl.formatMessage({id: 'quick_note.save_failed', defaultMessage: '保存失败'}),
@@ -92,7 +87,7 @@ const QuickNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [serverUrl, channelId, postId, title, content, isNew, navigation, intl]);
+    }, [serverUrl, channelId, postId, title, content, isNew, intl]);
 
     // ---- Go back ----
     const goBack = useCallback(() => {
@@ -108,14 +103,14 @@ const QuickNoteDetailScreen = () => {
                     {
                         text: intl.formatMessage({id: 'quick_note.discard', defaultMessage: '放弃'}),
                         style: 'destructive',
-                        onPress: () => navigation.goBack(),
+                        onPress: () => popTopScreen(),
                     },
                 ],
             );
         } else {
-            navigation.goBack();
+            popTopScreen();
         }
-    }, [dirty, navigation, intl]);
+    }, [dirty, intl]);
 
     return (
         <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>

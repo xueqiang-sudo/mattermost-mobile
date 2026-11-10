@@ -17,13 +17,13 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {getCurrentUserId} from '@queries/servers/system';
+import {goToScreen, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -107,11 +107,14 @@ function getQuickNoteData(post: Post): QuickNoteData {
 
 // ---- Component ----
 
-const SmartNotebookScreen = () => {
+type Props = {
+    channelId?: string;
+};
+
+const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
     // Top-level tab
@@ -157,8 +160,13 @@ const SmartNotebookScreen = () => {
                 const uid = await getCurrentUserId(database);
                 setUserId(uid);
 
-                const ch = await getOrCreateSmartNotebookChannel(serverUrl);
-                setChannel(ch);
+                if (propChannelId) {
+                    // channelId passed from goToScreen (channel header menu)
+                    setChannel({id: propChannelId, name: '', display_name: '', team_id: '', type: ''});
+                } else {
+                    const ch = await getOrCreateSmartNotebookChannel(serverUrl);
+                    setChannel(ch);
+                }
             } catch (err) {
                 console.error('Smart notebook init failed:', err);
             } finally {
@@ -166,7 +174,7 @@ const SmartNotebookScreen = () => {
             }
         };
         init();
-    }, [serverUrl]);
+    }, [serverUrl, propChannelId]);
 
     // ---- Load all posts (then split into knowledge notes and quick notes) ----
     const loadAllPosts = useCallback(async () => {
@@ -228,43 +236,36 @@ const SmartNotebookScreen = () => {
         setQnRefreshing(false);
     }, [loadAllPosts]);
 
-    // ---- Refresh on focus ----
-    useFocusEffect(
-        useCallback(() => {
-            if (needsRefresh.current && channel?.id) {
-                needsRefresh.current = false;
-                loadAllPosts();
-            }
-        }, [channel, loadAllPosts]),
-    );
 
     // ---- Click timeline item → go back to channel ----
-    const onTimelineItemClick = useCallback((post: Post) => {
+    const onTimelineItemClick = useCallback((_post: Post) => {
         // 返回频道（和 webapp RHS 面板行为一致：点击条目回到频道查看帖子）
-        navigation.goBack();
-    }, [navigation]);
+        popTopScreen();
+    }, []);
 
 
     // ---- Open quick note detail ----
     const openQuickNote = useCallback((note: Post) => {
         needsRefresh.current = true;
         const data = getQuickNoteData(note);
-        navigation.navigate(Screens.QUICK_NOTE_DETAIL, {
+        const title = intl.formatMessage({id: 'quick_note.edit', defaultMessage: '编辑随手记'});
+        goToScreen(Screens.QUICK_NOTE_DETAIL, title, {
             postId: note.id,
             channelId: channel?.id,
             title: data.title,
             content: data.content,
         });
-    }, [navigation, channel]);
+    }, [channel, intl]);
 
     // ---- Create new quick note ----
     const onCreateQuickNote = useCallback(() => {
         needsRefresh.current = true;
-        navigation.navigate(Screens.QUICK_NOTE_DETAIL, {
+        const title = intl.formatMessage({id: 'quick_note.new', defaultMessage: '新建随手记'});
+        goToScreen(Screens.QUICK_NOTE_DETAIL, title, {
             postId: 'new',
             channelId: channel?.id,
         });
-    }, [navigation, channel]);
+    }, [channel, intl]);
 
     // ---- Delete quick note ----
     const onDeleteQuickNote = useCallback((note: Post) => {
@@ -328,12 +329,8 @@ const SmartNotebookScreen = () => {
 
     // ---- Go back ----
     const goBack = useCallback(() => {
-        setTimeout(() => {
-            if (navigation.canGoBack()) {
-                navigation.goBack();
-            }
-        }, 50);
-    }, [navigation]);
+        popTopScreen();
+    }, []);
 
     // ---- Render right actions for swipe (quick notes) ----
     const renderQnRightActions = useCallback((note: Post) => {

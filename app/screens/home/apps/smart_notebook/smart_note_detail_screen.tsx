@@ -20,10 +20,10 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -34,25 +34,19 @@ import {
     type Post,
 } from './smart_notebook_api';
 
-type RouteParams = {
-    SmartNoteDetail: {
-        postId: string;
-        channelId: string;
-        postTitle: string;
-    };
+type Props = {
+    postId: string;
+    channelId: string;
+    postTitle: string;
 };
 
 // ---- Component ----
 
-const SmartNoteDetailScreen = () => {
+const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute<RouteProp<RouteParams, 'SmartNoteDetail'>>();
     const style = getStyleSheet(theme);
-
-    const {postId, channelId, postTitle} = route.params;
     const isNew = postId === 'new';
 
     // State
@@ -98,7 +92,7 @@ const SmartNoteDetailScreen = () => {
                 // 创建新帖子
                 const newPost = await createPost(serverUrl, channelId, content.trim());
                 if (newPost) {
-                    navigation.goBack();
+                    popTopScreen();
                 } else {
                     Alert.alert(
                         intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
@@ -108,7 +102,7 @@ const SmartNoteDetailScreen = () => {
                 // 编辑帖子
                 const updated = await editPost(serverUrl, postId, content.trim());
                 if (updated) {
-                    navigation.goBack();
+                    popTopScreen();
                 } else {
                     Alert.alert(
                         intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
@@ -123,7 +117,7 @@ const SmartNoteDetailScreen = () => {
         } finally {
             setSaving(false);
         }
-    }, [serverUrl, channelId, postId, content, isNew, navigation, intl]);
+    }, [serverUrl, channelId, postId, content, isNew, intl]);
 
     // ---- Content change ----
     const onContentChange = useCallback((text: string) => {
@@ -145,14 +139,14 @@ const SmartNoteDetailScreen = () => {
                     {
                         text: intl.formatMessage({id: 'smart_notebook.discard', defaultMessage: '放弃'}),
                         style: 'destructive',
-                        onPress: () => navigation.goBack(),
+                        onPress: () => popTopScreen(),
                     },
                 ],
             );
         } else {
-            navigation.goBack();
+            popTopScreen();
         }
-    }, [dirty, navigation, intl]);
+    }, [dirty, intl]);
 
     // ---- Render ----
     if (loading) {

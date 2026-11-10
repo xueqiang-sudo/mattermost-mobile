@@ -252,8 +252,8 @@ const ChannelHeader = ({
 
     const openKnowledgeNotes = useCallback(() => {
         const title = intl.formatMessage({id: 'channel_header.knowledge_notes', defaultMessage: '知识笔记'});
-        goToScreen(Screens.APPS_SMART_NOTEBOOK, title, {});
-    }, [intl]);
+        goToScreen(Screens.APPS_SMART_NOTEBOOK, title, {channelId});
+    }, [intl, channelId]);
 
     const isSmartNotebookChannel = channelName?.startsWith('sn_');
 

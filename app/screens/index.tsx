@@ -129,6 +129,15 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.AI_ASSISTANT_PANEL:
             screen = withServerDatabase(require('@screens/ai_assistant/ai_assistant_panel').default);
             break;
+        case Screens.APPS_SMART_NOTEBOOK:
+            screen = withServerDatabase(require('@screens/home/apps/smart_notebook/smart_notebook_screen').default);
+            break;
+        case Screens.SMART_NOTE_DETAIL:
+            screen = withServerDatabase(require('@screens/home/apps/smart_notebook/smart_note_detail_screen').default);
+            break;
+        case Screens.QUICK_NOTE_DETAIL:
+            screen = withServerDatabase(require('@screens/home/apps/smart_notebook/quick_note_detail_screen').default);
+            break;
         case Screens.ROLE_LIST:
             screen = withServerDatabase(require('@screens/role_management/role_list').default);
             break;
