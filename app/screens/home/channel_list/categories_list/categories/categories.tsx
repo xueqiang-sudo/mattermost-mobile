@@ -15,6 +15,8 @@ import {useTeamSwitch} from '@hooks/team_switch';
 import NetworkManager from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {fetchMyChannelsForTeam} from '@actions/remote/channel';
+import {fetchCategories} from '@actions/remote/category';
+import {debugLog} from '@store/debug_log';
 
 import CollapsibleChannelList from './collapsible_channel_list';
 import LoadCategoriesError from './error';
@@ -101,27 +103,47 @@ const Categories = ({
     // 对齐 webapp：团队切换时自动绑定智能笔记本频道
     const ensuredTeamsRef = useRef<Set<string>>(new Set());
     useEffect(() => {
+        debugLog('[SmartNotebook] useEffect triggered', {
+            currentTeamId,
+            currentUserId,
+            switchingTeam,
+            hasEnsured: ensuredTeamsRef.current.has(currentTeamId || ''),
+        });
+
         if (!currentTeamId || !currentUserId || switchingTeam) {
+            debugLog('[SmartNotebook] Skipped: missing params or switching', {
+                currentTeamId,
+                currentUserId,
+                switchingTeam,
+            });
             return;
         }
 
         if (ensuredTeamsRef.current.has(currentTeamId)) {
+            debugLog('[SmartNotebook] Skipped: already ensured for team', {currentTeamId});
             return;
         }
         ensuredTeamsRef.current.add(currentTeamId);
 
         const ensureSmartNotebookTeam = async () => {
+            debugLog('[SmartNotebook] Calling ensure_smart_notebook_team API', {currentTeamId});
             try {
                 const client = NetworkManager.getClient(serverUrl);
                 const result = await client.doFetch('/api/v4/channels/ensure_smart_notebook_team', {
                     method: 'post',
                     body: {team_id: currentTeamId},
                 });
-                if (result?.channel_id) {
-                    await fetchMyChannelsForTeam(serverUrl, currentTeamId);
-                }
-            } catch {
-                // Non-critical
+                debugLog('[SmartNotebook] API result', {result, channelId: result?.channel_id});
+
+                // Always fetch channels and categories after ensure, regardless of result
+                debugLog('[SmartNotebook] Fetching channels and categories for team', {currentTeamId});
+                await Promise.all([
+                    fetchMyChannelsForTeam(serverUrl, currentTeamId),
+                    fetchCategories(serverUrl, currentTeamId),
+                ]);
+                debugLog('[SmartNotebook] Channels and categories fetched successfully');
+            } catch (error) {
+                debugLog('[SmartNotebook] API error', {error: String(error)});
             }
         };
 
