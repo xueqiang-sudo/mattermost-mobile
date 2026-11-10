@@ -152,8 +152,8 @@ const Categories = ({
                     const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                     const channel = await getChannelById(database, result.channel_id);
                     if (channel) {
-                        debugLog('[SmartNotebook] Channel found in database, adding to category');
-                        await addChannelToDefaultCategory(serverUrl, channel, true);
+                        debugLog('[SmartNotebook] Channel found in database, adding to category', {channelTeamId: channel.teamId});
+                        await addChannelToDefaultCategory(serverUrl, channel, false);
                         debugLog('[SmartNotebook] Channel added to default category successfully');
                     } else {
                         debugLog('[SmartNotebook] Channel not found in database after fetch');
