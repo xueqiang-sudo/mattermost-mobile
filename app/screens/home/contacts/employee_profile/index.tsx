@@ -453,11 +453,20 @@ const ContactsEmployeeProfile = ({
 
             // 处理部门变更
             if (fromManage && companyIdProp && selectedDeptId !== undefined && selectedDeptId !== departmentId) {
-                if (departmentId !== undefined) {
-                    // 从旧部门移到新部门
-                    await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee?.id, departmentId, selectedDeptId);
+                try {
+                    if (departmentId !== undefined) {
+                        // 从旧部门移到新部门
+                        await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee?.id, departmentId, selectedDeptId);
+                    } else {
+                        // 原来没有部门，添加到选中的部门
+                        const client = NetworkManager.getClient(serverUrl);
+                        await client.addDepartmentMember(companyIdProp, selectedDeptId, {
+                            user_id: employee?.id,
+                        });
+                    }
+                } catch (e) {
+                    debugLog('[EmployeeProfile] 部门变更失败', {error: String(e)});
                 }
-                // 如果原来没有部门（departmentId为undefined），则只记录变更但不移动（需要用户手动添加到部门）
             }
 
             popTopScreen(componentId);
