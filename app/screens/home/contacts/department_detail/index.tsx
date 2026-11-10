@@ -688,8 +688,21 @@ const ContactsDepartmentDetail = ({
     const handleAddMember = usePreventDoubleTap(useCallback(() => {
         if (onAddMember) {
             onAddMember();
+        } else {
+            // Fallback: 直接导航到添加成员页面
+            const title = intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});
+            goToScreen(
+                Screens.INTERNAL_MEMBER_ADD,
+                title,
+                {
+                    ownerId: resolvedOwnerId,
+                    companyId,
+                    companyName: enterpriseDisplayName ?? companyName,
+                },
+                {useBackIcon: true},
+            );
         }
-    }, [onAddMember]));
+    }, [onAddMember, intl, resolvedOwnerId, companyId, enterpriseDisplayName, companyName]));
 
     const handleAddSubDepartment = usePreventDoubleTap(useCallback(async () => {
         const name = await subDeptInput.showModal({
