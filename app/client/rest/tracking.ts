@@ -79,6 +79,7 @@ export default class ClientTracking {
 
     setClientCredentials(bearerToken: string, preauthSecret?: string) {
         this.requestHeaders[ClientConstants.HEADER_AUTH] = `${ClientConstants.HEADER_BEARER} ${bearerToken}`;
+        this.requestHeaders[ClientConstants.HEADER_REQUESTED_WITH] = 'XMLHttpRequest';
 
         if (preauthSecret) {
             this.requestHeaders[ClientConstants.HEADER_X_MATTERMOST_PREAUTH_SECRET] = preauthSecret;
