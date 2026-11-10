@@ -16,6 +16,9 @@ import NetworkManager from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
 import {fetchMyChannelsForTeam} from '@actions/remote/channel';
 import {fetchCategories} from '@actions/remote/category';
+import {addChannelToDefaultCategory} from '@actions/local/category';
+import {getChannelById} from '@queries/servers/channel';
+import DatabaseManager from '@database/manager';
 import {debugLog} from '@store/debug_log';
 
 import CollapsibleChannelList from './collapsible_channel_list';
@@ -142,6 +145,20 @@ const Categories = ({
                     fetchCategories(serverUrl, currentTeamId),
                 ]);
                 debugLog('[SmartNotebook] Channels and categories fetched successfully');
+
+                // If we got a channel_id, ensure it's in the default category
+                if (result?.channel_id) {
+                    debugLog('[SmartNotebook] Adding channel to default category', {channelId: result.channel_id});
+                    const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                    const channel = await getChannelById(database, result.channel_id);
+                    if (channel) {
+                        debugLog('[SmartNotebook] Channel found in database, adding to category');
+                        await addChannelToDefaultCategory(serverUrl, channel, true);
+                        debugLog('[SmartNotebook] Channel added to default category successfully');
+                    } else {
+                        debugLog('[SmartNotebook] Channel not found in database after fetch');
+                    }
+                }
             } catch (error) {
                 debugLog('[SmartNotebook] API error', {error: String(error)});
             }
