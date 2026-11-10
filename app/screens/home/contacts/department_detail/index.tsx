@@ -1441,40 +1441,6 @@ const ContactsDepartmentDetail = ({
             >
                 {renderContent()}
             </ScrollView>
-            {manageMode && (
-                <View style={styles.bottomBar}>
-                    <TouchableOpacity
-                        style={styles.bottomButton}
-                        onPress={handleAddMember}
-                        activeOpacity={0.7}
-                        testID='contacts.department_detail.bottom.add_member'
-                    >
-                        <Text style={styles.bottomButtonText}>
-                            {intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.bottomButton}
-                        onPress={handleAddSubDepartment}
-                        activeOpacity={0.7}
-                        testID='contacts.department_detail.bottom.add_sub_department'
-                    >
-                        <Text style={styles.bottomButtonText}>
-                            {intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.bottomButton}
-                        onPress={handleMore}
-                        activeOpacity={0.7}
-                        testID='contacts.department_detail.bottom.more'
-                    >
-                        <Text style={styles.bottomButtonText}>
-                            {intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'})}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
             <CustomInputModal
                 key={subDeptInput.visible ? 'subdept-open' : 'subdept-closed'}
                 visible={subDeptInput.visible}
