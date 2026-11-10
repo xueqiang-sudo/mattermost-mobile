@@ -214,12 +214,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         ...typography('Body', 200, 'Regular'),
     },
-    memberCountFooter: {
-        ...typography('Body', 75),
-        color: changeOpacity(theme.centerChannelColor, 0.64),
-        textAlign: 'center',
-        paddingVertical: 16,
-    },
     listItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -378,6 +372,14 @@ const ContactsDepartmentDetail = ({
     const modifyDeptNameInput = useCustomInputModal();
     const modifyEnterpriseNameInput = useCustomInputModal();
     const [enterpriseDisplayName, setEnterpriseDisplayName] = useState<string | undefined>(companyName);
+
+    // 标题栏显示：名称(成员数量)
+    const titleWithCount = useMemo(() => {
+        const name = departmentId == null
+            ? (enterpriseDisplayName ?? companyName ?? departmentName)
+            : departmentName;
+        return memberCount > 0 ? `${name}(${memberCount})` : name;
+    }, [departmentId, departmentName, enterpriseDisplayName, companyName, memberCount]);
 
     const baseBreadcrumb = React.useMemo(
         () => (breadcrumb.length > 0 ? breadcrumb : [
@@ -1008,6 +1010,20 @@ const ContactsDepartmentDetail = ({
     useNavButtonPressed(DEPT_EXIT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleExitManage, [handleExitManage]);
     useNavButtonPressed(DEPT_MORE_BUTTON_ID, effectiveCloseButtonId, handleMore, [handleMore]);
 
+    // 更新 RNN 标题栏显示成员数量（非 Stack 模式时）
+    useEffect(() => {
+        if (onBack || fromEmployeeProfile) {
+            return;
+        }
+        mergeNavigationOptions(effectiveCloseButtonId, {
+            topBar: {
+                title: {
+                    text: titleWithCount,
+                },
+            },
+        });
+    }, [effectiveCloseButtonId, onBack, fromEmployeeProfile, titleWithCount]);
+
     useEffect(() => {
         if (onBack || fromEmployeeProfile) {
             return;
@@ -1329,14 +1345,6 @@ const ContactsDepartmentDetail = ({
                         ) : null}
                     </React.Fragment>
                 ))}
-                {(hasSubDepts || hasEmps) && (
-                    <Text style={styles.memberCountFooter}>
-                        {intl.formatMessage(
-                            {id: 'contacts.member_count', defaultMessage: 'Total {count} members'},
-                            {count: memberCount},
-                        )}
-                    </Text>
-                )}
             </>
         );
     };
@@ -1368,7 +1376,7 @@ const ContactsDepartmentDetail = ({
                     </TouchableOpacity>
                     <View style={styles.stackHeaderTitleSlot}>
                         <AdaptiveTitleText
-                            text={departmentName}
+                            text={titleWithCount}
                             textStyle={styles.stackHeaderTitle}
                             testID='contacts.department_detail.header_title'
                         />

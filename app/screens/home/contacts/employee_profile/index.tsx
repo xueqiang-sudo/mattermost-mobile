@@ -8,7 +8,7 @@ import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, Touc
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeBotGroupChannel, makeGroupChannel} from '@actions/remote/channel';
-import {fetchDepartmentsByTeam, moveContactEmployeeToDepartment} from '@actions/remote/contact_new';
+import {fetchDepartmentsByTeam, fetchDefaultDepartment, moveContactEmployeeToDepartment} from '@actions/remote/contact_new';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
@@ -562,7 +562,8 @@ const ContactsEmployeeProfile = ({
         };
     }, [companyIdProp, employee?.id, serverUrl, fromManage]);
 
-    // 加载部门列表（编辑模式）
+    // 加载部门列表（编辑模式）+ 默认部门
+    const [defaultDeptId, setDefaultDeptId] = useState<number | undefined>();
     useEffect(() => {
         if (!companyIdProp || !serverUrl || !fromManage) {
             return;
@@ -572,9 +573,23 @@ const ContactsEmployeeProfile = ({
 
         const loadDepartments = async () => {
             try {
-                const res = await fetchDepartmentsByTeam(serverUrl, companyIdProp, {perPage: 10000});
-                if (!cancelled && res.data) {
-                    setDepartments(res.data);
+                const [deptRes, defaultDeptRes] = await Promise.all([
+                    fetchDepartmentsByTeam(serverUrl, companyIdProp, {perPage: 10000}),
+                    fetchDefaultDepartment(serverUrl, companyIdProp),
+                ]);
+                if (cancelled) {
+                    return;
+                }
+                if (defaultDeptRes.data) {
+                    setDefaultDeptId(defaultDeptRes.data.id);
+                }
+                if (deptRes.data) {
+                    // 确保默认部门在列表中
+                    let depts = deptRes.data;
+                    if (defaultDeptRes.data && !depts.find((d) => d.id === defaultDeptRes.data.id)) {
+                        depts = [defaultDeptRes.data, ...depts];
+                    }
+                    setDepartments(depts);
                 }
             } catch (e) {
                 // 静默失败
@@ -1152,19 +1167,21 @@ const ContactsEmployeeProfile = ({
                                     </TouchableOpacity>
                                     {deptDropdownOpen && (
                                         <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
-                                            {/* 无部门选项（对齐 webapp） */}
-                                            <TouchableOpacity
-                                                style={[styles.dropdownItem, selectedDeptId === undefined && styles.dropdownItemSelected]}
-                                                onPress={() => {
-                                                    setSelectedDeptId(undefined);
-                                                    setDeptDropdownOpen(false);
-                                                }}
-                                            >
-                                                <Text style={styles.dropdownItemText}>
-                                                    {companyName || intl.formatMessage({id: 'contacts.no_department', defaultMessage: '无部门'})}
-                                                </Text>
-                                            </TouchableOpacity>
-                                            {deptTree.map(({dept, depth}) => (
+                                            {/* 默认部门选项（显示企业名称） */}
+                                            {defaultDeptId !== undefined && (
+                                                <TouchableOpacity
+                                                    style={[styles.dropdownItem, selectedDeptId === defaultDeptId && styles.dropdownItemSelected]}
+                                                    onPress={() => {
+                                                        setSelectedDeptId(defaultDeptId);
+                                                        setDeptDropdownOpen(false);
+                                                    }}
+                                                >
+                                                    <Text style={styles.dropdownItemText}>
+                                                        {companyName || intl.formatMessage({id: 'contacts.default_department', defaultMessage: '默认部门'})}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                            {deptTree.filter(({dept}) => dept.name !== 'FORCE_TEAM_DEFAULT_DEPARTMENT').map(({dept, depth}) => (
                                                 <TouchableOpacity
                                                     key={dept.id}
                                                     style={[styles.dropdownItem, selectedDeptId === dept.id && styles.dropdownItemSelected]}
@@ -1174,7 +1191,7 @@ const ContactsEmployeeProfile = ({
                                                     }}
                                                 >
                                                     <Text style={styles.dropdownItemText}>
-                                                        {' '.repeat(depth)}{depth > 0 ? '└ ' : ''}{dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT' ? (companyName || '-') : dept.name}
+                                                        {' '.repeat(depth)}{depth > 0 ? '└ ' : ''}{dept.name}
                                                     </Text>
                                                 </TouchableOpacity>
                                             ))}
