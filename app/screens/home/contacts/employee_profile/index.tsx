@@ -415,6 +415,27 @@ const ContactsEmployeeProfile = ({
     const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
     const [selectedDeptId, setSelectedDeptId] = useState<number | undefined>(departmentId);
 
+    // 构建树形部门结构（对齐 webapp）
+    const deptTree = useMemo(() => {
+        type DeptTreeItem = {dept: MMDepartment; depth: number};
+        const byParent = new Map<number | null, MMDepartment[]>();
+        for (const d of departments) {
+            const pid = d.parent_id ?? null;
+            if (!byParent.has(pid)) byParent.set(pid, []);
+            byParent.get(pid)!.push(d);
+        }
+        const result: DeptTreeItem[] = [];
+        const walk = (parentId: number | null, depth: number) => {
+            const children = byParent.get(parentId) || [];
+            for (const child of children) {
+                result.push({dept: child, depth});
+                walk(child.id, depth + 1);
+            }
+        };
+        walk(null, 0);
+        return result;
+    }, [departments]);
+
     const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl || saving || !employee) {
             return;
@@ -1131,7 +1152,19 @@ const ContactsEmployeeProfile = ({
                                     </TouchableOpacity>
                                     {deptDropdownOpen && (
                                         <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
-                                            {departments.map((dept) => (
+                                            {/* 无部门选项（对齐 webapp） */}
+                                            <TouchableOpacity
+                                                style={[styles.dropdownItem, selectedDeptId === undefined && styles.dropdownItemSelected]}
+                                                onPress={() => {
+                                                    setSelectedDeptId(undefined);
+                                                    setDeptDropdownOpen(false);
+                                                }}
+                                            >
+                                                <Text style={styles.dropdownItemText}>
+                                                    {companyName || intl.formatMessage({id: 'contacts.no_department', defaultMessage: '无部门'})}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {deptTree.map(({dept, depth}) => (
                                                 <TouchableOpacity
                                                     key={dept.id}
                                                     style={[styles.dropdownItem, selectedDeptId === dept.id && styles.dropdownItemSelected]}
@@ -1141,11 +1174,11 @@ const ContactsEmployeeProfile = ({
                                                     }}
                                                 >
                                                     <Text style={styles.dropdownItemText}>
-                                                        {dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT' ? (companyName || '-') : dept.name}
+                                                        {' '.repeat(depth)}{depth > 0 ? '└ ' : ''}{dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT' ? (companyName || '-') : dept.name}
                                                     </Text>
                                                 </TouchableOpacity>
                                             ))}
-                                            {departments.length === 0 && (
+                                            {deptTree.length === 0 && (
                                                 <Text style={styles.dropdownEmpty}>
                                                     {intl.formatMessage({id: 'contacts.no_departments', defaultMessage: '暂无部门'})}
                                                 </Text>

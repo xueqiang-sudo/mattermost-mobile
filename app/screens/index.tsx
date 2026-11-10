@@ -154,7 +154,7 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             screen = withServerDatabase(require('@screens/home/contacts/batch_move_members').default);
             break;
         case Screens.INTERNAL_MEMBER_ADD:
-            screen = withServerDatabase(require('@screens/home/contacts/internal_member_add').default);
+            screen = withIntl(withServerDatabase(require('@screens/home/contacts/internal_member_add').default));
             break;
         case Screens.TRANSFER_OWNERSHIP:
             screen = withServerDatabase(require('@screens/transfer_ownership').default);

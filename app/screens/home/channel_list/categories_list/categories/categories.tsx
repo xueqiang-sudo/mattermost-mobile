@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {DeviceEventEmitter, StyleSheet, View} from 'react-native';
 
@@ -12,7 +12,9 @@ import {CHANNEL} from '@constants/screens';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import {useTeamSwitch} from '@hooks/team_switch';
+import NetworkManager from '@managers/network_manager';
 import PerformanceMetricsManager from '@managers/performance_metrics_manager';
+import {fetchMyChannelsForTeam} from '@actions/remote/channel';
 
 import CollapsibleChannelList from './collapsible_channel_list';
 import LoadCategoriesError from './error';
@@ -95,6 +97,36 @@ const Categories = ({
 
         PerformanceMetricsManager.endMetric('mobile_team_switch', serverUrl);
     }, [switchingTeam]);
+
+    // 对齐 webapp：团队切换时自动绑定智能笔记本频道
+    const ensuredTeamsRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        if (!currentTeamId || !currentUserId || switchingTeam) {
+            return;
+        }
+
+        if (ensuredTeamsRef.current.has(currentTeamId)) {
+            return;
+        }
+        ensuredTeamsRef.current.add(currentTeamId);
+
+        const ensureSmartNotebookTeam = async () => {
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                const result = await client.doFetch('/api/v4/channels/ensure_smart_notebook_team', {
+                    method: 'post',
+                    body: {team_id: currentTeamId},
+                });
+                if (result?.channel_id) {
+                    await fetchMyChannelsForTeam(serverUrl, currentTeamId);
+                }
+            } catch {
+                // Non-critical
+            }
+        };
+
+        ensureSmartNotebookTeam();
+    }, [currentTeamId, currentUserId, switchingTeam, serverUrl]);
 
     if (!categories.length) {
         return <LoadCategoriesError/>;

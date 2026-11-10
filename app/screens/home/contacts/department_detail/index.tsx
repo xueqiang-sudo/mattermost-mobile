@@ -55,6 +55,7 @@ const CLOSE_BUTTON_ID = 'close-contacts-department-detail';
 const DEPT_SEARCH_BUTTON_ID = 'contacts-department-detail-search';
 const DEPT_MANAGE_BUTTON_ID = 'contacts-department-detail-manage';
 const DEPT_EXIT_MANAGE_BUTTON_ID = 'contacts-department-detail-exit-manage';
+const DEPT_MORE_BUTTON_ID = 'contacts-department-detail-more';
 
 type Props = {
     componentId: AvailableScreens;
@@ -661,9 +662,11 @@ const ContactsDepartmentDetail = ({
     }, [baseBreadcrumb, companyId, departmentId, departmentName, companyName, intl, manageMode]));
 
     const handleEnterManage = usePreventDoubleTap(useCallback(() => {
-        // 【修改】直接弹出合并后的菜单，不再进入管理模式显示底部按钮
-        handleMore();
-    }, [handleMore]));
+        if (isErpEnterprise) {
+            return;
+        }
+        setManageMode(true);
+    }, [isErpEnterprise]));
 
     const handleExitManage = usePreventDoubleTap(useCallback(() => {
         setManageMode(false);
@@ -1003,6 +1006,7 @@ const ContactsDepartmentDetail = ({
     useNavButtonPressed(DEPT_SEARCH_BUTTON_ID, effectiveCloseButtonId, handleSearch, [handleSearch]);
     useNavButtonPressed(DEPT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleEnterManage, [handleEnterManage]);
     useNavButtonPressed(DEPT_EXIT_MANAGE_BUTTON_ID, effectiveCloseButtonId, handleExitManage, [handleExitManage]);
+    useNavButtonPressed(DEPT_MORE_BUTTON_ID, effectiveCloseButtonId, handleMore, [handleMore]);
 
     useEffect(() => {
         if (onBack || fromEmployeeProfile) {
@@ -1012,6 +1016,7 @@ const ContactsDepartmentDetail = ({
 
         if (manageMode) {
             const closeIcon = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+            const moreIcon = CompassIcon.getImageSourceSync('dots-vertical', 24, theme.sidebarHeaderTextColor);
             mergeNavigationOptions(effectiveCloseButtonId, {
                 topBar: {
                     rightButtons: [
@@ -1019,6 +1024,11 @@ const ContactsDepartmentDetail = ({
                             id: DEPT_EXIT_MANAGE_BUTTON_ID,
                             icon: closeIcon,
                             testID: 'contacts.department_detail.exit_manage.button',
+                        },
+                        {
+                            id: DEPT_MORE_BUTTON_ID,
+                            icon: moreIcon,
+                            testID: 'contacts.department_detail.more.button',
                         },
                         {
                             id: DEPT_SEARCH_BUTTON_ID,
@@ -1154,9 +1164,18 @@ const ContactsDepartmentDetail = ({
                 if (currentUserId === undefined) {
                     setLocalCurrentUserId(meResult?.id);
                 }
-                // Check if this is an ERP enterprise (has erp_address)
-                const isErp = Boolean((teamResult.team as any)?.erp_address);
-                setIsErpEnterprise(isErp);
+                // Check if this is an ERP-synced team (对齐 webapp：使用 dashboard access API)
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const access = await client.doFetch(`/plugins/com.mattermost.frappe-sync/api/dashboard/access?team_id=${companyId}`, {
+                        method: 'get',
+                    });
+                    setIsErpEnterprise(access?.is_erp_synced_team === true);
+                } catch {
+                    // API 调用失败时降级：使用 erp_address 字段判断
+                    const isErp = Boolean((teamResult.team as any)?.erp_address);
+                    setIsErpEnterprise(isErp);
+                }
             } catch {
                 // 标签降级展示，忽略错误
             }
@@ -1367,18 +1386,31 @@ const ContactsDepartmentDetail = ({
                             />
                         </TouchableOpacity>
                         {manageMode ? (
-                            <TouchableOpacity
-                                onPress={handleExitManage}
-                                style={styles.stackHeaderBack}
-                                testID='contacts.department_detail.exit_manage.button'
-                            >
-                                <CompassIcon
-                                    name='close'
-                                    size={24}
-                                    color={theme.sidebarHeaderTextColor}
-                                />
-                            </TouchableOpacity>
-                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    onPress={handleMore}
+                                    style={styles.stackHeaderBack}
+                                    testID='contacts.department_detail.more.button'
+                                >
+                                    <CompassIcon
+                                        name='dots-vertical'
+                                        size={24}
+                                        color={theme.sidebarHeaderTextColor}
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={handleExitManage}
+                                    style={styles.stackHeaderBack}
+                                    testID='contacts.department_detail.exit_manage.button'
+                                >
+                                    <CompassIcon
+                                        name='close'
+                                        size={24}
+                                        color={theme.sidebarHeaderTextColor}
+                                    />
+                                </TouchableOpacity>
+                            </>
+                        ) : !isErpEnterprise ? (
                             <TouchableOpacity
                                 onPress={handleEnterManage}
                                 style={styles.stackHeaderBack}
@@ -1390,7 +1422,7 @@ const ContactsDepartmentDetail = ({
                                     color={theme.sidebarHeaderTextColor}
                                 />
                             </TouchableOpacity>
-                        )}
+                        ) : null}
                     </View>
                 </View>
             ) : null}
@@ -1401,7 +1433,40 @@ const ContactsDepartmentDetail = ({
             >
                 {renderContent()}
             </ScrollView>
-            {/* 【已移除】底部3个按钮（添加成员、添加子部门、更多），改为点击右上角按钮直接弹出菜单 */}
+            {manageMode && (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={styles.bottomButton}
+                        onPress={handleAddMember}
+                        activeOpacity={0.7}
+                        testID='contacts.department_detail.bottom.add_member'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'})}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.bottomButton}
+                        onPress={handleAddSubDepartment}
+                        activeOpacity={0.7}
+                        testID='contacts.department_detail.bottom.add_sub_department'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.add_sub_department', defaultMessage: 'Add Sub-department'})}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.bottomButton}
+                        onPress={handleMore}
+                        activeOpacity={0.7}
+                        testID='contacts.department_detail.bottom.more'
+                    >
+                        <Text style={styles.bottomButtonText}>
+                            {intl.formatMessage({id: 'contacts.more_management', defaultMessage: 'More Management'})}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
             <CustomInputModal
                 key={subDeptInput.visible ? 'subdept-open' : 'subdept-closed'}
                 visible={subDeptInput.visible}
