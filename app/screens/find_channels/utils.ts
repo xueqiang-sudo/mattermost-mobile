@@ -38,6 +38,7 @@ export const removeChannelsFromArchivedTeams = (recentChannels: ChannelModel[], 
 
 /**
  * 查找/最近列表：公开与私有频道仅保留当前团队（企业）；DM/GM 在模型上无 team_id，不做团队过滤。
+ * 智能笔记本频道（sn_ 前缀）跨团队显示，不做团队过滤。
  */
 export const filterChannelsToCurrentTeam = (channels: ChannelModel[], currentTeamId: string): ChannelModel[] => {
     if (!currentTeamId) {
@@ -45,6 +46,10 @@ export const filterChannelsToCurrentTeam = (channels: ChannelModel[], currentTea
     }
     return channels.filter((channel) => {
         if (channel.type === General.DM_CHANNEL || channel.type === General.GM_CHANNEL) {
+            return true;
+        }
+        const isSmartNotebook = channel.name?.startsWith('sn_');
+        if (isSmartNotebook) {
             return true;
         }
         return channel.teamId === currentTeamId;

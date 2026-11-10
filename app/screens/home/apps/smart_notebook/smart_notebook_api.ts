@@ -157,11 +157,10 @@ export async function getOrCreateSmartNotebookChannel(
                 method: 'post',
             });
 
-            // 更新本地频道的 team_id 并添加到当前 team 的分类
+            // 刷新本地频道和分类数据（对齐 webapp：fetchChannelsAndMembers + fetchMyCategories）
             if (channel.team_id !== teamId) {
-                channel.team_id = teamId;
-                const {addChannelToDefaultCategory} = require('@actions/local/category');
-                await addChannelToDefaultCategory(serverUrl, channel);
+                const {fetchMyChannelsForTeam} = require('@actions/remote/channel');
+                await fetchMyChannelsForTeam(serverUrl, teamId);
             }
         } catch {
             // ensure_team 失败不影响使用
