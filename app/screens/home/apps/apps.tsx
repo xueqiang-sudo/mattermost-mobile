@@ -21,6 +21,7 @@ import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useOnComponentWillAppear} from '@hooks/use_on_component_will_appear';
+import NetworkManager from '@managers/network_manager';
 import {resetToDebug} from '@screens/navigation';
 
 
@@ -259,15 +260,63 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                         if (channel?.id) {
                             // 切换到频道前，确保它在当前团队的默认分类（内部群）里可见。
                             // 智能笔记本频道是用户级别跨团队共享的，mobile 端分类显示
-                            // 依赖本地 category_channels 表，必须显式写入。
+                            // 依赖本地 category_channels 表，必须显式 upsert Channel + ChannelTeam。
                             try {
-                                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                                const {operator, database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                                const currentUserId = currentUser?.id;
+                                const currentTeamId = currentTeam?.id;
+
+                                if (currentUserId && currentTeamId) {
+                                    // 1. Upsert 本地 Channel（team_id 改写为当前 team）
+                                    const channelForCurrentTeam = {...channel, team_id: currentTeamId};
+                                    const channelModels = await operator.handleChannel({
+                                        channels: [channelForCurrentTeam as any],
+                                        prepareRecordsOnly: true,
+                                    }) || [];
+
+                                    // 2. 调用 ensure_smart_notebook_team 拿到所有绑定的 team_ids
+                                    //    （getOrCreateSmartNotebookChannel 只 ensure 当前 team，
+                                    //    这里再调一次让后端把用户所有 team 都绑上）
+                                    let teamIds: string[] = [currentTeamId];
+                                    try {
+                                        const client = NetworkManager.getClient(serverUrl);
+                                        const ensureResp: any = await client.doFetch('/api/v4/channels/ensure_smart_notebook_team', {
+                                            method: 'post',
+                                            body: {team_id: currentTeamId},
+                                        });
+                                        if (Array.isArray(ensureResp?.team_ids) && ensureResp.team_ids.length > 0) {
+                                            teamIds = ensureResp.team_ids;
+                                        }
+                                    } catch {
+                                        // 失败时用当前 team 兜底
+                                    }
+
+                                    // 3. Upsert ChannelTeam 关联
+                                    const ctPayload = teamIds.map((tid: string) => ({
+                                        id: `${channel.id}-${tid}`,
+                                        channel_id: channel.id,
+                                        team_id: tid,
+                                    }));
+                                    const ctModels = await operator.handleChannelTeam({
+                                        channelTeams: ctPayload,
+                                        prepareRecordsOnly: true,
+                                    }) || [];
+
+                                    if (channelModels.length || ctModels.length) {
+                                        await operator.batchRecords(
+                                            [...channelModels, ...ctModels],
+                                            'smartNotebookEntryUpsert',
+                                        );
+                                    }
+                                }
+
+                                // 4. 加到默认分类
                                 const localChannel = await getChannelById(database, channel.id);
                                 if (localChannel) {
                                     await addChannelToDefaultCategory(serverUrl, localChannel, false);
                                 }
                             } catch (err) {
-                                console.warn('Failed to add smart notebook to default category:', err);
+                                console.warn('Failed to upsert smart notebook locally:', err);
                             }
                             await switchToChannelById(serverUrl, channel.id);
                         }

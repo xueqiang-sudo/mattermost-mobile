@@ -32,6 +32,16 @@ export type Channel = {
     name: string;
     display_name: string;
     type: string;
+    create_at?: number;
+    update_at?: number;
+    delete_at?: number;
+    header?: string;
+    purpose?: string;
+    creator_id?: string;
+    last_post_at?: number;
+    total_msg_count?: number;
+    extra_update_at?: number;
+    [key: string]: any;
 };
 
 export type GraphEntity = {

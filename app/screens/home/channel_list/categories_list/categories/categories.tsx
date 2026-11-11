@@ -132,7 +132,7 @@ const Categories = ({
             debugLog('[SmartNotebook] Calling ensure_smart_notebook_team API', {currentTeamId});
             try {
                 const client = NetworkManager.getClient(serverUrl);
-                const result = await client.doFetch('/api/v4/channels/ensure_smart_notebook_team', {
+                const result: any = await client.doFetch('/api/v4/channels/ensure_smart_notebook_team', {
                     method: 'post',
                     body: {team_id: currentTeamId},
                 });
@@ -150,21 +150,55 @@ const Categories = ({
                 debugLog('[SmartNotebook] Channels and categories fetched successfully');
 
                 // 智能笔记本频道是用户级别的，同一个 channel_id 跨多个团队共享。
-                // mobile 端的分类显示依赖本地 category_channels 表，必须显式把这个
-                // 跨团队频道加到当前团队的默认分类（内部群），否则用户看不到。
-                if (result?.channel_id) {
+                // 后端 ensure_smart_notebook_team 已经把它绑到用户所属的所有 team（channelteams 表），
+                // 但 mobile 的 fetchMyChannelsForTeam 走标准 API（GET /users/me/teams/{teamId}/channels）
+                // 只返回 channel.team_id == teamId 的频道，不包含 channelteams 关联的跨团队频道。
+                // 所以必须显式 upsert 本地 Channel 和 ChannelTeam 记录，并把它加到默认分类。
+                if (result?.channel_id && result?.channel) {
                     try {
-                        debugLog('[SmartNotebook] Adding channel to default category', {channelId: result.channel_id, currentTeamId});
-                        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                        const channel = await getChannelById(database, result.channel_id);
-                        if (channel) {
-                            await addChannelToDefaultCategory(serverUrl, channel, false);
+                        const {operator, database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+                        // 1. Upsert 本地 Channel 记录：把 team_id 写成当前 team，让标准 scope SQL 命中
+                        const channelForCurrentTeam = {...result.channel, team_id: currentTeamId};
+                        const channelModels = await operator.handleChannel({
+                            channels: [channelForCurrentTeam],
+                            prepareRecordsOnly: true,
+                        }) || [];
+
+                        // 2. Upsert 本地 ChannelTeam 关联（后端返回所有已绑定的 team_ids）
+                        const teamIds: string[] = Array.isArray(result.team_ids) ? result.team_ids : [];
+                        const ctPayload = teamIds.map((tid: string) => ({
+                            id: `${result.channel_id}-${tid}`,
+                            channel_id: result.channel_id,
+                            team_id: tid,
+                        }));
+                        const ctModels = ctPayload.length
+                            ? (await operator.handleChannelTeam({
+                                channelTeams: ctPayload,
+                                prepareRecordsOnly: true,
+                            }) || [])
+                            : [];
+
+                        if (channelModels.length || ctModels.length) {
+                            await operator.batchRecords(
+                                [...channelModels, ...ctModels],
+                                'ensureSmartNotebookTeamUpsert',
+                            );
+                            debugLog('[SmartNotebook] Upserted local Channel + ChannelTeam', {
+                                channelId: result.channel_id,
+                                currentTeamId,
+                                boundTeams: teamIds.length,
+                            });
+                        }
+
+                        // 3. 加到当前团队的默认分类（内部群）
+                        const localChannel = await getChannelById(database, result.channel_id);
+                        if (localChannel) {
+                            await addChannelToDefaultCategory(serverUrl, localChannel, false);
                             debugLog('[SmartNotebook] Channel added to default category successfully');
-                        } else {
-                            debugLog('[SmartNotebook] Channel not found in database after fetch');
                         }
                     } catch (error) {
-                        debugLog('[SmartNotebook] Failed to add channel to default category', {error: String(error)});
+                        debugLog('[SmartNotebook] Failed to upsert smart notebook locally', {error: String(error)});
                     }
                 }
             } catch (error) {
