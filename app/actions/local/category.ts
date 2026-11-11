@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {CHANNELS_CATEGORY, DMS_CATEGORY} from '@constants/categories';
+import {CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY} from '@constants/categories';
 import DatabaseManager from '@database/manager';
 import {prepareCategoryChannels, queryCategoriesByTeamIds, getCategoryById, prepareCategoriesAndCategoriesChannels, queryCategoryChannelsByChannelId} from '@queries/servers/categories';
 import {getCurrentUserId} from '@queries/servers/system';
@@ -138,12 +138,23 @@ async function prepareAddNonGMDMChannelToDefaultCategory(database: Database, tea
         types: categories.map((c) => c.type),
         ids: categories.map((c) => c.id),
     });
-    const channelCategory = categories.find((category) => category.type === CHANNELS_CATEGORY);
-    if (channelCategory) {
-        const cwc = await channelCategory.toCategoryWithChannels();
+
+    // 优先找 channels 类型，找不到就回退到第一个非 DM/收藏分类
+    let targetCategory = categories.find((c) => c.type === CHANNELS_CATEGORY);
+    if (!targetCategory) {
+        targetCategory = categories.find((c) => c.type !== DMS_CATEGORY && c.type !== FAVORITES_CATEGORY);
+        logDebug('[prepareAddNonGMDM] CHANNELS_CATEGORY not found, using fallback', {
+            fallbackType: targetCategory?.type,
+            fallbackId: targetCategory?.id,
+        });
+    }
+
+    if (targetCategory) {
+        const cwc = await targetCategory.toCategoryWithChannels();
         const alreadyInCategory = cwc.channel_ids.indexOf(channelId) >= 0;
-        logDebug('[prepareAddNonGMDM] channelCategory found', {
-            categoryId: channelCategory.id,
+        logDebug('[prepareAddNonGMDM] target category found', {
+            categoryId: targetCategory.id,
+            categoryType: targetCategory.type,
             channelCount: cwc.channel_ids.length,
             alreadyInCategory,
             channelId,
@@ -153,7 +164,7 @@ async function prepareAddNonGMDMChannelToDefaultCategory(database: Database, tea
             return cwc;
         }
     } else {
-        logDebug('[prepareAddNonGMDM] CHANNELS_CATEGORY not found for team', {teamId});
+        logDebug('[prepareAddNonGMDM] no suitable category found for team', {teamId});
     }
 
     return undefined;

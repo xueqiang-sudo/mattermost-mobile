@@ -151,6 +151,20 @@ const Categories = ({
                 ]);
                 debugLog('[SmartNotebook] Channels and categories fetched successfully');
 
+                // 调试：查看服务端返回的分类数据
+                const {database: db} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                const allCategories = await db.get('Category').query().fetch();
+                const teamCategories = allCategories.filter((c: any) => c.teamId === currentTeamId);
+                debugLog('[SmartNotebook] Server returned categories for current team', {
+                    currentTeamId,
+                    count: teamCategories.length,
+                    categories: teamCategories.map((c: any) => ({
+                        id: c.id,
+                        type: c.type,
+                        displayName: c.displayName,
+                    })),
+                });
+
                 // 2. 智能笔记本频道是用户级别的，同一个 channel_id 跨多个团队共享。
                 // 后端 ensure_smart_notebook_team 已经把它绑到用户所属的所有 team（channelteams 表），
                 // 但 mobile 的 fetchMyChannelsForTeam 走标准 API（GET /users/me/teams/{teamId}/channels）

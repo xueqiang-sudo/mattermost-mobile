@@ -11,7 +11,7 @@ import SettingContainer from '@components/settings/container';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {popTopScreen, goToScreen} from '@screens/navigation';
+import {popTopScreen, showModalWithBackButton} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -100,7 +100,7 @@ const LoginAbout = ({componentId}: Props) => {
     const openWebView = useCallback((url: string, titleKey: string, defaultTitle: string) => {
         const title = intl.formatMessage({id: titleKey, defaultMessage: defaultTitle});
         const closeId = `close-login-about-${titleKey}`;
-        goToScreen(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
+        showModalWithBackButton(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
     }, [intl]);
 
     const onPressTerms = useCallback(() => {

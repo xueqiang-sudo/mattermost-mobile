@@ -103,7 +103,7 @@ const LaunchAgreement = ({componentId}: Props) => {
     const openWebView = useCallback((url: string, titleKey: string, defaultTitle: string) => {
         const title = intl.formatMessage({id: titleKey, defaultMessage: defaultTitle});
         const closeId = `close-webview-${titleKey}`;
-        goToScreen(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
+        showModalWithBackButton(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
     }, [intl]);
 
     const handleDisagree = useCallback(async () => {

@@ -348,9 +348,11 @@ const enhanced = withObservables(
             map(([channels, customIds, teamId, builtInIds]) => {
                 const filtered = channels.filter(ch => {
                     const isDmOrGm = ch.type === 'D' || ch.type === 'G';
-                    // Non-DM/GM: match by team_id
-                    // DM/GM: only include if in a built-in category for this team
-                    const isInTeam = isDmOrGm ? builtInIds.has(ch.id) : ch.teamId === teamId;
+                    // Smart notebook channels (sn_ prefix) are cross-team, like DM/GM
+                    const isSmartNotebook = ch.name?.startsWith('sn_');
+                    // Non-DM/GM/SmartNotebook: match by team_id
+                    // DM/GM/SmartNotebook: only include if in a built-in category for this team
+                    const isInTeam = (isDmOrGm || isSmartNotebook) ? builtInIds.has(ch.id) : ch.teamId === teamId;
                     const notInCustom = !customIds.has(ch.id);
                     return isInTeam && notInCustom;
                 });

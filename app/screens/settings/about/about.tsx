@@ -15,7 +15,7 @@ import {UPDATE_TYPE} from '@constants/update';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {popTopScreen, goToScreen} from '@screens/navigation';
+import {popTopScreen, showModalWithBackButton} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -145,7 +145,7 @@ const About = ({componentId, config}: AboutProps) => {
     const openWebView = useCallback((url: string, titleKey: string, defaultTitle: string) => {
         const title = intl.formatMessage({id: titleKey, defaultMessage: defaultTitle});
         const closeId = `close-about-webview-${titleKey}`;
-        goToScreen(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
+        showModalWithBackButton(Screens.WEB_VIEW, title, closeId, {url}, {useBackIcon: true});
     }, [intl]);
 
     const onPressTerms = useCallback(() => {
