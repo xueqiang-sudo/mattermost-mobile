@@ -16,7 +16,7 @@ import ConversationListSwipeableItem from '../../conversation_list/conversation_
 import CompassIcon from '@components/compass_icon';
 import {FAVORITES_CATEGORY} from '@constants/categories';
 import {MM_TABLES} from '@constants/database';
-import {Preferences} from '@constants';
+import {Preferences, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {queryChannelsById, parseUserIdsFromGroupedChannelName} from '@queries/servers/channel';
@@ -30,6 +30,7 @@ import {getUserIdFromChannelName} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {showSnackBar} from '@utils/snack_bar';
+import {showModal} from '@screens/navigation';
 import {from} from 'rxjs';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
@@ -238,18 +239,29 @@ const CollapsibleChannelListRenderer = ({
         );
     }, [expandedSections, theme, toggleSection, handleDeleteCategory]);
 
-    const renderItem = useCallback(({item}: {item: ChannelModel}) => {
+    const handleChannelLongPress = useCallback((channel: ChannelModel, categoryId?: string) => {
+        showModal(Screens.CHANNEL_CATEGORY_MENU, '', {
+            channelId: channel.id,
+            currentCategoryId: categoryId,
+        }, {
+            topBar: {visible: false},
+            modalPresentationStyle: 'overCurrentContext',
+        });
+    }, []);
+
+    const renderItem = useCallback(({item, section}: {item: ChannelModel; section: Section}) => {
         return (
             <ConversationListSwipeableItem
                 channel={item}
                 onPress={onChannelSwitch}
+                onLongPress={(ch) => handleChannelLongPress(ch, section.categoryId)}
                 swipeableRegistrar={swipeableRegistrar.current}
                 shouldHighlightActive={true}
                 shouldHighlightState={true}
                 isOnHome={true}
             />
         );
-    }, [onChannelSwitch]);
+    }, [onChannelSwitch, handleChannelLongPress]);
 
     // Filter sections based on expanded state
     const processedSections = sections.map((section) => ({

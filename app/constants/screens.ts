@@ -27,6 +27,7 @@ export const CREATE_DIRECT_MESSAGE = 'CreateDirectMessage';
 export const CREATE_OR_EDIT_CHANNEL = 'CreateOrEditChannel';
 export const CREATE_CATEGORY = 'CreateCategory';
 export const CATEGORY_CHANNEL_PICKER = 'CategoryChannelPicker';
+export const CHANNEL_CATEGORY_MENU = 'ChannelCategoryMenu';
 export const CREATE_TEAM = 'CreateTeam';
 export const JOIN_TEAM_QR = 'JoinTeamQR';
 export const INVITE_USER_JOIN_TEAM = 'InviteUserJoinTeam';
@@ -228,6 +229,7 @@ export default {
     CREATE_OR_EDIT_CHANNEL,
     CREATE_CATEGORY,
     CATEGORY_CHANNEL_PICKER,
+    CHANNEL_CATEGORY_MENU,
     CREATE_TEAM,
     JOIN_TEAM_QR,
     INVITE_USER_JOIN_TEAM,
@@ -381,6 +383,7 @@ export const SCREENS_WITH_TRANSPARENT_BACKGROUND = new Set<string>([
     REVIEW_APP,
     SNACK_BAR,
     GENERIC_OVERLAY,
+    CHANNEL_CATEGORY_MENU,
 ]);
 
 export const SCREENS_AS_BOTTOM_SHEET = new Set<string>([

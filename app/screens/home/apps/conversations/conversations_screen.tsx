@@ -31,7 +31,6 @@ import {
     listConversations,
     fetchFactQuery,
     fetchActiveDates,
-    graduateMemory,
     type ConversationChannel,
     type FactQueryResult,
 } from '../workbench_api';
@@ -591,8 +590,6 @@ const ConversationsScreen = () => {
     const now = new Date();
     const [viewYear, setViewYear] = useState(now.getFullYear());
     const [viewMonth, setViewMonth] = useState(now.getMonth());
-    const [graduatingPath, setGraduatingPath] = useState<string | null>(null);
-    const [graduateMsg, setGraduateMsg] = useState<{path: string; text: string; isError: boolean} | null>(null);
     const [loadingChannels, setLoadingChannels] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [activeDates, setActiveDates] = useState<Map<string, string[]>>(new Map()); // channel_id -> [date1, date2, ...]
@@ -748,32 +745,6 @@ const ConversationsScreen = () => {
             return next;
         });
     }, []);
-
-    // ---- Graduate memory to KB ----
-    const handleGraduate = useCallback(async (memoryPath: string) => {
-        setGraduatingPath(memoryPath);
-        setGraduateMsg(null);
-        try {
-            await graduateMemory(serverUrl, teamId, memoryPath);
-            setGraduateMsg({
-                path: memoryPath,
-                text: intl.formatMessage({id: 'workbench.conversations.graduate_success', defaultMessage: '已归档到知识库'}),
-                isError: false,
-            });
-        } catch (err: any) {
-            setGraduateMsg({
-                path: memoryPath,
-                text: intl.formatMessage(
-                    {id: 'workbench.conversations.graduate_failed', defaultMessage: '归档失败: {error}'},
-                    {error: err?.message || '未知错误'},
-                ),
-                isError: true,
-            });
-        } finally {
-            setGraduatingPath(null);
-            setTimeout(() => setGraduateMsg(null), 3000);
-        }
-    }, [serverUrl, teamId, intl]);
 
     // ---- Load active dates and summaries when month changes ----
     useEffect(() => {
@@ -1201,7 +1172,6 @@ const ConversationsScreen = () => {
                         const activeDs = chDayMap.get(currentDay);
                         const rawKey = `${ch.id}|${currentDay}`;
                         const isRawExpanded = expandedRaw.has(rawKey);
-                        const memoryPath = `memory/${teamId}/${currentDay}-${ch.id}.md`;
 
                         return (
                             <View key={ch.id} style={style.card}>
@@ -1297,23 +1267,6 @@ const ConversationsScreen = () => {
                                                 theme={theme}
                                                 disableAtMentions={true}
                                             />
-                                            {/* Graduate to KB */}
-                                            <TouchableOpacity
-                                                style={style.graduateBtn}
-                                                onPress={() => handleGraduate(memoryPath)}
-                                                disabled={graduatingPath === memoryPath}
-                                            >
-                                                <Text style={style.graduateText}>
-                                                    {graduatingPath === memoryPath
-                                                        ? intl.formatMessage({id: 'workbench.conversations.graduating', defaultMessage: '归档中...'})
-                                                        : intl.formatMessage({id: 'workbench.conversations.graduate_btn', defaultMessage: '📚 归档到知识库'})}
-                                                </Text>
-                                            </TouchableOpacity>
-                                            {graduateMsg && graduateMsg.path === memoryPath && (
-                                                <Text style={[style.graduateMsg, graduateMsg.isError && {color: theme.errorTextColor}]}>
-                                                    {graduateMsg.text}
-                                                </Text>
-                                            )}
                                         </View>
                                     ) : (
                                         <Text style={style.cardSummary}>

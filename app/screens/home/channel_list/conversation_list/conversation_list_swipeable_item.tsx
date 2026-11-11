@@ -31,6 +31,7 @@ type SwipeableRegistrar = {
 type Props = {
     channel: ChannelModel;
     onPress: (channel: ChannelModel) => void;
+    onLongPress?: (channel: ChannelModel) => void;
     swipeableRegistrar: SwipeableRegistrar;
     shouldHighlightActive: boolean;
     shouldHighlightState: boolean;
@@ -235,6 +236,7 @@ function RightActions({drag, onMarkUnread, onHide, onDelete}: RightActionsProps)
 const ConversationListSwipeableItem = ({
     channel,
     onPress,
+    onLongPress,
     swipeableRegistrar,
     shouldHighlightActive,
     shouldHighlightState,
@@ -370,6 +372,7 @@ const ConversationListSwipeableItem = ({
                 <ChannelItem
                     channel={channel}
                     onPress={onPress}
+                    onLongPress={onLongPress}
                     testID='channel_list.conversation.channel_item'
                     shouldHighlightActive={shouldHighlightActive}
                     shouldHighlightState={shouldHighlightState}

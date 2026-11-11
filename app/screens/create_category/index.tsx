@@ -10,6 +10,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {dismissModal} from '@screens/navigation';
+import {showSnackBar} from '@utils/snack_bar';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -138,6 +139,19 @@ export default function CreateCategory({componentId, teamId}: Props) {
         }
 
         await popTopScreen(componentId);
+
+        // Show success reminder
+        showSnackBar({
+            barType: 'INFO',
+            customMessage: intl.formatMessage({
+                id: 'category.created_success',
+                defaultMessage: 'Category created',
+            }) + '\n💡 ' + intl.formatMessage({
+                id: 'category.created_hint',
+                defaultMessage: 'Long press a channel to move it to this category',
+            }),
+            duration: 4000,
+        });
     }, [categoryName, componentId, intl, serverUrl, teamId]));
 
     const isDisabled = !categoryName.trim() || creating;
