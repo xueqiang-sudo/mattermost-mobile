@@ -2,15 +2,11 @@
 // See LICENSE.txt for license information.
 
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
-import {combineLatest, of as of$} from 'rxjs';
-import {switchMap, distinctUntilChanged, map} from 'rxjs/operators';
+import {of as of$} from 'rxjs';
+import {switchMap} from 'rxjs/operators';
 
-import {Permissions} from '@constants';
-import {observePermissionForTeam} from '@queries/servers/role';
-import {observeConfigBooleanValue} from '@queries/servers/system';
 import {observeCurrentTeam} from '@queries/servers/team';
 import {observeCurrentUser} from '@queries/servers/user';
-import {isSystemAdmin} from '@utils/user';
 
 import Invite from './invite';
 
@@ -20,42 +16,16 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     const team = observeCurrentTeam(database);
     const currentUser = observeCurrentUser(database);
 
-    const guestAccountsEnabled = observeConfigBooleanValue(database, 'EnableGuestAccounts');
-    const isGroupConstrained = team.pipe(
-        switchMap((t) => of$(Boolean(t?.isGroupConstrained))),
-    );
-    const hasPermissionToInviteGuests = combineLatest([team, currentUser]).pipe(
-        switchMap(([t, u]) => observePermissionForTeam(database, t, u, Permissions.INVITE_GUEST, false)),
-    );
-    const canInviteGuests = combineLatest([isGroupConstrained, guestAccountsEnabled, hasPermissionToInviteGuests]).pipe(
-        switchMap(([group, enabled, permission]) => of$(!group && enabled && permission)),
-    );
-
     return {
         teamId: team.pipe(
             switchMap((t) => of$(t?.id)),
         ),
-        teamDisplayName: team.pipe(
-            switchMap((t) => of$(t?.displayName)),
-        ),
-        teamLastIconUpdate: team.pipe(
-            switchMap((t) => of$(t?.lastTeamIconUpdatedAt)),
-        ),
         teamInviteId: team.pipe(
             switchMap((t) => of$(t?.inviteId)),
-        ),
-        isAdmin: observeCurrentUser(database).pipe(
-            map((user) => isSystemAdmin(user?.roles || '')),
-            distinctUntilChanged(),
         ),
         currentUserId: currentUser.pipe(
             switchMap((u) => of$(u?.id)),
         ),
-        currentUserName: currentUser.pipe(
-            switchMap((u) => of$(u?.nickname || u?.username || '')),
-        ),
-        canInviteGuests,
-        allowGuestMagicLink: observeConfigBooleanValue(database, 'EnableGuestMagicLink'),
     };
 });
 

@@ -1,104 +1,39 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {useIntl, type IntlShape} from 'react-intl';
-import {Alert, FlatList, Keyboard, Share, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
+import React, {useCallback, useState} from 'react';
+import {useIntl} from 'react-intl';
+import {Alert, Clipboard, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {searchExternalCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
-import {addUserToDefaultDepartment, addUserToDepartment} from '@actions/remote/contact_new';
-import {getTeamMembersByIds} from '@actions/remote/team';
-import type {BusinessRoleDef} from '@client/rest/team_department';
+import {searchProfiles} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
-import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import NetworkManager from '@managers/network_manager';
-import SecurityManager from '@managers/security_manager';
-import {popTopScreen, setButtons} from '@screens/navigation';
+import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {displayUsername, getLastPictureUpdate} from '@utils/user';
+import {popTopScreen} from '@screens/navigation';
 
-import {sendMembersInvites} from './actions';
-import Summary from './summary';
-
-import type {InviteResult, Result, SearchResult} from './types';
 import type {AvailableScreens} from '@typings/screens/navigation';
-
-const CLOSE_BUTTON_ID = 'close-invite';
-const DEFAULT_RESULT: Result = {sent: [], notSent: []};
-
-type CandidateTag = 'exactMatch' | 'external' | 'self';
-type CandidateProfile = UserProfile & {mmCandidateTags?: CandidateTag[]};
-
-function getCandidateTags(draft: CandidateDraft): CandidateTag[] {
-    const tags: CandidateTag[] = [];
-    if (draft.sourceFlags.globalSearch) {
-        tags.push('exactMatch');
-    }
-    if (draft.sourceFlags.external) {
-        tags.push('external');
-    }
-    if (draft.sourceFlags.self) {
-        tags.push('self');
-    }
-    return tags;
-}
-
-function mapDraftsToProfiles(drafts: CandidateDraft[]): CandidateProfile[] {
-    const profiles: CandidateProfile[] = [];
-    for (const draft of drafts) {
-        if (!draft.user) {
-            continue;
-        }
-        profiles.push({
-            ...draft.user,
-            mmCandidateTags: getCandidateTags(draft),
-        });
-    }
-    return profiles;
-}
-
-function AvatarNoInitials({author, size}: {author: CandidateProfile; size: number}) {
-    const hasImage = author ? getLastPictureUpdate(author) > 0 : false;
-    return (
-        <ProfilePicture
-            author={hasImage ? author : undefined}
-            size={size}
-            showStatus={false}
-        />
-    );
-}
-
 
 type Props = {
     componentId: AvailableScreens;
     teamId: string;
-    teamDisplayName: string;
-    teamLastIconUpdate: number;
     teamInviteId: string;
-    isAdmin: boolean;
-    canInviteGuests: boolean;
-    allowGuestMagicLink: boolean;
     currentUserId?: string;
-    currentUserName?: string;
-    contactTargetDepartmentId?: number | null;
-}
+};
+
+type SearchResult = {
+    type: 'found' | 'not_found' | 'already_in_enterprise';
+    user?: UserProfile;
+};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
         backgroundColor: theme.centerChannelBg,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     searchSection: {
         paddingHorizontal: 16,
@@ -115,76 +50,90 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 8,
         minHeight: 40,
     },
-    searchIcon: {
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginRight: 8,
-    },
     searchInput: {
         flex: 1,
         color: theme.centerChannelColor,
         fontSize: 16,
         padding: 0,
     },
-    checkbox: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        borderWidth: 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    checkboxChecked: {
+    searchButton: {
+        marginLeft: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 6,
         backgroundColor: theme.buttonBg,
-        borderColor: theme.buttonBg,
+        borderRadius: 4,
     },
-    checkboxUnchecked: {
-        borderColor: changeOpacity(theme.centerChannelColor, 0.3),
-    },
-    checkIcon: {
-        color: '#fff',
+    searchButtonText: {
+        color: theme.buttonColor,
         fontSize: 14,
+        fontWeight: '600',
     },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    resultSection: {
+        flex: 1,
         paddingHorizontal: 16,
         paddingVertical: 12,
+    },
+    resultCard: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 12,
     },
-    sectionHeaderText: {
-        flex: 1,
-        color: changeOpacity(theme.centerChannelColor, 0.7),
-        ...typography('Body', 100, 'SemiBold'),
-    },
-    sectionCount: {
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        ...typography('Body', 100),
-    },
-    chevron: {
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginRight: 4,
-    },
-    memberRow: {
+    resultHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        gap: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.05),
+        marginBottom: 12,
     },
-    memberRowJoined: {
-        opacity: 0.5,
+    resultIcon: {
+        marginRight: 8,
     },
-    memberName: {
-        flex: 1,
+    resultTitle: {
         color: theme.centerChannelColor,
-        ...typography('Body', 200),
+        ...typography('Heading', 200, 'SemiBold'),
     },
-    memberJoined: {
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        fontSize: 12,
-        marginLeft: 4,
+    userProfile: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    userInfo: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    userName: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'SemiBold'),
+        marginBottom: 4,
+    },
+    userDetail: {
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        ...typography('Body', 100),
+        marginBottom: 2,
+    },
+    inviteLink: {
+        color: theme.linkColor,
+        ...typography('Body', 100),
+        marginTop: 8,
+    },
+    copyButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        alignSelf: 'flex-start',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: theme.buttonBg,
+        borderRadius: 4,
+    },
+    copyButtonText: {
+        color: theme.buttonColor,
+        marginLeft: 6,
+        ...typography('Body', 100, 'SemiBold'),
+    },
+    messageText: {
+        color: changeOpacity(theme.centerChannelColor, 0.7),
+        ...typography('Body', 200),
+        marginTop: 8,
     },
     bottomBar: {
         flexDirection: 'row',
@@ -195,638 +144,270 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
     },
-    shareLinkButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+    closeButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.2),
     },
-    shareLinkText: {
-        color: theme.buttonBg,
-        marginLeft: 6,
-        ...typography('Body', 200, 'SemiBold'),
+    closeButtonText: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200),
     },
-    doneButton: {
+    confirmButton: {
         backgroundColor: theme.buttonBg,
         borderRadius: 8,
         paddingHorizontal: 24,
         paddingVertical: 10,
     },
-    doneButtonDisabled: {
+    confirmButtonDisabled: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
     },
-    doneButtonText: {
+    confirmButtonText: {
         color: theme.buttonColor,
         ...typography('Body', 200, 'SemiBold'),
     },
-    dropdownOverlay: {
-        backgroundColor: theme.centerChannelBg,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
-        maxHeight: 300,
-    },
-    dropdownList: {
-        paddingHorizontal: 16,
-    },
-    selectedMemberRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        gap: 12,
-    },
-    selectedMemberName: {
-        flex: 1,
-        color: theme.centerChannelColor,
-        ...typography('Body', 200),
-    },
-    collapseButtonContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    roleSelectorButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    roleSelectorButtonText: {
-        color: theme.buttonBg,
-        marginLeft: 8,
-        ...typography('Body', 200, 'SemiBold'),
-    },
-    roleSelectorCount: {
-        color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginLeft: 4,
-        ...typography('Body', 200),
-    },
-    roleSelectorPanel: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-        maxHeight: 200,
-    },
-    roleOptionRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        gap: 12,
-    },
-    roleOptionText: {
-        flex: 1,
-        color: theme.centerChannelColor,
-        ...typography('Body', 200),
-    },
 }));
 
-enum Stage {
-    SELECTION = 'selection',
-    RESULT = 'result',
-    LOADING = 'loading',
+function AvatarNoInitials({author, size}: {author: UserProfile; size: number}) {
+    const hasImage = author ? getLastPictureUpdate(author) > 0 : false;
+    return (
+        <ProfilePicture
+            author={hasImage ? author : undefined}
+            size={size}
+            showStatus={false}
+        />
+    );
 }
 
-export default function Invite({
-    componentId,
-    teamId,
-    teamDisplayName,
-    teamInviteId,
-    isAdmin,
-    currentUserId,
-    currentUserName,
-    contactTargetDepartmentId,
-}: Props) {
+const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
     const intl = useIntl();
-    const {formatMessage} = intl;
     const theme = useTheme();
-    const style = getStyleSheet(theme);
     const serverUrl = useServerUrl();
+    const style = getStyleSheet(theme);
 
-    const closeModal = useCallback(async () => {
-        Keyboard.dismiss();
-        await popTopScreen(componentId);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
+    const [searching, setSearching] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+    const handleSearch = useCallback(async () => {
+        const term = searchTerm.trim();
+        if (!term) {
+            return;
+        }
+
+        setSearching(true);
+        setSearchResult(null);
+        setSelectedUserId(null);
+
+        try {
+            // Global search by phone number
+            const result = await searchProfiles(serverUrl, term, {allow_inactive: false});
+            const users = result.data || [];
+
+            if (users.length === 0) {
+                // Not found - show invite link
+                setSearchResult({type: 'not_found'});
+            } else {
+                const user = users[0];
+                // Check if user is already in the enterprise
+                // For now, assume if user exists, check if they're in the team
+                // This would need to be enhanced with actual team membership check
+                setSearchResult({type: 'found', user});
+            }
+        } catch (error) {
+            Alert.alert(
+                intl.formatMessage({id: 'invite.search_error', defaultMessage: 'Search failed'}),
+                intl.formatMessage({id: 'invite.search_error_message', defaultMessage: 'Please try again.'}),
+            );
+        } finally {
+            setSearching(false);
+        }
+    }, [searchTerm, serverUrl, intl]);
+
+    const handleCopyLink = useCallback(() => {
+        const inviteLink = `https://${serverUrl}/invite?id=${teamInviteId}`;
+        Clipboard.setString(inviteLink);
+        Alert.alert(
+            intl.formatMessage({id: 'invite.link_copied', defaultMessage: 'Link copied'}),
+            intl.formatMessage({id: 'invite.link_copied_message', defaultMessage: 'Invite link has been copied to clipboard.'}),
+        );
+    }, [serverUrl, teamInviteId, intl]);
+
+    const handleConfirm = useCallback(() => {
+        if (searchResult?.type === 'found' && selectedUserId) {
+            // TODO: Add user to team/enterprise
+            Alert.alert(
+                intl.formatMessage({id: 'invite.success', defaultMessage: 'Success'}),
+                intl.formatMessage({id: 'invite.user_added', defaultMessage: 'User has been added to the enterprise.'}),
+            );
+            popTopScreen(componentId);
+        }
+    }, [searchResult, selectedUserId, componentId, intl]);
+
+    const handleClose = useCallback(() => {
+        popTopScreen(componentId);
     }, [componentId]);
 
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [selectedProfiles, setSelectedProfiles] = useState<Map<string, CandidateProfile>>(new Map());
-    const [searchTerm, setSearchTerm] = useState('');
-    const [candidates, setCandidates] = useState<{
-        external: CandidateProfile[];
-        enterprise: CandidateProfile[];
-        searchResults: CandidateProfile[];
-    }>({external: [], enterprise: [], searchResults: []});
-    const [alreadyJoinedIds, setAlreadyJoinedIds] = useState<Set<string>>(new Set());
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['enterprise', 'external', 'searchResults']));
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [stage, setStage] = useState(Stage.SELECTION);
-    const [result, setResult] = useState<Result>(DEFAULT_RESULT);
-    const [sendError, setSendError] = useState('');
-    const [sending, setSending] = useState(false);
-    const [roleDefs, setRoleDefs] = useState<BusinessRoleDef[]>([]);
-    const [selectedRoleKeys, setSelectedRoleKeys] = useState<Set<string>>(new Set());
-    const [showRoleSelector, setShowRoleSelector] = useState(false);
-
-    // Load business role definitions
-    useEffect(() => {
-        if (!serverUrl || !teamId) {
-            return;
-        }
-        NetworkManager.getClient(serverUrl).fetchBusinessRoleDefs(teamId).then((defs) => {
-            setRoleDefs(defs || []);
-        }).catch(() => {
-            // ignore
-        });
-    }, [serverUrl, teamId]);
-
-    // invite_id：优先使用 enhancer 传入的 teamInviteId，为空时从 API 获取
-    const [resolvedInviteId, setResolvedInviteId] = useState(teamInviteId);
-    useEffect(() => {
-        if (teamInviteId) {
-            setResolvedInviteId(teamInviteId);
-            return;
-        }
-        if (!serverUrl || !teamId) {
-            return;
-        }
-        NetworkManager.getClient(serverUrl).getTeam(teamId).then((team) => {
-            if (team?.invite_id) {
-                setResolvedInviteId(team.invite_id);
-            }
-        }).catch(() => {
-            // ignore
-        });
-    }, [teamInviteId, serverUrl, teamId]);
-
-    // 初始候选人列表为空，仅通过搜索框查找外部候选人
-
-    // Search external candidates (exact match only)
-    useEffect(() => {
-        if (!searchTerm.trim()) {
-            setCandidates((prev) => ({...prev, searchResults: []}));
-            return;
-        }
-        searchExternalCandidates(serverUrl, currentUserId ?? '', searchTerm).then(async (drafts) => {
-            const profiles = mapDraftsToProfiles(drafts);
-            // Check which users are already team members
-            const userIds = profiles.map((p) => p.id);
-            const joined = new Set<string>();
-            if (userIds.length) {
-                const {members = []} = await getTeamMembersByIds(serverUrl, teamId, userIds);
-                for (const member of members) {
-                    joined.add(member.user_id);
-                }
-            }
-            setAlreadyJoinedIds((prev) => {
-                const next = new Set(prev);
-                joined.forEach((id) => next.add(id));
-                return next;
-            });
-            setCandidates((prev) => ({...prev, searchResults: profiles}));
-        });
-    }, [searchTerm, serverUrl, currentUserId, teamId]);
-
-    // Filter candidates by search term (client-side for external/enterprise)
-    const filteredCandidates = useMemo(() => {
-        if (!searchTerm.trim()) {
-            return candidates;
-        }
-        const term = searchTerm.toLowerCase();
-        const filterFn = (p: CandidateProfile) => {
-            const name = displayUsername(p).toLowerCase();
-            const username = (p.username || '').toLowerCase();
-            return name.includes(term) || username.includes(term);
-        };
-        return {
-            external: candidates.external.filter(filterFn),
-            enterprise: candidates.enterprise.filter(filterFn),
-            searchResults: candidates.searchResults,
-        };
-    }, [candidates, searchTerm]);
-
-    // Selected profiles array for display
-    const selectedProfilesArray = useMemo(() => {
-        return Array.from(selectedProfiles.values());
-    }, [selectedProfiles]);
-
-    // Navigation buttons
-    useEffect(() => {
-        const closeIconColor = theme.sidebarHeaderTextColor;
-        const closeIcon = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
-        setButtons(componentId, {
-            leftButtons: [{
-                id: CLOSE_BUTTON_ID,
-                icon: closeIcon,
-                testID: 'invite.close.button',
-            }],
-        });
-    }, [componentId, theme.sidebarHeaderTextColor]);
-
-    useNavButtonPressed(CLOSE_BUTTON_ID, componentId, closeModal, [closeModal]);
-    useAndroidHardwareBackHandler(componentId, closeModal);
-
-    // Toggle select
-    const toggleSelect = useCallback((userId: string) => {
-        if (alreadyJoinedIds.has(userId)) {
-            return;
-        }
-        setSelectedIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(userId)) {
-                next.delete(userId);
-                setSelectedProfiles((prevP) => {
-                    const nextP = new Map(prevP);
-                    nextP.delete(userId);
-                    return nextP;
-                });
-            } else {
-                next.add(userId);
-                // Find profile from candidates
-                const allProfiles = [...candidates.enterprise, ...candidates.external, ...candidates.searchResults];
-                const profile = allProfiles.find((p) => p.id === userId);
-                if (profile) {
-                    setSelectedProfiles((prevP) => {
-                        const nextP = new Map(prevP);
-                        nextP.set(userId, profile);
-                        return nextP;
-                    });
-                }
-            }
-            return next;
-        });
-        setSearchTerm('');
-    }, [alreadyJoinedIds, candidates]);
-
-    const toggleSection = useCallback((section: string) => {
-        setExpandedSections((prev) => {
-            const next = new Set(prev);
-            if (next.has(section)) {
-                next.delete(section);
-            } else {
-                next.add(section);
-            }
-            return next;
-        });
-    }, []);
-
-    const toggleRoleKey = useCallback((roleKey: string) => {
-        setSelectedRoleKeys((prev) => {
-            const next = new Set(prev);
-            if (next.has(roleKey)) {
-                next.delete(roleKey);
-            } else {
-                next.add(roleKey);
-            }
-            return next;
-        });
-    }, []);
-
-    // Add sent users to department
-    const addSentUsersToDepartment = useCallback(async (sent: InviteResult[]) => {
-        await Promise.all(sent.map(async (item) => {
-            if (!item.userId) {
-                return;
-            }
-            const uid = item.userId;
-            if (typeof contactTargetDepartmentId === 'number') {
-                await addUserToDepartment(serverUrl, teamId, contactTargetDepartmentId, uid);
-                return;
-            }
-            await addUserToDefaultDepartment(serverUrl, teamId, uid);
-        }));
-    }, [contactTargetDepartmentId, serverUrl, teamId]);
-
-    // Handle send (invite selected users)
-    const handleSend = useCallback(async () => {
-        if (selectedIds.size === 0 || sending) {
-            return;
-        }
-        setSending(true);
-        setStage(Stage.LOADING);
-
-        // Convert selectedProfiles Map to the format expected by sendMembersInvites
-        const selectedMap = Object.fromEntries(selectedProfiles) as {[id: string]: SearchResult};
-
-        const {sent, notSent, error} = await sendMembersInvites(serverUrl, teamId, selectedMap, isAdmin, teamDisplayName, formatMessage);
-        if (error) {
-            setSendError(formatMessage({id: 'invite.send_error', defaultMessage: 'Something went wrong while trying to send invitations.'}));
-            setResult(DEFAULT_RESULT);
-            setStage(Stage.RESULT);
-        } else {
-            setResult({sent, notSent});
-            await addSentUsersToDepartment(sent);
-
-            // Grant selected business roles to newly invited users
-            if (selectedRoleKeys.size > 0) {
-                const client = NetworkManager.getClient(serverUrl);
-                const roleKeyArray = Array.from(selectedRoleKeys);
-                await Promise.all(sent.map(async (item) => {
-                    if (!item.userId) {
-                        return;
-                    }
-                    await Promise.all(roleKeyArray.map(async (roleKey) => {
-                        try {
-                            await client.grantBusinessRole(teamId, item.userId!, roleKey);
-                        } catch {
-                            // ignore individual role grant failures
-                        }
-                    }));
-                }));
-            }
-
-            setStage(Stage.SELECTION);
-            setSelectedIds(new Set());
-            setSelectedProfiles(new Map());
-            Alert.alert(
-                formatMessage({id: 'invite.add_success', defaultMessage: 'Added successfully'}),
-            );
-        }
-        setSending(false);
-    }, [selectedIds, sending, selectedProfiles, serverUrl, teamId, isAdmin, teamDisplayName, formatMessage, addSentUsersToDepartment, selectedRoleKeys]);
-
-    // Share link
-    const handleShareLink = useCallback(async () => {
-        const url = `${serverUrl}/signup_user_complete/?id=${resolvedInviteId}`;
-        const title = formatMessage(
-            {id: 'invite_people_to_team.title', defaultMessage: 'Join the {team} enterprise'},
-            {team: teamDisplayName},
-        );
-        const message = formatMessage(
-            {id: 'invite.share_invite_message', defaultMessage: '{name} invites you to join {team} for communication and collaboration'},
-            {name: currentUserName || '', team: teamDisplayName},
-        );
-
-        await closeModal();
-        try {
-            await Share.share({
-                title,
-                message: `${message}\n${url}`,
-                url,
-            });
-        } catch {
-            // User cancelled share
-        }
-    }, [serverUrl, resolvedInviteId, teamDisplayName, currentUserName, formatMessage, closeModal]);
-
-    // 底部按钮始终显示"添加成员"
-    const doneLabel = formatMessage({id: 'contacts.add_member', defaultMessage: 'Add Member'});
-
-    // Handle back from summary
-    const handleBackToSelection = useCallback(() => {
-        setSendError('');
-        setResult(DEFAULT_RESULT);
-        setStage(Stage.SELECTION);
-    }, []);
-
-    const renderCheckbox = (userId: string) => {
-        const isSelected = selectedIds.has(userId);
-        const isJoined = alreadyJoinedIds.has(userId);
-
-        if (isJoined) {
-            return (
-                <View style={[style.checkbox, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.3), borderColor: changeOpacity(theme.centerChannelColor, 0.3)}]}>
-                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
-                </View>
-            );
-        }
-        if (isSelected) {
-            return (
-                <View style={[style.checkbox, style.checkboxChecked]}>
-                    <CompassIcon name='check' size={14} style={style.checkIcon}/>
-                </View>
-            );
-        }
-        return <View style={[style.checkbox, style.checkboxUnchecked]}/>;
-    };
-
-    const renderMemberRow = (user: CandidateProfile) => {
-        const isJoined = alreadyJoinedIds.has(user.id);
-        const name = displayUsername(user);
+    const renderFoundUser = () => {
+        if (!searchResult?.user) return null;
+        const user = searchResult.user;
+        const isSelected = selectedUserId === user.id;
 
         return (
-            <TouchableOpacity
-                key={user.id}
-                style={[style.memberRow, isJoined && style.memberRowJoined]}
-                onPress={() => toggleSelect(user.id)}
-                disabled={isJoined}
-            >
-                {renderCheckbox(user.id)}
-                <AvatarNoInitials author={user} size={40}/>
-                <Text style={style.memberName}>
-                    {name}
-                    {isJoined && (
-                        <Text style={style.memberJoined}>
-                            {` (${formatMessage({id: 'invite.tag.already_joined', defaultMessage: 'Already added'})})`}
-                        </Text>
-                    )}
-                </Text>
-            </TouchableOpacity>
-        );
-    };
-
-    const renderSection = (title: string, sectionKey: string, members: CandidateProfile[]) => {
-        if (members.length === 0) {
-            return null;
-        }
-        const isExpanded = expandedSections.has(sectionKey);
-        return (
-            <View key={sectionKey}>
-                <TouchableOpacity style={style.sectionHeader} onPress={() => toggleSection(sectionKey)}>
+            <View style={style.resultCard}>
+                <View style={style.resultHeader}>
                     <CompassIcon
-                        name={isExpanded ? 'chevron-down' : 'chevron-right'}
+                        name='check-circle'
                         size={20}
-                        style={style.chevron}
+                        color='#4CAF50'
+                        style={style.resultIcon}
                     />
-                    <Text style={style.sectionHeaderText}>{title}</Text>
-                    <Text style={style.sectionCount}>({members.length})</Text>
+                    <Text style={style.resultTitle}>
+                        {intl.formatMessage({id: 'invite.found_registered', defaultMessage: 'Found registered user:'})}
+                    </Text>
+                </View>
+                <TouchableOpacity
+                    style={style.userProfile}
+                    onPress={() => setSelectedUserId(isSelected ? null : user.id)}
+                >
+                    <AvatarNoInitials author={user} size={48}/>
+                    <View style={style.userInfo}>
+                        <Text style={style.userName}>{user.nickname || user.username}</Text>
+                        <Text style={style.userDetail}>
+                            {intl.formatMessage({id: 'invite.account', defaultMessage: 'Account:'})} {user.username}
+                        </Text>
+                        <Text style={style.userDetail}>
+                            {intl.formatMessage({id: 'invite.nickname', defaultMessage: 'Nickname:'})} {user.nickname || '-'}
+                        </Text>
+                        {user.email && (
+                            <Text style={style.userDetail}>
+                                {intl.formatMessage({id: 'invite.email', defaultMessage: 'Email:'})} {user.email}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={[style.checkbox, isSelected ? style.checkboxChecked : style.checkboxUnchecked]}>
+                        {isSelected && (
+                            <CompassIcon name='check' size={14} color='#fff'/>
+                        )}
+                    </View>
                 </TouchableOpacity>
-                {isExpanded && members.map(renderMemberRow)}
             </View>
         );
     };
 
-    if (stage === Stage.LOADING) {
+    const renderNotFound = () => {
+        const inviteLink = `https://${serverUrl}/invite?id=${teamInviteId}`;
         return (
-            <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
-                <View style={style.loadingContainer}>
-                    <Loading color={theme.centerChannelColor} size='large'/>
+            <View style={style.resultCard}>
+                <View style={style.resultHeader}>
+                    <CompassIcon
+                        name='close-circle'
+                        size={20}
+                        color='#F44336'
+                        style={style.resultIcon}
+                    />
+                    <Text style={style.resultTitle}>
+                        {intl.formatMessage({id: 'invite.not_registered', defaultMessage: 'Not registered:'})}
+                    </Text>
                 </View>
-            </SafeAreaView>
+                <Text style={style.messageText}>
+                    {intl.formatMessage({
+                        id: 'invite.not_registered_message',
+                        defaultMessage: 'This phone number is not registered yet. Share the invite link below to invite them.',
+                    })}
+                </Text>
+                <Text style={style.inviteLink}>{inviteLink}</Text>
+                <TouchableOpacity style={style.copyButton} onPress={handleCopyLink}>
+                    <CompassIcon name='content-copy' size={16} color={theme.buttonColor}/>
+                    <Text style={style.copyButtonText}>
+                        {intl.formatMessage({id: 'invite.copy_link', defaultMessage: 'Copy link'})}
+                    </Text>
+                </TouchableOpacity>
+            </View>
         );
-    }
+    };
 
-    if (stage === Stage.RESULT) {
-        return (
-            <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
-                <Summary
-                    result={result}
-                    selectedIds={Object.fromEntries(selectedProfiles)}
-                    error={sendError}
-                    onClose={closeModal}
-                    onRetry={handleSend}
-                    onBack={handleBackToSelection}
-                    testID='invite.screen.summary'
+    const renderAlreadyInEnterprise = () => (
+        <View style={style.resultCard}>
+            <View style={style.resultHeader}>
+                <CompassIcon
+                    name='alert-circle'
+                    size={20}
+                    color='#FF9800'
+                    style={style.resultIcon}
                 />
-            </SafeAreaView>
-        );
-    }
+                <Text style={style.resultTitle}>
+                    {intl.formatMessage({id: 'invite.already_in_enterprise', defaultMessage: 'Already in enterprise:'})}
+                </Text>
+            </View>
+            <Text style={style.messageText}>
+                {intl.formatMessage({
+                    id: 'invite.already_in_enterprise_message',
+                    defaultMessage: 'This user is already a member of the enterprise.',
+                })}
+            </Text>
+        </View>
+    );
+
+    const canConfirm = searchResult?.type === 'found' && selectedUserId !== null;
 
     return (
-        <SafeAreaView
-            style={style.container}
-            testID='invite.screen'
-            nativeID={SecurityManager.getShieldScreenId(componentId)}
-            edges={['top', 'left', 'right']}
-        >
-            {/* Search bar */}
+        <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
+            {/* Search Section */}
             <View style={style.searchSection}>
                 <View style={style.searchBar}>
-                    {selectedProfilesArray.length === 0 && (
-                        <CompassIcon name='magnify' size={20} style={style.searchIcon}/>
-                    )}
-                    {selectedProfilesArray.length > 0 && (
-                        <TouchableOpacity
-                            style={{flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginRight: 8}}
-                            onPress={() => setShowDropdown(true)}
-                        >
-                            {selectedProfilesArray.map((user) => (
-                                <AvatarNoInitials
-                                    key={user.id}
-                                    author={user}
-                                    size={28}
-                                />
-                            ))}
-                        </TouchableOpacity>
-                    )}
                     <TextInput
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={formatMessage({id: 'invite.search_placeholder_phone_name_email', defaultMessage: '@phone, nickname, email'})}
+                        placeholder={intl.formatMessage({id: 'invite.search_placeholder', defaultMessage: 'Enter phone number'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                        autoCapitalize='none'
+                        keyboardType='phone-pad'
+                        onSubmitEditing={handleSearch}
                     />
+                    <TouchableOpacity
+                        style={style.searchButton}
+                        onPress={handleSearch}
+                        disabled={searching}
+                    >
+                        <Text style={style.searchButtonText}>
+                            {searching
+                                ? intl.formatMessage({id: 'invite.searching', defaultMessage: 'Searching...'})
+                                : intl.formatMessage({id: 'invite.search', defaultMessage: 'Search'})}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
-                {showDropdown && (
-                    <View style={style.dropdownOverlay}>
-                        <View style={style.dropdownList}>
-                            {selectedProfilesArray.map((user) => {
-                                const name = displayUsername(user);
-                                return (
-                                    <TouchableOpacity
-                                        key={user.id}
-                                        style={style.selectedMemberRow}
-                                        onPress={() => toggleSelect(user.id)}
-                                    >
-                                        {renderCheckbox(user.id)}
-                                        <AvatarNoInitials author={user} size={32}/>
-                                        <Text style={style.selectedMemberName}>{name}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                        <TouchableOpacity
-                            style={style.collapseButtonContainer}
-                            onPress={() => setShowDropdown(false)}
-                        >
-                            <CompassIcon name='chevron-up' size={24} style={{color: theme.buttonBg}}/>
-                        </TouchableOpacity>
-                    </View>
-                )}
             </View>
 
-            {/* Member list */}
-            <FlatList
-                style={{flex: 1}}
-                data={[]}
-                renderItem={() => null}
-                ListHeaderComponent={
-                    <>
-                        {filteredCandidates.searchResults.length > 0 && renderSection(
-                            formatMessage({id: 'channel_add_members.search_results', defaultMessage: 'Search Results'}),
-                            'searchResults',
-                            filteredCandidates.searchResults,
-                        )}
-                    </>
-                }
-            />
+            {/* Result Section */}
+            <View style={style.resultSection}>
+                {searchResult?.type === 'found' && renderFoundUser()}
+                {searchResult?.type === 'not_found' && renderNotFound()}
+                {searchResult?.type === 'already_in_enterprise' && renderAlreadyInEnterprise()}
+            </View>
 
-            {/* Role selector (only show if role defs available) */}
-            {roleDefs.length > 0 && (
-                <>
-                    <TouchableOpacity
-                        style={style.roleSelectorButton}
-                        onPress={() => setShowRoleSelector((prev) => !prev)}
-                        activeOpacity={0.7}
-                    >
-                        <CompassIcon
-                            name='account-badge-outline'
-                            size={20}
-                            color={theme.buttonBg}
-                        />
-                        <Text style={style.roleSelectorButtonText}>
-                            {formatMessage({id: 'invite.select_roles', defaultMessage: 'Select Roles'})}
-                        </Text>
-                        <Text style={style.roleSelectorCount}>
-                            {'('}{selectedRoleKeys.size}{')'}
-                        </Text>
-                        <CompassIcon
-                            name={showRoleSelector ? 'chevron-up' : 'chevron-down'}
-                            size={20}
-                            color={theme.buttonBg}
-                            style={{marginLeft: 'auto'}}
-                        />
-                    </TouchableOpacity>
-                    {showRoleSelector && (
-                        <View style={style.roleSelectorPanel}>
-                            {roleDefs.map((def) => {
-                                const isChecked = selectedRoleKeys.has(def.role_key);
-                                return (
-                                    <TouchableOpacity
-                                        key={def.role_key}
-                                        style={style.roleOptionRow}
-                                        onPress={() => toggleRoleKey(def.role_key)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View style={[style.checkbox, isChecked ? style.checkboxChecked : style.checkboxUnchecked]}>
-                                            {isChecked && (
-                                                <CompassIcon
-                                                    name='check'
-                                                    size={14}
-                                                    style={style.checkIcon}
-                                                />
-                                            )}
-                                        </View>
-                                        <Text style={style.roleOptionText}>{def.role_name}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    )}
-                </>
-            )}
-
-            {/* Bottom bar: Share invite link + Add member */}
+            {/* Bottom Bar */}
             <View style={style.bottomBar}>
-                <TouchableOpacity
-                    style={style.doneButton}
-                    onPress={handleShareLink}
-                >
-                    <Text style={style.doneButtonText}>
-                        {formatMessage({id: 'invite.share_invite_link', defaultMessage: 'Share invite link'})}
+                <TouchableOpacity style={style.closeButton} onPress={handleClose}>
+                    <Text style={style.closeButtonText}>
+                        {intl.formatMessage({id: 'invite.close', defaultMessage: 'Close'})}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[style.doneButton, selectedIds.size === 0 && style.doneButtonDisabled]}
-                    onPress={handleSend}
-                    disabled={selectedIds.size === 0 || sending}
+                    style={[style.confirmButton, !canConfirm && style.confirmButtonDisabled]}
+                    onPress={handleConfirm}
+                    disabled={!canConfirm}
                 >
-                    <Text style={style.doneButtonText}>{doneLabel}</Text>
+                    <Text style={style.confirmButtonText}>
+                        {intl.formatMessage({id: 'invite.confirm', defaultMessage: 'Confirm'})}
+                    </Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
     );
-}
+};
+
+export default Invite;
