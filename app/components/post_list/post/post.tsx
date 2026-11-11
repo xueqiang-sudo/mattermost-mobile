@@ -365,21 +365,29 @@ const Post = ({
 
         const items: Array<{key: string; label: string; iconName: string; destructive?: boolean; onPress: () => void}> = [];
 
-        // 1. Consult Expert (咨询专家) - webapp: non-system, non-BoR, non-file
-        if (canQuote && !borPost && textMessage) {
+        // 1. Edit (编辑) - own post, can edit
+        if (canEdit && !borPost && textMessage) {
             items.push({
-                key: 'consult_expert',
-                label: intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'}),
-                iconName: 'message-arrow-right-outline',
-                onPress: closeAndRun(() => {
-                    const consultTitle = intl.formatMessage({id: 'post_info.consult_expert', defaultMessage: 'Consult Expert'});
-                    goToScreen(
-                        Screens.CONSULTATION_PANEL,
-                        consultTitle,
-                        `close-${Screens.CONSULTATION_PANEL}`,
-                        {channelId: post.channelId, prefillText: textMessage},
-                        {useBackIcon: true},
-                    );
+                key: 'edit',
+                label: intl.formatMessage({id: 'post_info.edit', defaultMessage: 'Edit'}),
+                iconName: 'pencil-outline',
+                onPress: closeAndRun(async () => {
+                    const title = intl.formatMessage({id: 'mobile.edit_post.title', defaultMessage: 'Editing Message'});
+                    const closeButton = CompassIcon.getImageSourceSync('close', 24, theme.sidebarHeaderTextColor);
+                    const closeButtonId = 'close-edit-post';
+                    const fileIds = await post.files.fetchIds();
+                    const files = post.files.fetch();
+                    const passProps = {post, closeButtonId, canDelete: canEdit, files: await files};
+                    const options = {
+                        topBar: {
+                            leftButtons: [{
+                                id: closeButtonId,
+                                testID: 'close.edit_post.button',
+                                icon: closeButton,
+                            }],
+                        },
+                    };
+                    goToScreen(Screens.EDIT_POST, title, passProps, options);
                 }),
             });
         }
