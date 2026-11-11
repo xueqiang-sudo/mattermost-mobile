@@ -17,13 +17,32 @@ const WebViewScreen = ({url}: Props) => {
     const theme = useTheme();
     const [loading, setLoading] = useState(true);
 
+    console.log('[WebView] Loading URL:', url);
+
     return (
         <View style={styles.container}>
             <WebView
                 source={{uri: url}}
                 style={styles.webview}
-                onLoadEnd={() => setLoading(false)}
-                onLoadStart={() => setLoading(true)}
+                onLoadEnd={() => {
+                    console.log('[WebView] Load end');
+                    setLoading(false);
+                }}
+                onLoadStart={() => {
+                    console.log('[WebView] Load start');
+                    setLoading(true);
+                }}
+                onNavigationStateChange={(navState) => {
+                    console.log('[WebView] Navigation state:', navState);
+                }}
+                onError={(syntheticEvent) => {
+                    const {nativeEvent} = syntheticEvent;
+                    console.warn('[WebView] Load error:', nativeEvent);
+                }}
+                onHttpError={(syntheticEvent) => {
+                    const {nativeEvent} = syntheticEvent;
+                    console.warn('[WebView] HTTP error:', nativeEvent);
+                }}
                 javaScriptEnabled={true}
                 domStorageEnabled={true}
                 startInLoadingState={true}
