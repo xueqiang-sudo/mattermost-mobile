@@ -2850,5 +2850,6 @@
   "category.select_category": "選擇分類",
   "category.move_failed": "移動失敗",
   "category.auto_classify_failed": "自動分類失敗",
-  "category.remove_failed": "移除失敗"
+  "category.remove_failed": "移除失敗",
+  "channel_info.invite_members": "邀請成員"
 }

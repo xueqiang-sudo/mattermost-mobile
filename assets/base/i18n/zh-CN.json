@@ -2854,5 +2854,6 @@
   "category.select_category": "选择分类",
   "category.move_failed": "移动失败",
   "category.auto_classify_failed": "自动分类失败",
-  "category.remove_failed": "移除失败"
+  "category.remove_failed": "移除失败",
+  "channel_info.invite_members": "邀请成员"
 }

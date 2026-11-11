@@ -2854,5 +2854,6 @@
   "category.select_category": "Select Category",
   "category.move_failed": "Failed to move channel",
   "category.auto_classify_failed": "Failed to auto-classify",
-  "category.remove_failed": "Failed to remove from category"
+  "category.remove_failed": "Failed to remove from category",
+  "channel_info.invite_members": "Invite members"
 }

@@ -15,6 +15,7 @@ import AutoFollowThreads from './auto_follow_threads';
 import ChannelFiles from './channel_files';
 import EditChannel from './edit_channel';
 import IgnoreMentions from './ignore_mentions';
+import InviteMembers from './invite_members';
 import Members from './members';
 import NotificationPreference from './notification_preference';
 import PinnedMessages from './pinned_messages';
@@ -73,6 +74,9 @@ const Options = ({
                     channelType={type}
                     isTeamDefaultOpenChannel={isTeamDefaultOpenChannel}
                 />
+            }
+            {canManageMembers &&
+                <InviteMembers channelId={channelId}/>
             }
             {canManageMembers &&
                 <AddMembers channelId={channelId}/>

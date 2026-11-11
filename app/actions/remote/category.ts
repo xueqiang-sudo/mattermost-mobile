@@ -9,6 +9,7 @@ import NetworkManager from '@managers/network_manager';
 import {getChannelCategory, queryCategoriesByTeamIds} from '@queries/servers/categories';
 import {getChannelById} from '@queries/servers/channel';
 import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 import {getFullErrorMessage} from '@utils/errors';
 import {logDebug} from '@utils/log';
 import {showFavoriteChannelSnackbar} from '@utils/snack_bar';
@@ -22,27 +23,31 @@ export type CategoriesRequest = {
 
 export const createCategory = async (serverUrl: string, teamId: string, displayName: string) => {
     try {
+        debugLog('[createCategory] start', {teamId, displayName});
         const client = NetworkManager.getClient(serverUrl);
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const currentUserId = await getCurrentUserId(database);
+        debugLog('[createCategory] currentUserId', currentUserId);
 
-        const newCategory = await client.createChannelCategory('me', teamId, {
+        const requestBody = {
             user_id: currentUserId,
             team_id: teamId,
             display_name: displayName,
             channel_ids: [],
-            sorting: 'alpha',
-            type: 'custom',
-            muted: false,
-            collapsed: false,
-        } as Partial<Category>);
+        };
+        debugLog('[createCategory] requestBody', requestBody);
+
+        const newCategory = await client.createChannelCategory('me', teamId, requestBody as Partial<Category>);
+        debugLog('[createCategory] success', newCategory);
 
         // Refresh local categories after creation
         await fetchCategories(serverUrl, teamId);
 
         return {category: newCategory};
     } catch (error) {
-        logDebug('error on createCategory', getFullErrorMessage(error));
+        const errorMsg = getFullErrorMessage(error);
+        debugLog('[createCategory] error', errorMsg);
+        logDebug('error on createCategory', errorMsg);
         forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
