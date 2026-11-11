@@ -289,6 +289,8 @@ const Body = ({
     const weChatContentMaxWidth = useMemo(() => {
         return Math.floor(weChatBubbleMaxWidth - 24);
     }, [weChatBubbleMaxWidth]);
+    const isSmartNotebookChannel = channel?.name?.startsWith('sn_') === true;
+
     const chatBubbleSurface = useMemo(() => {
         if (!weChatStyleActive) {
             return null;
@@ -383,6 +385,13 @@ const Body = ({
             borderColor: chatBubbleSurface.border,
         };
         if (isOwnPost) {
+            // 智能笔记本频道：自己的消息不带背景色和边框，与 webapp 一致
+            if (isSmartNotebookChannel) {
+                return [...base, style.bubbleOwnWeChat, {
+                    backgroundColor: 'transparent',
+                    borderTopRightRadius: 0,
+                }];
+            }
             return [...base, style.bubbleOwnWeChat, {
                 backgroundColor: chatBubbleSurface.ownBg,
                 borderTopRightRadius: 0,
@@ -394,7 +403,7 @@ const Body = ({
             borderTopLeftRadius: 0,
             ...borderShell,
         }];
-    }, [showBubble, chatBubbleSurface, isOwnPost, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
+    }, [showBubble, chatBubbleSurface, isOwnPost, isSmartNotebookChannel, style.bubble, style.bubbleOwnWeChat, style.bubbleOthersWeChat, style.bubbleWeChat]);
 
     if (hasBeenDeleted) {
         const isRecallInferred = post.deleteAt >= post.createAt && (post.deleteAt - post.createAt) <= POST_RECALL_TIME_LIMIT_MS;
@@ -624,7 +633,7 @@ const Body = ({
                     <View style={bubbleStyle}>
                         {body}
                     </View>
-                    {isOwnPost && (
+                    {isOwnPost && !isSmartNotebookChannel && (
                         <View
                             style={[
                                 style.bubbleTailRight,
