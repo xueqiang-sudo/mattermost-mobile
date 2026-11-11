@@ -11,6 +11,7 @@ import {
     fetchDefaultDepartmentId,
     fetchDepartmentsByTeam,
     fetchDepartmentEmployees,
+    fetchMembersWithoutDepartment,
 } from '@actions/remote/contact_new';
 import {DEFAULT_TEAM_DEPARTMENT_NAME} from '@client/rest/constants';
 import CompassIcon from '@components/compass_icon';
@@ -375,6 +376,10 @@ const ContactsDepartmentAddMembersScreen = ({
                 debugLog('addMembers', `Dept ${dept.id} (${dept.name}): fetched ${memberCount} members`);
                 if (res.data) {
                     for (const emp of res.data) {
+                        // Skip bots (企业通讯录根页面显示 8 个成员含 1 个机器人，添加成员不显示机器人)
+                        if ((emp as any).is_bot) {
+                            continue;
+                        }
                         // Skip if already in target department
                         if (targetMemberIds.has(emp.id)) {
                             continue;
@@ -387,6 +392,31 @@ const ContactsDepartmentAddMembersScreen = ({
                                 sourceDepartmentName: dept.name,
                             });
                         }
+                    }
+                }
+            }
+
+            // 对齐企业通讯录根页面的合并逻辑：默认部门的成员列表应该包含
+            // "未分配到任何部门的成员"（云枢看到的 8 个成员 = 默认部门显式成员 + 未分配成员）。
+            // 仅当目标不是根部门时才需要合并（根部门场景是把成员搬到子部门，源不能含默认部门本身）。
+            if (targetDepartmentId != null && defaultDeptId != null) {
+                const unassigned = await fetchMembersWithoutDepartment(serverUrl, companyId);
+                debugLog('addMembers', `Fetched ${unassigned.length} members without department`);
+                const defaultDeptName = companyName ||
+                    intl.formatMessage({id: 'contacts.enterprise', defaultMessage: 'Enterprise Contacts'});
+                for (const emp of unassigned) {
+                    if ((emp as any).is_bot) {
+                        continue;
+                    }
+                    if (targetMemberIds.has(emp.id)) {
+                        continue;
+                    }
+                    if (!memberMap.has(emp.id)) {
+                        memberMap.set(emp.id, {
+                            employee: emp,
+                            sourceDepartmentId: defaultDeptId,
+                            sourceDepartmentName: defaultDeptName,
+                        });
                     }
                 }
             }

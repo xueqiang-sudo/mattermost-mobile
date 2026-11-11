@@ -235,7 +235,7 @@ export const searchContactEmployees = async (
 };
 
 /** 获取不属于任何部门的成员 */
-const fetchMembersWithoutDepartment = async (serverUrl: string, teamId: string): Promise<UserProfile[]> => {
+export const fetchMembersWithoutDepartment = async (serverUrl: string, teamId: string): Promise<UserProfile[]> => {
     try {
         const client = NetworkManager.getClient(serverUrl);
         const res = await client.getDepartmentWithoutMembers(teamId, {perPage: 10000});
