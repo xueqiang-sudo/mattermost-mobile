@@ -316,12 +316,12 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                                     await addChannelToDefaultCategory(serverUrl, localChannel, false);
                                 }
                             } catch (err) {
-                                console.warn('Failed to upsert smart notebook locally:', err);
+                                // silently handle error
                             }
                             await switchToChannelById(serverUrl, channel.id);
                         }
                     } catch (err) {
-                        console.error('Failed to enter smart notebook:', err);
+                        // silently handle error
                     }
                 })();
                 break;

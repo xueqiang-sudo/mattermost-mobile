@@ -174,7 +174,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                     setChannel(ch);
                 }
             } catch (err) {
-                console.error('Smart notebook init failed:', err);
+                // silently handle init errors
             } finally {
                 setInitializing(false);
             }
@@ -315,7 +315,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
             setGraphEntities(entityResult.entities || []);
             setGraphRelations(relationResult.relations || []);
         } catch (err) {
-            console.error('Failed to load graph:', err);
+            // silently handle graph loading errors
         } finally {
             setGraphLoading(false);
         }

@@ -155,7 +155,7 @@ export async function getOrCreateSmartNotebookChannel(
                 }
             }
         } catch (err) {
-            console.error('Failed to create smart notebook channel:', err);
+            // silently handle error
             return null;
         }
     }
@@ -245,7 +245,7 @@ export async function createPost(
         });
         return post?.id ? post : null;
     } catch (err) {
-        console.error('Failed to create post:', err);
+        // silently handle error
         return null;
     }
 }
@@ -265,7 +265,7 @@ export async function editPost(
         });
         return post?.id ? post : null;
     } catch (err) {
-        console.error('Failed to edit post:', err);
+        // silently handle error
         return null;
     }
 }
@@ -311,7 +311,7 @@ export async function createQuickNote(
         });
         return post?.id ? post : null;
     } catch (err) {
-        console.error('Failed to create quick note:', err);
+        // silently handle error
         return null;
     }
 }
@@ -337,7 +337,7 @@ export async function editQuickNote(
         });
         return post?.id ? post : null;
     } catch (err) {
-        console.error('Failed to edit quick note:', err);
+        // silently handle error
         return null;
     }
 }

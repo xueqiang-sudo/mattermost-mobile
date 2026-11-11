@@ -93,7 +93,7 @@ const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
                     setContent(p.message);
                 }
             } catch (err) {
-                console.error('Failed to load post:', err);
+                // silently handle error
             } finally {
                 setLoading(false);
             }
@@ -134,7 +134,7 @@ const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
                 }
             }
         } catch (err) {
-            console.error('Failed to save:', err);
+            // silently handle error
             Alert.alert(
                 intl.formatMessage({id: 'smart_notebook.save_failed', defaultMessage: '保存失败'}),
             );

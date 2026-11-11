@@ -80,7 +80,7 @@ const QuickNoteDetailScreen = ({postId, channelId, title: initialTitle, content:
                 );
             }
         } catch (err) {
-            console.error('Failed to save quick note:', err);
+            // silently handle error
             Alert.alert(
                 intl.formatMessage({id: 'quick_note.save_failed', defaultMessage: '保存失败'}),
             );

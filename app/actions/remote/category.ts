@@ -31,6 +31,10 @@ export const createCategory = async (serverUrl: string, teamId: string, displayN
             team_id: teamId,
             display_name: displayName,
             channel_ids: [],
+            sorting: 'alpha',
+            type: 'custom',
+            muted: false,
+            collapsed: false,
         } as Partial<Category>);
 
         // Refresh local categories after creation
