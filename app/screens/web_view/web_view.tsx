@@ -6,6 +6,7 @@ import {ActivityIndicator, StyleSheet, View} from 'react-native';
 import {WebView} from 'react-native-webview';
 
 import {useTheme} from '@context/theme';
+import {debugLog} from '@store/debug_log';
 
 type Props = {
     url: string;
@@ -17,7 +18,7 @@ const WebViewScreen = ({url}: Props) => {
     const theme = useTheme();
     const [loading, setLoading] = useState(true);
 
-    console.log('[WebView] Loading URL:', url);
+    debugLog('[WebView] Loading URL', {url});
 
     return (
         <View style={styles.container}>
@@ -25,23 +26,37 @@ const WebViewScreen = ({url}: Props) => {
                 source={{uri: url}}
                 style={styles.webview}
                 onLoadEnd={() => {
-                    console.log('[WebView] Load end');
+                    debugLog('[WebView] Load end', {url});
                     setLoading(false);
                 }}
                 onLoadStart={() => {
-                    console.log('[WebView] Load start');
+                    debugLog('[WebView] Load start', {url});
                     setLoading(true);
                 }}
                 onNavigationStateChange={(navState) => {
-                    console.log('[WebView] Navigation state:', navState);
+                    debugLog('[WebView] Navigation state', {
+                        url: navState.url,
+                        title: navState.title,
+                        loading: navState.loading,
+                        canGoBack: navState.canGoBack,
+                        canGoForward: navState.canGoForward,
+                    });
                 }}
                 onError={(syntheticEvent) => {
                     const {nativeEvent} = syntheticEvent;
-                    console.warn('[WebView] Load error:', nativeEvent);
+                    debugLog('[WebView] Load error', {
+                        url: nativeEvent.url,
+                        code: nativeEvent.code,
+                        description: nativeEvent.description,
+                    });
                 }}
                 onHttpError={(syntheticEvent) => {
                     const {nativeEvent} = syntheticEvent;
-                    console.warn('[WebView] HTTP error:', nativeEvent);
+                    debugLog('[WebView] HTTP error', {
+                        url: nativeEvent.url,
+                        statusCode: nativeEvent.statusCode,
+                        description: nativeEvent.description,
+                    });
                 }}
                 javaScriptEnabled={true}
                 domStorageEnabled={true}
