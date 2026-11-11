@@ -76,7 +76,15 @@ export async function addChannelToDefaultCategory(serverUrl: string, channel: Ch
         const teamId = overrideTeamId || ('teamId' in channel ? channel.teamId : channel.team_id);
         const userId = await getCurrentUserId(database);
 
+        logDebug('[addChannelToDefaultCategory] start', {
+            teamId,
+            overrideTeamId,
+            channelId: channel.id,
+            channelTeamId: 'teamId' in channel ? channel.teamId : channel.team_id,
+        });
+
         if (!userId) {
+            logDebug('[addChannelToDefaultCategory] ERROR: no current user id');
             return {error: 'no current user id'};
         }
 
@@ -93,6 +101,11 @@ export async function addChannelToDefaultCategory(serverUrl: string, channel: Ch
             }
         } else {
             const cwc = await prepareAddNonGMDMChannelToDefaultCategory(database, teamId, channel.id);
+            logDebug('[addChannelToDefaultCategory] prepareAddNonGMDM result', {
+                found: Boolean(cwc),
+                teamId,
+                channelId: channel.id,
+            });
             if (cwc) {
                 categoriesWithChannels.push(cwc);
             }
@@ -100,8 +113,14 @@ export async function addChannelToDefaultCategory(serverUrl: string, channel: Ch
 
         const models = await prepareCategoryChannels(operator, categoriesWithChannels);
 
+        logDebug('[addChannelToDefaultCategory] models prepared', {
+            modelsCount: models.length,
+            prepareRecordsOnly,
+        });
+
         if (models.length && !prepareRecordsOnly) {
             await operator.batchRecords(models, 'addChannelToDefaultCategory');
+            logDebug('[addChannelToDefaultCategory] batch write SUCCESS');
         }
 
         return {models};
@@ -113,13 +132,28 @@ export async function addChannelToDefaultCategory(serverUrl: string, channel: Ch
 
 async function prepareAddNonGMDMChannelToDefaultCategory(database: Database, teamId: string, channelId: string): Promise<CategoryWithChannels | undefined> {
     const categories = await queryCategoriesByTeamIds(database, [teamId]).fetch();
+    logDebug('[prepareAddNonGMDM] categories for team', {
+        teamId,
+        categoriesCount: categories.length,
+        types: categories.map((c) => c.type),
+        ids: categories.map((c) => c.id),
+    });
     const channelCategory = categories.find((category) => category.type === CHANNELS_CATEGORY);
     if (channelCategory) {
         const cwc = await channelCategory.toCategoryWithChannels();
-        if (cwc.channel_ids.indexOf(channelId) < 0) {
+        const alreadyInCategory = cwc.channel_ids.indexOf(channelId) >= 0;
+        logDebug('[prepareAddNonGMDM] channelCategory found', {
+            categoryId: channelCategory.id,
+            channelCount: cwc.channel_ids.length,
+            alreadyInCategory,
+            channelId,
+        });
+        if (!alreadyInCategory) {
             cwc.channel_ids.unshift(channelId);
             return cwc;
         }
+    } else {
+        logDebug('[prepareAddNonGMDM] CHANNELS_CATEGORY not found for team', {teamId});
     }
 
     return undefined;
