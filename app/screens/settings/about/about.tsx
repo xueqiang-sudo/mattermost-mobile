@@ -31,7 +31,7 @@ const CARD_RADIUS = 12;
 const LOGO_SIZE = 80;
 
 const TERMS_URL = 'https://pipeline.optibot.cn/terms';
-const PRIVACY_URL = 'https://pipeline.optibot.cn/privacy';
+const PRIVACY_URL = 'https://pipeline.optibot.cn/privacy-20261103.html';
 
 const appIcon = require('@assets/images/icon.png');
 
