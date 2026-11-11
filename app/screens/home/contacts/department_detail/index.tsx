@@ -995,6 +995,7 @@ const ContactsDepartmentDetail = ({
                         testID='contacts.department_detail.manage.more.transfer_ownership'
                     />
                 )}
+                {/* 暂时隐藏解散企业菜单
                 {isCurrentUserOwner && departmentId == null && (
                     <SlideUpPanelItem
                         leftIcon='close-circle-outline'
@@ -1007,6 +1008,7 @@ const ContactsDepartmentDetail = ({
                         destructive={true}
                     />
                 )}
+                */}
                 <SlideUpPanelItem
                     leftIcon='close'
                     text={intl.formatMessage({id: 'common.cancel', defaultMessage: 'Cancel'})}
