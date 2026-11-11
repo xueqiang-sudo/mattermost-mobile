@@ -232,8 +232,11 @@ const Categories = ({
                         });
 
                         if (localChannel) {
-                            await addChannelToDefaultCategory(serverUrl, localChannel, false);
-                            debugLog('[SmartNotebook] Channel added to default category successfully');
+                            await addChannelToDefaultCategory(serverUrl, localChannel, false, currentTeamId);
+                            debugLog('[SmartNotebook] Channel added to default category successfully', {
+                                currentTeamId,
+                                channelTeamId: localChannel.teamId,
+                            });
                         } else {
                             debugLog('[SmartNotebook] WARNING: Local channel not found after upsert', {
                                 channelId: result.channel_id,

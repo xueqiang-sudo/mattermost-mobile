@@ -70,10 +70,10 @@ export const toggleCollapseCategory = async (serverUrl: string, categoryId: stri
     }
 };
 
-export async function addChannelToDefaultCategory(serverUrl: string, channel: Channel | ChannelModel, prepareRecordsOnly = false) {
+export async function addChannelToDefaultCategory(serverUrl: string, channel: Channel | ChannelModel, prepareRecordsOnly = false, overrideTeamId?: string) {
     try {
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-        const teamId = 'teamId' in channel ? channel.teamId : channel.team_id;
+        const teamId = overrideTeamId || ('teamId' in channel ? channel.teamId : channel.team_id);
         const userId = await getCurrentUserId(database);
 
         if (!userId) {
