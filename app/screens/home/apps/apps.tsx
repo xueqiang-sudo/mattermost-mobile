@@ -12,6 +12,9 @@ import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area
 
 import {switchToChannelById} from '@actions/remote/channel';
 import {fetchTeamById} from '@actions/remote/team';
+import {addChannelToDefaultCategory} from '@actions/local/category';
+import DatabaseManager from '@database/manager';
+import {getChannelById} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
@@ -240,8 +243,32 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             case 'smart_notebook':
                 (async () => {
                     try {
-                        const channel = await getOrCreateSmartNotebookChannel(serverUrl);
+                        const displayName = intl.formatMessage({
+                            id: 'apps.smart_notebook.display_name',
+                            defaultMessage: '智能笔记本',
+                        });
+                        const welcomeMessage = intl.formatMessage({
+                            id: 'apps.smart_notebook.welcome',
+                            defaultMessage: '欢迎使用智能笔记本！在这里记录你的想法和笔记。',
+                        });
+                        const channel = await getOrCreateSmartNotebookChannel(
+                            serverUrl,
+                            displayName,
+                            welcomeMessage,
+                        );
                         if (channel?.id) {
+                            // 切换到频道前，确保它在当前团队的默认分类（内部群）里可见。
+                            // 智能笔记本频道是用户级别跨团队共享的，mobile 端分类显示
+                            // 依赖本地 category_channels 表，必须显式写入。
+                            try {
+                                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                                const localChannel = await getChannelById(database, channel.id);
+                                if (localChannel) {
+                                    await addChannelToDefaultCategory(serverUrl, localChannel, false);
+                                }
+                            } catch (err) {
+                                console.warn('Failed to add smart notebook to default category:', err);
+                            }
                             await switchToChannelById(serverUrl, channel.id);
                         }
                     } catch (err) {
