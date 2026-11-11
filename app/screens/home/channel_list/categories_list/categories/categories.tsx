@@ -138,25 +138,21 @@ const Categories = ({
                 });
                 debugLog('[SmartNotebook] API result', {result, channelId: result?.channel_id});
 
-                // 刷新当前团队的频道和分类数据
-                debugLog('[SmartNotebook] Fetching channels and categories for team', {
-                    currentTeamId,
-                    channelId: result?.channel_id,
-                });
-                await Promise.all([
-                    fetchMyChannelsForTeam(serverUrl, currentTeamId),
-                    fetchCategories(serverUrl, currentTeamId),
-                ]);
-                debugLog('[SmartNotebook] Channels and categories fetched successfully');
-
                 // 智能笔记本频道是用户级别的，同一个 channel_id 跨多个团队共享。
                 // 后端 ensure_smart_notebook_team 已经把它绑到用户所属的所有 team（channelteams 表），
                 // 但 mobile 的 fetchMyChannelsForTeam 走标准 API（GET /users/me/teams/{teamId}/channels）
                 // 只返回 channel.team_id == teamId 的频道，不包含 channelteams 关联的跨团队频道。
-                // 所以必须显式 upsert 本地 Channel 和 ChannelTeam 记录，并把它加到默认分类。
+                // 所以必须先显式 upsert 本地 Channel 和 ChannelTeam 记录，再 fetch 分类数据。
                 if (result?.channel_id && result?.channel) {
                     try {
                         const {operator, database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+                        debugLog('[SmartNotebook] Starting local upsert', {
+                            channelId: result.channel_id,
+                            currentTeamId,
+                            channelName: result.channel.name,
+                            channelDisplayName: result.channel.display_name,
+                        });
 
                         // 1. Upsert 本地 Channel 记录：把 team_id 写成当前 team，让标准 scope SQL 命中
                         const channelForCurrentTeam = {...result.channel, team_id: currentTeamId};
@@ -165,6 +161,11 @@ const Categories = ({
                             prepareRecordsOnly: true,
                         }) || [];
 
+                        debugLog('[SmartNotebook] Channel models prepared', {
+                            count: channelModels.length,
+                            channelId: result.channel_id,
+                        });
+
                         // 2. Upsert 本地 ChannelTeam 关联（后端返回所有已绑定的 team_ids）
                         const teamIds: string[] = Array.isArray(result.team_ids) ? result.team_ids : [];
                         const ctPayload = teamIds.map((tid: string) => ({
@@ -172,12 +173,22 @@ const Categories = ({
                             channel_id: result.channel_id,
                             team_id: tid,
                         }));
+
+                        debugLog('[SmartNotebook] ChannelTeam payload prepared', {
+                            count: ctPayload.length,
+                            teamIds,
+                        });
+
                         const ctModels = ctPayload.length
                             ? (await operator.handleChannelTeam({
                                 channelTeams: ctPayload,
                                 prepareRecordsOnly: true,
                             }) || [])
                             : [];
+
+                        debugLog('[SmartNotebook] ChannelTeam models prepared', {
+                            count: ctModels.length,
+                        });
 
                         if (channelModels.length || ctModels.length) {
                             await operator.batchRecords(
@@ -187,20 +198,48 @@ const Categories = ({
                             debugLog('[SmartNotebook] Upserted local Channel + ChannelTeam', {
                                 channelId: result.channel_id,
                                 currentTeamId,
+                                channelModelsCount: channelModels.length,
+                                ctModelsCount: ctModels.length,
                                 boundTeams: teamIds.length,
+                            });
+                        } else {
+                            debugLog('[SmartNotebook] No records to upsert (already up to date)', {
+                                channelId: result.channel_id,
+                                currentTeamId,
                             });
                         }
 
                         // 3. 加到当前团队的默认分类（内部群）
                         const localChannel = await getChannelById(database, result.channel_id);
+                        debugLog('[SmartNotebook] Local channel lookup', {
+                            channelId: result.channel_id,
+                            found: Boolean(localChannel),
+                            channelTeamId: localChannel?.teamId,
+                        });
+
                         if (localChannel) {
                             await addChannelToDefaultCategory(serverUrl, localChannel, false);
                             debugLog('[SmartNotebook] Channel added to default category successfully');
+                        } else {
+                            debugLog('[SmartNotebook] WARNING: Local channel not found after upsert', {
+                                channelId: result.channel_id,
+                            });
                         }
                     } catch (error) {
                         debugLog('[SmartNotebook] Failed to upsert smart notebook locally', {error: String(error)});
                     }
                 }
+
+                // 4. 刷新当前团队的频道和分类数据（必须在本地 upsert 之后）
+                debugLog('[SmartNotebook] Fetching channels and categories for team', {
+                    currentTeamId,
+                    channelId: result?.channel_id,
+                });
+                await Promise.all([
+                    fetchMyChannelsForTeam(serverUrl, currentTeamId),
+                    fetchCategories(serverUrl, currentTeamId),
+                ]);
+                debugLog('[SmartNotebook] Channels and categories fetched successfully');
             } catch (error) {
                 debugLog('[SmartNotebook] API error', {error: String(error)});
             }

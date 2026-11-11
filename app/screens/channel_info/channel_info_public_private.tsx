@@ -15,8 +15,10 @@ import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
+import NetworkManager from '@managers/network_manager';
 import SecurityManager from '@managers/security_manager';
 import {goToScreen, popTopScreen} from '@screens/navigation';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {getUserById} from '@queries/servers/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -160,6 +162,7 @@ const ChannelInfoPublicPrivate = ({
                 last_name: user.lastName || '',
                 nickname: user.nickname || '',
                 position: user.position || '',
+                phone: user.phone || '',
                 create_at: user.createAt || 0,
                 update_at: user.updateAt || 0,
                 delete_at: user.deleteAt || 0,
@@ -174,12 +177,32 @@ const ChannelInfoPublicPrivate = ({
                 last_picture_update: user.lastPictureUpdate || 0,
             };
 
+            // Fetch user's departments to display in profile
+            let departmentName: string | undefined;
+            try {
+                const teamId = await getCurrentTeamId(database);
+                if (teamId) {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const departments = await client.getUserDepartments(userId, teamId);
+                    if (departments && departments.length > 0) {
+                        // Join all department names with comma
+                        departmentName = departments
+                            .map((d) => d.name)
+                            .filter((name) => name && name !== 'FORCE_TEAM_DEFAULT_DEPARTMENT')
+                            .join(', ');
+                    }
+                }
+            } catch (e) {
+                // Silently fail - department info is optional
+            }
+
             const title = intl.formatMessage({id: 'contacts.employee_info', defaultMessage: 'Employee Info'});
             goToScreen(
                 Screens.CONTACTS_EMPLOYEE_PROFILE,
                 title,
                 {
                     employee,
+                    departmentName,
                     componentId: Screens.CONTACTS_EMPLOYEE_PROFILE,
                 },
             );

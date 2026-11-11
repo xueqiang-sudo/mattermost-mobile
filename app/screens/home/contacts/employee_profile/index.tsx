@@ -8,7 +8,6 @@ import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, Touc
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {makeBotGroupChannel, makeGroupChannel} from '@actions/remote/channel';
-import {fetchDepartmentsByTeam, fetchDefaultDepartment, moveContactEmployeeToDepartment} from '@actions/remote/contact_new';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
@@ -93,7 +92,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     detailRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         paddingVertical: 10,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
@@ -206,30 +205,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         justifyContent: 'center',
         alignSelf: 'stretch',
-    },
-    departmentValueWithAction: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        minWidth: 0,
-    },
-    departmentValueWrap: {
-        flex: 1,
-        minWidth: 0,
-    },
-    changeDepartmentInline: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: 12,
-        paddingVertical: 6,
-        paddingHorizontal: 8,
-        borderRadius: 6,
-        backgroundColor: changeOpacity(theme.linkColor, 0.08),
-    },
-    changeDepartmentText: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: theme.linkColor,
-        marginRight: 4,
     },
     relationBadge: {
         flexDirection: 'row',
@@ -410,32 +385,6 @@ const ContactsEmployeeProfile = ({
     const [savingRoles, setSavingRoles] = useState(false);
     const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
-    // 部门下拉状态
-    const [departments, setDepartments] = useState<MMDepartment[]>([]);
-    const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
-    const [selectedDeptId, setSelectedDeptId] = useState<number | undefined>(departmentId);
-
-    // 构建树形部门结构（对齐 webapp）
-    const deptTree = useMemo(() => {
-        type DeptTreeItem = {dept: MMDepartment; depth: number};
-        const byParent = new Map<number | null, MMDepartment[]>();
-        for (const d of departments) {
-            const pid = d.parent_id ?? null;
-            if (!byParent.has(pid)) byParent.set(pid, []);
-            byParent.get(pid)!.push(d);
-        }
-        const result: DeptTreeItem[] = [];
-        const walk = (parentId: number | null, depth: number) => {
-            const children = byParent.get(parentId) || [];
-            for (const child of children) {
-                result.push({dept: child, depth});
-                walk(child.id, depth + 1);
-            }
-        };
-        walk(null, 0);
-        return result;
-    }, [departments]);
-
     const handleSaveProfile = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl || saving || !employee) {
             return;
@@ -451,37 +400,6 @@ const ContactsEmployeeProfile = ({
                 position: editPosition,
             });
 
-            // 处理部门变更
-            if (fromManage && companyIdProp && selectedDeptId !== undefined && selectedDeptId !== departmentId) {
-                debugLog('[EmployeeProfile] 部门变更', {
-                    employeeId: employee?.id,
-                    oldDeptId: departmentId,
-                    newDeptId: selectedDeptId,
-                    defaultDeptId,
-                    isMovingToDefault: selectedDeptId === defaultDeptId,
-                });
-                try {
-                    if (departmentId !== undefined) {
-                        // 从旧部门移到新部门
-                        debugLog('[EmployeeProfile] 移动成员到新部门');
-                        const result = await moveContactEmployeeToDepartment(serverUrl, companyIdProp, employee?.id, departmentId, selectedDeptId);
-                        debugLog('[EmployeeProfile] 移动结果', {result});
-                    } else {
-                        // 原来没有部门，添加到选中的部门
-                        debugLog('[EmployeeProfile] 添加成员到部门');
-                        const client = NetworkManager.getClient(serverUrl);
-                        await client.addDepartmentMember(companyIdProp, selectedDeptId, {
-                            user_id: employee?.id,
-                        });
-                    }
-                    // 发送刷新事件，通知部门详情页更新列表
-                    DeviceEventEmitter.emit(Events.CONTACTS_LIST_REFRESH);
-                    debugLog('[EmployeeProfile] 已发送通讯录刷新事件');
-                } catch (e) {
-                    debugLog('[EmployeeProfile] 部门变更失败', {error: String(e)});
-                }
-            }
-
             popTopScreen(componentId);
         } catch (e) {
             Alert.alert(
@@ -490,7 +408,7 @@ const ContactsEmployeeProfile = ({
         } finally {
             setSaving(false);
         }
-    }, [serverUrl, saving, employee?.id, editNickname, editEmail, editPhone, editPosition, intl, componentId, fromManage, companyIdProp, selectedDeptId, departmentId]));
+    }, [serverUrl, saving, employee?.id, editNickname, editEmail, editPhone, editPosition, intl, componentId]));
 
     /** 企业所有者 ID（用于标签计算） */
     const [companyOwnerId, setCompanyOwnerId] = useState<string | undefined>();
@@ -584,51 +502,6 @@ const ContactsEmployeeProfile = ({
         };
     }, [companyIdProp, employee?.id, serverUrl, fromManage]);
 
-    // 加载部门列表（编辑模式）+ 默认部门
-    const [defaultDeptId, setDefaultDeptId] = useState<number | undefined>();
-    useEffect(() => {
-        if (!companyIdProp || !serverUrl || !fromManage) {
-            return;
-        }
-
-        let cancelled = false;
-
-        const loadDepartments = async () => {
-            try {
-                const [deptRes, defaultDeptRes] = await Promise.all([
-                    fetchDepartmentsByTeam(serverUrl, companyIdProp, {perPage: 10000}),
-                    fetchDefaultDepartment(serverUrl, companyIdProp),
-                ]);
-                if (cancelled) {
-                    return;
-                }
-                if (defaultDeptRes.data) {
-                    setDefaultDeptId(defaultDeptRes.data.id);
-                }
-                if (deptRes.data) {
-                    // 确保默认部门在列表中
-                    let depts = deptRes.data;
-                    if (defaultDeptRes.data && !depts.find((d) => d.id === defaultDeptRes.data.id)) {
-                        depts = [defaultDeptRes.data, ...depts];
-                    }
-                    setDepartments(depts);
-                }
-            } catch (e) {
-                // 静默失败
-            }
-        };
-
-        loadDepartments();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [companyIdProp, serverUrl, fromManage]);
-
-    // 同步 departmentId prop 到 selectedDeptId
-    useEffect(() => {
-        setSelectedDeptId(departmentId);
-    }, [departmentId]);
 
     // 保存业务角色（内联下拉关闭时自动保存）
     const handleSaveRoles = useCallback(async () => {
@@ -817,27 +690,6 @@ const ContactsEmployeeProfile = ({
 
     const canSendMessage = !isSelf && Boolean(employee?.email || employee?.id);
 
-    const canChangeDepartment = fromManage && Boolean(companyIdProp);
-
-    const handleChangeDepartment = usePreventDoubleTap(useCallback(() => {
-        if (!canChangeDepartment || !companyIdProp || !employee) {
-            return;
-        }
-        const sourceName = departmentName ??
-            intl.formatMessage({id: 'contacts.root_default_department', defaultMessage: 'Root (default department)'});
-        goToScreen(
-            Screens.CONTACTS_BATCH_MOVE_MEMBERS,
-            intl.formatMessage({id: 'contacts.move_members', defaultMessage: 'Move members'}),
-            {
-                companyId: companyIdProp,
-                sourceDepartmentId: departmentId ?? null,
-                sourceDepartmentName: sourceName,
-                singleEmployeeId: employee.id,
-                singleEmployeeName: getContactListDisplayName(employee),
-                onSuccess: handleClose,
-            },
-        );
-    }, [canChangeDepartment, companyIdProp, departmentId, departmentName, employee?.id, intl, handleClose]));
 
     const isExternalContact = Boolean(relationType);
 
@@ -1161,75 +1013,15 @@ const ContactsEmployeeProfile = ({
                             </Text>
                         )}
                     </View>
-                    {!isExternalContact && (
+                    {!isExternalContact && !fromManage && (
                     <View>
                         <View style={styles.detailRow}>
                             <Text style={styles.detailLabel}>
                                 {intl.formatMessage({id: 'contacts.department', defaultMessage: 'Department'})}
                             </Text>
-                            {fromManage ? (
-                                <View style={{flex: 1}}>
-                                    <TouchableOpacity
-                                        style={styles.selectBtn}
-                                        onPress={() => {
-                                            setRoleDropdownOpen(false);
-                                            setDeptDropdownOpen(!deptDropdownOpen);
-                                        }}
-                                    >
-                                        <Text style={styles.selectText}>
-                                            {(() => {
-                                                const dept = departments.find((d) => d.id === selectedDeptId);
-                                                if (dept) {
-                                                    return dept.name === 'FORCE_TEAM_DEFAULT_DEPARTMENT' ? (companyName || '-') : dept.name;
-                                                }
-                                                return (departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-');
-                                            })()}
-                                        </Text>
-                                        <CompassIcon name={deptDropdownOpen ? 'menu-up' : 'menu-down'} size={20} color={changeOpacity(theme.centerChannelColor, 0.48)}/>
-                                    </TouchableOpacity>
-                                    {deptDropdownOpen && (
-                                        <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
-                                            {/* 默认部门选项（显示企业名称） */}
-                                            {defaultDeptId !== undefined && (
-                                                <TouchableOpacity
-                                                    style={[styles.dropdownItem, selectedDeptId === defaultDeptId && styles.dropdownItemSelected]}
-                                                    onPress={() => {
-                                                        setSelectedDeptId(defaultDeptId);
-                                                        setDeptDropdownOpen(false);
-                                                    }}
-                                                >
-                                                    <Text style={styles.dropdownItemText}>
-                                                        {companyName || intl.formatMessage({id: 'contacts.default_department', defaultMessage: '默认部门'})}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            )}
-                                            {deptTree.filter(({dept}) => dept.name !== 'FORCE_TEAM_DEFAULT_DEPARTMENT').map(({dept, depth}) => (
-                                                <TouchableOpacity
-                                                    key={dept.id}
-                                                    style={[styles.dropdownItem, selectedDeptId === dept.id && styles.dropdownItemSelected]}
-                                                    onPress={() => {
-                                                        setSelectedDeptId(dept.id);
-                                                        setDeptDropdownOpen(false);
-                                                    }}
-                                                >
-                                                    <Text style={styles.dropdownItemText}>
-                                                        {' '.repeat(depth)}{depth > 0 ? '└ ' : ''}{dept.name}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                            {deptTree.length === 0 && (
-                                                <Text style={styles.dropdownEmpty}>
-                                                    {intl.formatMessage({id: 'contacts.no_departments', defaultMessage: '暂无部门'})}
-                                                </Text>
-                                            )}
-                                        </ScrollView>
-                                    )}
-                                </View>
-                            ) : (
-                                <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
-                                    {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
-                                </Text>
-                            )}
+                            <Text style={styles.detailValue} numberOfLines={2} selectable={true}>
+                                {(departmentName && departmentName !== 'FORCE_TEAM_DEFAULT_DEPARTMENT') ? departmentName : (companyName || '-')}
+                            </Text>
                         </View>
                     </View>
                     )}
@@ -1292,7 +1084,6 @@ const ContactsEmployeeProfile = ({
                                     <TouchableOpacity
                                         style={styles.selectBtn}
                                         onPress={() => {
-                                            setDeptDropdownOpen(false);
                                             setRoleDropdownOpen(!roleDropdownOpen);
                                         }}
                                     >
