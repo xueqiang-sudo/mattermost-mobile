@@ -7,7 +7,8 @@ import {FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'rea
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {addMembersToChannel, fetchChannelMemberships} from '@actions/remote/channel';
-import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
+import {getEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
+import {searchContactEmployees} from '@actions/remote/contact_new';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
@@ -113,6 +114,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         fontSize: 16,
         padding: 0,
+    },
+    searchButton: {
+        marginLeft: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        backgroundColor: theme.buttonBg,
+        borderRadius: 4,
+    },
+    searchButtonText: {
+        color: theme.buttonColor,
+        fontSize: 14,
+        fontWeight: '600',
     },
     selectedMemberRow: {
         flexDirection: 'row',
@@ -289,30 +302,37 @@ export default function ChannelAddMembers({
         });
     }, [serverUrl, teamIdForMembersList, currentUserId]);
 
-    // Search for external contacts (enterprise is filtered client-side)
-    useEffect(() => {
-        if (!searchTerm.trim()) {
+    // Handle search button click - enterprise internal search only
+    const handleSearch = useCallback(() => {
+        const term = searchTerm.trim();
+        if (!term) {
             return;
         }
-        searchEmployeeCandidates(serverUrl, teamIdForMembersList, currentUserId, searchTerm).then((drafts) => {
-            const profiles = mapCandidateDraftsToProfiles(drafts);
-            const notSelf = (p: CandidateProfile) => !p.mmCandidateTags?.includes('self');
-            const isExternal = (p: CandidateProfile) =>
-                !p.mmCandidateTags?.includes('enterprise');
-            const newExternals = profiles.filter((p) => notSelf(p) && isExternal(p));
-            if (newExternals.length > 0) {
+
+        // Enterprise internal search only (no global search, no external contacts)
+        searchContactEmployees(serverUrl, teamIdForMembersList, term).then((res) => {
+            const profiles = (res.data ?? []).map((emp) => ({
+                id: emp.user_id || emp.id,
+                username: emp.username || '',
+                first_name: emp.first_name || '',
+                last_name: emp.last_name || '',
+                nickname: emp.nickname || '',
+                mmCandidateTags: 'enterprise',
+            }));
+
+            if (profiles.length > 0) {
                 setCandidates((prev) => ({
                     ...prev,
-                    external: [...prev.external, ...newExternals.filter((p) => !prev.external.some((e) => e.id === p.id))],
+                    enterprise: profiles.filter((p) => !prev.enterprise.some((e) => e.id === p.id)),
                 }));
                 setKnownProfiles((prev) => {
                     const next = new Map(prev);
-                    newExternals.forEach((p) => next.set(p.id, p));
+                    profiles.forEach((p) => next.set(p.id, p));
                     return next;
                 });
             }
         });
-    }, [searchTerm, serverUrl, teamIdForMembersList, currentUserId]);
+    }, [searchTerm, serverUrl, teamIdForMembersList]);
 
     // Compute newSelectedIds
     const newSelectedIds = useMemo(() => {
@@ -490,9 +510,18 @@ export default function ChannelAddMembers({
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: 'Search...'})}
+                        placeholder={intl.formatMessage({id: 'channel_add_members.search_placeholder', defaultMessage: '搜索手机号或昵称'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                        onSubmitEditing={() => handleSearch()}
                     />
+                    <TouchableOpacity
+                        style={style.searchButton}
+                        onPress={handleSearch}
+                    >
+                        <Text style={style.searchButtonText}>
+                            {intl.formatMessage({id: 'channel_add_members.search_button', defaultMessage: '搜索'})}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
                 {showDropdown && (
                     <View style={style.dropdownOverlay}>
