@@ -236,7 +236,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
 
     const handleCopyLink = useCallback(() => {
         const inviteId = searchResult?.invitationId || teamInviteId;
-        const inviteLink = `https://${serverUrl}/invite?id=${inviteId}`;
+        const inviteLink = `${serverUrl}/invite?id=${inviteId}`;
         Clipboard.setString(inviteLink);
         Alert.alert(
             intl.formatMessage({id: 'invite.link_copied', defaultMessage: 'Link copied'}),
@@ -249,7 +249,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
             const userId = searchResult.user.id;
             try {
                 const client = NetworkManager.getClient(serverUrl);
-                await client.addUsersToTeam(teamId, [userId]);
+                await client.addToTeam(teamId, userId);
                 Alert.alert(
                     intl.formatMessage({id: 'invite.success', defaultMessage: 'Success'}),
                     intl.formatMessage({id: 'invite.user_added', defaultMessage: 'User has been added to the enterprise.'}),
@@ -301,7 +301,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
 
     const renderNotFound = () => {
         const inviteId = searchResult?.invitationId || teamInviteId;
-        const inviteLink = `https://${serverUrl}/invite?id=${inviteId}`;
+        const inviteLink = `${serverUrl}/invite?id=${inviteId}`;
         return (
             <View style={style.resultCard}>
                 <View style={style.resultHeader}>

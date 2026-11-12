@@ -335,12 +335,20 @@ export default function ChannelCategoryMenu({componentId, channelId, currentCate
             {customCategories.map((category) => (
                 <TouchableOpacity
                     key={category.id}
-                    style={style.categoryItem}
+                    style={style.menuItem}
                     onPress={() => handleSelectCategory(category.id, category.displayName)}
                 >
-                    <Text style={style.categoryText}>
-                        {category.displayName}
-                    </Text>
+                    <CompassIcon
+                        name='folder-outline'
+                        size={20}
+                        color={theme.centerChannelColor}
+                        style={style.menuIcon}
+                    />
+                    <View style={style.menuTextContainer}>
+                        <Text style={style.menuText}>
+                            {category.displayName}
+                        </Text>
+                    </View>
                 </TouchableOpacity>
             ))}
 

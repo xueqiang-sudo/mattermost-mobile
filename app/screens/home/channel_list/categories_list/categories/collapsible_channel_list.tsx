@@ -30,6 +30,8 @@ import {getUserIdFromChannelName} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {showSnackBar} from '@utils/snack_bar';
+import {logDebug} from '@utils/log';
+import {getFullErrorMessage} from '@utils/errors';
 import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
@@ -259,6 +261,7 @@ const CollapsibleChannelListRenderer = ({
                         {customCategories.map((cat) => (
                             <SlideUpPanelItem
                                 key={cat.id}
+                                leftIcon='folder-outline'
                                 text={cat.displayName}
                                 onPress={async () => {
                                     await dismissBottomSheet();
@@ -430,7 +433,12 @@ const CollapsibleChannelListRenderer = ({
                                         defaultMessage: 'Removed from category and auto-classified',
                                     }),
                                 });
-                            } catch {
+                            } catch (error) {
+                                logDebug('[removeFromCategory] failed', {
+                                    channelId: channel.id,
+                                    categoryId,
+                                    error: getFullErrorMessage(error),
+                                });
                                 showSnackBar({
                                     barType: 'UNFAVORITE_CHANNEL' as any,
                                     customMessage: intl.formatMessage({id: 'category.remove_failed', defaultMessage: 'Failed to remove from category'}),

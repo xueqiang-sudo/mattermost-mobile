@@ -1036,10 +1036,10 @@ const ContactsDepartmentDetail = ({
                 />
             </>
         );
-        // 计算菜单项数量：7个基础项 + 条件项（删除部门、转移控制权、解散企业）
+        // 计算菜单项数量：6个基础项 + 条件项（删除部门、转移控制权）
         const extraItems = (departmentId != null && memberCount === 0 ? 1 : 0) +
-            (isCurrentUserOwner && departmentId == null ? 2 : 0);
-        const itemCount = 7 + extraItems;
+            (isCurrentUserOwner && departmentId == null ? 1 : 0);
+        const itemCount = 6 + extraItems;
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,
