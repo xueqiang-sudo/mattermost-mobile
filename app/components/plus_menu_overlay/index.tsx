@@ -30,7 +30,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: theme.centerChannelBg,
         borderRadius: 8,
         paddingVertical: MENU_PADDING,
-        minWidth: 160,
+        minWidth: 200,
         shadowColor: '#000',
         shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.15,

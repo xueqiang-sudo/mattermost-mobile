@@ -9,7 +9,7 @@ import {createCategory} from '@actions/remote/category';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {dismissModal} from '@screens/navigation';
+import {popTopScreen} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {getFullErrorMessage} from '@utils/errors';
 import {debugLog} from '@store/debug_log';
@@ -136,8 +136,9 @@ export default function CreateCategory({componentId, teamId}: Props) {
         const {error: err} = await createCategory(serverUrl, teamId, name);
         debugLog('[handleCreate] createCategory returned', {hasError: Boolean(err), errorMessage: err ? getFullErrorMessage(err) : undefined});
         if (err) {
-            debugLog('[handleCreate] error detail', getFullErrorMessage(err));
-            setError(intl.formatMessage({id: 'create_category.error.message', defaultMessage: 'Failed to create category. Please try again.'}));
+            const errorMsg = getFullErrorMessage(err);
+            debugLog('[handleCreate] error detail', errorMsg);
+            setError(errorMsg || intl.formatMessage({id: 'create_category.error.message', defaultMessage: 'Failed to create category. Please try again.'}));
             setCreating(false);
             return;
         }

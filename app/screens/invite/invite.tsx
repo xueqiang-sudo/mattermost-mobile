@@ -3,19 +3,19 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, Clipboard, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, Clipboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {searchProfiles} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import NetworkManager from '@managers/network_manager';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
-import {popTopScreen} from '@screens/navigation';
+import {buildNavigationButton, popTopScreen, setButtons} from '@screens/navigation';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -136,39 +136,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 200),
         marginTop: 8,
     },
-    bottomBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    closeButton: {
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.2),
-    },
-    closeButtonText: {
-        color: theme.centerChannelColor,
-        ...typography('Body', 200),
-    },
-    confirmButton: {
-        backgroundColor: theme.buttonBg,
-        borderRadius: 8,
-        paddingHorizontal: 24,
-        paddingVertical: 10,
-    },
-    confirmButtonDisabled: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
-    },
-    confirmButtonText: {
-        color: theme.buttonColor,
-        ...typography('Body', 200, 'SemiBold'),
-    },
 }));
 
 function AvatarNoInitials({author, size}: {author: UserProfile; size: number}) {
@@ -199,24 +166,42 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
             return;
         }
 
+        // Validate phone number format (digits, optional + prefix, 5-15 chars)
+        const phoneRegex = /^\+?\d{5,15}$/;
+        if (!phoneRegex.test(term)) {
+            Alert.alert(
+                intl.formatMessage({id: 'invite.invalid_phone', defaultMessage: 'Invalid phone number'}),
+                intl.formatMessage({id: 'invite.invalid_phone_message', defaultMessage: 'Please enter a valid phone number.'}),
+            );
+            return;
+        }
+
         setSearching(true);
         setSearchResult(null);
         setSelectedUserId(null);
 
         try {
-            // Global search by phone number
+            // Search by phone number
             const result = await searchProfiles(serverUrl, term, {allow_inactive: false});
             const users = result.data || [];
 
-            if (users.length === 0) {
+            // Filter to exact phone number match only
+            const exactMatch = users.find((u: UserProfile) => u.phone === term);
+
+            if (!exactMatch) {
                 // Not found - show invite link
                 setSearchResult({type: 'not_found'});
             } else {
-                const user = users[0];
-                // Check if user is already in the enterprise
-                // For now, assume if user exists, check if they're in the team
-                // This would need to be enhanced with actual team membership check
-                setSearchResult({type: 'found', user});
+                // Check if user is already in the team
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    await client.getTeamMember(teamId, exactMatch.id);
+                    // User is already a team member
+                    setSearchResult({type: 'already_in_enterprise'});
+                } catch {
+                    // User exists but not in team - can be invited
+                    setSearchResult({type: 'found', user: exactMatch});
+                }
             }
         } catch (error) {
             Alert.alert(
@@ -270,9 +255,8 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
         }
     }, [searchResult, selectedUserId, componentId, intl]);
 
-    const handleClose = useCallback(() => {
-        popTopScreen(componentId);
-    }, [componentId]);
+    // Handle navigation bar right button press
+    useNavButtonPressed('confirm', componentId, handleConfirm, [handleConfirm]);
 
     const renderFoundUser = () => {
         if (!searchResult?.user) return null;
@@ -377,8 +361,25 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
 
     const canConfirm = searchResult?.type === 'found' && selectedUserId !== null;
 
+    // Set right button in navigation bar
+    useEffect(() => {
+        setButtons(componentId, {
+            rightButtons: [{
+                ...buildNavigationButton(
+                    'confirm',
+                    'invite.confirm.button',
+                    undefined,
+                    intl.formatMessage({id: 'invite.confirm', defaultMessage: 'Confirm'}),
+                ),
+                color: theme.sidebarHeaderTextColor,
+                disabledColor: changeOpacity(theme.sidebarHeaderTextColor, 0.32),
+                enabled: canConfirm,
+            }],
+        });
+    }, [componentId, canConfirm, intl, theme]);
+
     return (
-        <SafeAreaView style={style.container} edges={['top', 'left', 'right']}>
+        <View style={style.container}>
             {/* Search Section */}
             <View style={style.searchSection}>
                 <View style={style.searchBar}>
@@ -411,25 +412,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                 {searchResult?.type === 'not_found' && renderNotFound()}
                 {searchResult?.type === 'already_in_enterprise' && renderAlreadyInEnterprise()}
             </View>
-
-            {/* Bottom Bar */}
-            <View style={style.bottomBar}>
-                <TouchableOpacity style={style.closeButton} onPress={handleClose}>
-                    <Text style={style.closeButtonText}>
-                        {intl.formatMessage({id: 'invite.close', defaultMessage: 'Close'})}
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[style.confirmButton, !canConfirm && style.confirmButtonDisabled]}
-                    onPress={handleConfirm}
-                    disabled={!canConfirm}
-                >
-                    <Text style={style.confirmButtonText}>
-                        {intl.formatMessage({id: 'invite.confirm', defaultMessage: 'Confirm'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </SafeAreaView>
+        </View>
     );
 };
 

@@ -32,7 +32,7 @@ type Props = {
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
         flex: 1,
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.5),
+        backgroundColor: 'transparent',
         justifyContent: 'flex-end',
     },
     content: {
@@ -272,7 +272,7 @@ export default function ChannelCategoryMenu({componentId, channelId, currentCate
                 onPress={handleMoveToCategory}
             >
                 <CompassIcon
-                    name='folder-move'
+                    name='folder-move-outline'
                     size={20}
                     color={theme.centerChannelColor}
                     style={style.menuIcon}
@@ -328,19 +328,11 @@ export default function ChannelCategoryMenu({componentId, channelId, currentCate
         </>
     );
 
+    const customCategories = categories.filter((c) => c.type === 'custom');
+
     const renderCategorySelection = () => (
         <>
-            <TouchableOpacity
-                style={style.backButton}
-                onPress={() => setView('main')}
-            >
-                <CompassIcon name='arrow-left' size={20} color={theme.buttonBg}/>
-                <Text style={style.backText}>
-                    {intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
-                </Text>
-            </TouchableOpacity>
-
-            {categories.map((category) => (
+            {customCategories.map((category) => (
                 <TouchableOpacity
                     key={category.id}
                     style={style.categoryItem}
@@ -351,24 +343,30 @@ export default function ChannelCategoryMenu({componentId, channelId, currentCate
                     </Text>
                 </TouchableOpacity>
             ))}
+
+            <TouchableOpacity
+                style={style.menuItem}
+                onPress={handleClose}
+            >
+                <CompassIcon
+                    name='close'
+                    size={20}
+                    color={theme.centerChannelColor}
+                    style={style.menuIcon}
+                />
+                <View style={style.menuTextContainer}>
+                    <Text style={style.menuText}>
+                        {intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                    </Text>
+                </View>
+            </TouchableOpacity>
         </>
     );
 
     return (
         <SafeAreaView edges={['bottom']} style={style.container}>
-            <TouchableOpacity
-                style={StyleSheet.absoluteFill}
-                activeOpacity={1}
-                onPress={handleClose}
-            />
             <View style={style.content}>
                 <View style={style.handle}/>
-                <Text style={style.title}>
-                    {view === 'main'
-                        ? intl.formatMessage({id: 'category.menu_title', defaultMessage: 'Channel Actions'})
-                        : intl.formatMessage({id: 'category.select_category', defaultMessage: 'Select Category'})
-                    }
-                </Text>
                 {view === 'main' ? renderMainMenu() : renderCategorySelection()}
             </View>
         </SafeAreaView>

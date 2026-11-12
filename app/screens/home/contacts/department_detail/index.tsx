@@ -863,7 +863,7 @@ const ContactsDepartmentDetail = ({
             <>
                 {/* 邀请成员 */}
                 <SlideUpPanelItem
-                    leftIcon='person-add-outline'
+                    leftIcon='account-plus-outline'
                     text={intl.formatMessage({id: 'contacts.invite_colleagues', defaultMessage: 'Invite Colleagues'})}
                     onPress={async () => {
                         await dismissBottomSheet();
