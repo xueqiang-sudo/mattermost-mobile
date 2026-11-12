@@ -2881,6 +2881,7 @@
   "invite.already_in_enterprise_message": "该用户已是企业成员。",
   "invite.close": "关闭",
   "invite.confirm": "确认",
+  "invite.add": "添加",
   "invite.search_error": "搜索失败",
   "invite.search_error_message": "请重试。",
   "invite.invalid_phone": "手机号格式不正确",

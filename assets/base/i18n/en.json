@@ -2881,6 +2881,7 @@
   "invite.already_in_enterprise_message": "This user is already a member of the enterprise.",
   "invite.close": "Close",
   "invite.confirm": "Confirm",
+  "invite.add": "Add",
   "invite.search_error": "Search failed",
   "invite.search_error_message": "Please try again.",
   "invite.invalid_phone": "Invalid phone number",

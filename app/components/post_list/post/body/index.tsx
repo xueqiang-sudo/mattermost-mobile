@@ -219,7 +219,8 @@ const Body = ({
     location, post, searchPatterns, showAddReaction, theme, weChatAvatarOnlyRow, onLongPress,
 }: BodyProps) => {
     const style = getStyleSheet(theme);
-    const isEdited = postEdited(post);
+    const isSystem = isSystemMessage(post);
+    const isEdited = !isSystem && postEdited(post);  // 系统消息不显示"已编辑"标记
     const isFailed = isPostFailed(post);
     const [layoutWidth, setLayoutWidth] = useState(0);
     const hasBeenDeleted = Boolean(post.deleteAt);

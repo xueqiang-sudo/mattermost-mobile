@@ -158,7 +158,6 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
     const [searching, setSearching] = useState(false);
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
     const handleSearch = useCallback(async () => {
         const term = searchTerm.trim();
@@ -178,7 +177,6 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
 
         setSearching(true);
         setSearchResult(null);
-        setSelectedUserId(null);
 
         try {
             // Search by phone number
@@ -245,15 +243,16 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
     }, [serverUrl, teamInviteId, intl]);
 
     const handleConfirm = useCallback(() => {
-        if (searchResult?.type === 'found' && selectedUserId) {
-            // TODO: Add user to team/enterprise
+        if (searchResult?.type === 'found' && searchResult.user) {
+            const userId = searchResult.user.id;
+            // TODO: Call API to add user to team/enterprise
             Alert.alert(
                 intl.formatMessage({id: 'invite.success', defaultMessage: 'Success'}),
                 intl.formatMessage({id: 'invite.user_added', defaultMessage: 'User has been added to the enterprise.'}),
             );
             popTopScreen(componentId);
         }
-    }, [searchResult, selectedUserId, componentId, intl]);
+    }, [searchResult, componentId, intl]);
 
     // Handle navigation bar right button press
     useNavButtonPressed('confirm', componentId, handleConfirm, [handleConfirm]);
@@ -261,7 +260,6 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
     const renderFoundUser = () => {
         if (!searchResult?.user) return null;
         const user = searchResult.user;
-        const isSelected = selectedUserId === user.id;
 
         return (
             <View style={style.resultCard}>
@@ -276,18 +274,12 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                         {intl.formatMessage({id: 'invite.found_registered', defaultMessage: 'Found registered user:'})}
                     </Text>
                 </View>
-                <TouchableOpacity
-                    style={style.userProfile}
-                    onPress={() => setSelectedUserId(isSelected ? null : user.id)}
-                >
+                <View style={style.userProfile}>
                     <AvatarNoInitials author={user} size={48}/>
                     <View style={style.userInfo}>
                         <Text style={style.userName}>{user.nickname || user.username}</Text>
                         <Text style={style.userDetail}>
                             {intl.formatMessage({id: 'invite.account', defaultMessage: 'Account:'})} {user.username}
-                        </Text>
-                        <Text style={style.userDetail}>
-                            {intl.formatMessage({id: 'invite.nickname', defaultMessage: 'Nickname:'})} {user.nickname || '-'}
                         </Text>
                         {user.email && (
                             <Text style={style.userDetail}>
@@ -295,12 +287,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                             </Text>
                         )}
                     </View>
-                    <View style={[style.checkbox, isSelected ? style.checkboxChecked : style.checkboxUnchecked]}>
-                        {isSelected && (
-                            <CompassIcon name='check' size={14} color='#fff'/>
-                        )}
-                    </View>
-                </TouchableOpacity>
+                </View>
             </View>
         );
     };
@@ -341,9 +328,9 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
         <View style={style.resultCard}>
             <View style={style.resultHeader}>
                 <CompassIcon
-                    name='alert-circle'
+                    name='information-outline'
                     size={20}
-                    color='#FF9800'
+                    color='#2196F3'
                     style={style.resultIcon}
                 />
                 <Text style={style.resultTitle}>
@@ -359,7 +346,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
         </View>
     );
 
-    const canConfirm = searchResult?.type === 'found' && selectedUserId !== null;
+    const canConfirm = searchResult?.type === 'found';
 
     // Set right button in navigation bar
     useEffect(() => {
@@ -367,9 +354,9 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
             rightButtons: [{
                 ...buildNavigationButton(
                     'confirm',
-                    'invite.confirm.button',
+                    'invite.add.button',
                     undefined,
-                    intl.formatMessage({id: 'invite.confirm', defaultMessage: 'Confirm'}),
+                    intl.formatMessage({id: 'invite.add', defaultMessage: 'Add'}),
                 ),
                 color: theme.sidebarHeaderTextColor,
                 disabledColor: changeOpacity(theme.sidebarHeaderTextColor, 0.32),

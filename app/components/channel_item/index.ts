@@ -19,8 +19,9 @@ import {observeLastPostInChannel} from '@queries/servers/post';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
 import {observeCurrentChannelId, observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
 import {observeTeam} from '@queries/servers/team';
-import {observeCurrentUser} from '@queries/servers/user';
-import {getTimezone} from '@utils/user';
+import {observeCurrentUser, queryUsersByUsername} from '@queries/servers/user';
+import {getTimezone, username2Nickname} from '@utils/user';
+import {Post} from '@constants';
 
 import ChannelItem, {ROW_HEIGHT, ROW_HEIGHT_CENTER_LIST, ROW_HEIGHT_CONVERSATION, ROW_HEIGHT_WITH_TEAM} from './channel_item';
 import {HOME_CONVERSATION_LAST_POST_THROTTLE_MS} from './conversation_list_constants';
@@ -155,15 +156,55 @@ const enhance = withObservables(['channel', 'shouldHighlightActive', 'shouldHigh
 
     const lastPostPreview = isOnHome ?
         combineLatest([lastPostWithFiles, channelInfoObservable]).pipe(
-            switchMap(([postWithFiles, channelInfo]) => of$({
-                message: postWithFiles?.post?.message ?? '',
-                files: postWithFiles?.files?.map((f) => ({
-                    mimeType: f.mimeType,
-                    name: f.name,
-                })) ?? [],
-                header: channelInfo?.header ?? '',
-                channelType: channel.type,
-            })),
+            switchMap(([postWithFiles, channelInfo]) => {
+                const post = postWithFiles?.post;
+                const postType = post?.type ?? '';
+                let message = post?.message ?? '';
+
+                // Handle system join/add team messages - look up user by username and use display name
+                if (post && (postType === Post.POST_TYPES.JOIN_TEAM || postType === Post.POST_TYPES.ADD_TO_TEAM)) {
+                    const propsUsername = post.props?.username as string | undefined;
+                    const addedUsername = post.props?.addedUsername as string | undefined;
+                    const usernamesToLookup = [propsUsername, addedUsername].filter(Boolean) as string[];
+
+                    if (usernamesToLookup.length > 0) {
+                        return queryUsersByUsername(database, usernamesToLookup).observe().pipe(
+                            switchMap((users) => {
+                                const userMap = new Map(users.map((u) => [u.username, u]));
+                                const actorUser = propsUsername ? userMap.get(propsUsername) : undefined;
+                                const actorDisplay = actorUser ? `@${username2Nickname(actorUser, {includeFullName: false})}` : (propsUsername ? `@${propsUsername}` : '');
+
+                                if (postType === Post.POST_TYPES.JOIN_TEAM) {
+                                    message = `${actorDisplay} 加入了此企业`;
+                                } else {
+                                    const addedUser = addedUsername ? userMap.get(addedUsername) : undefined;
+                                    const addedDisplay = addedUser ? `@${username2Nickname(addedUser, {includeFullName: false})}` : (addedUsername ? `@${addedUsername}` : '');
+                                    message = `${addedDisplay} 被 ${actorDisplay} 添加至此企业`;
+                                }
+                                return of$({
+                                    message,
+                                    files: postWithFiles?.files?.map((f) => ({
+                                        mimeType: f.mimeType,
+                                        name: f.name,
+                                    })) ?? [],
+                                    header: channelInfo?.header ?? '',
+                                    channelType: channel.type,
+                                });
+                            }),
+                        );
+                    }
+                }
+
+                return of$({
+                    message,
+                    files: postWithFiles?.files?.map((f) => ({
+                        mimeType: f.mimeType,
+                        name: f.name,
+                    })) ?? [],
+                    header: channelInfo?.header ?? '',
+                    channelType: channel.type,
+                });
+            }),
             distinctUntilChanged((a, b) => a.message === b.message && JSON.stringify(a.files) === JSON.stringify(b.files) && a.header === b.header),
         ) : of$({message: '', files: [], header: '', channelType: channel.type});
 

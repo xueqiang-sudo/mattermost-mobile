@@ -2877,6 +2877,7 @@
   "invite.already_in_enterprise_message": "該用戶已是企業成員。",
   "invite.close": "關閉",
   "invite.confirm": "確認",
+  "invite.add": "添加",
   "invite.search_error": "搜尋失敗",
   "invite.search_error_message": "請重試。",
   "invite.invalid_phone": "手機號格式不正確",
