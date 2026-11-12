@@ -58,12 +58,15 @@ export const moveChannelToCategory = async (serverUrl: string, channelId: string
         const client = NetworkManager.getClient(serverUrl);
         const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-        const currentCategory = await getChannelCategory(database, '', channelId);
+        const teamId = await getCurrentTeamId(database);
+        if (!teamId) {
+            return {error: 'no current team'};
+        }
+
+        const currentCategory = await getChannelCategory(database, teamId, channelId);
         if (!currentCategory) {
             return {error: 'channel does not belong to a category'};
         }
-
-        const teamId = currentCategory.teamId;
         const categories = await queryCategoriesByTeamIds(database, [teamId]).fetch();
 
         const targetCategory = categories.find((c) => c.id === targetCategoryId);

@@ -894,7 +894,7 @@ const ContactsDepartmentDetail = ({
                     }}
                     testID='contacts.department_detail.manage.more.add_sub_department'
                 />
-                {/* 批量移动成员（原更多菜单1） */}
+                {/* 批量移动成员 — 暂时隐藏
                 <SlideUpPanelItem
                     leftIcon='account-multiple-outline'
                     text={intl.formatMessage({id: 'contacts.batch_move_members', defaultMessage: 'Batch move members'})}
@@ -923,6 +923,7 @@ const ContactsDepartmentDetail = ({
                     }}
                     testID='contacts.department_detail.manage.more.batch_move'
                 />
+                */}
                 {/* 管理员列表（原更多菜单2） */}
                 <SlideUpPanelItem
                     leftIcon='crown-outline'

@@ -29,6 +29,7 @@ type Props = {
 type SearchResult = {
     type: 'found' | 'not_found' | 'already_in_enterprise';
     user?: UserProfile;
+    invitationId?: string;
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -165,16 +166,6 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
             return;
         }
 
-        // Validate phone number format (digits, optional + prefix, 5-15 chars)
-        const phoneRegex = /^\+?\d{5,15}$/;
-        if (!phoneRegex.test(term)) {
-            Alert.alert(
-                intl.formatMessage({id: 'invite.invalid_phone', defaultMessage: 'Invalid phone number'}),
-                intl.formatMessage({id: 'invite.invalid_phone_message', defaultMessage: 'Please enter a valid phone number.'}),
-            );
-            return;
-        }
-
         setSearching(true);
         setSearchResult(null);
 
@@ -183,8 +174,8 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
             const result = await searchProfiles(serverUrl, term, {allow_inactive: false});
             const users = result.data || [];
 
-            // Filter to exact phone number match only
-            const exactMatch = users.find((u: UserProfile) => u.phone === term);
+            // Filter to exact phone or username match
+            const exactMatch = users.find((u: UserProfile) => u.phone === term || u.username === term);
 
             if (!exactMatch) {
                 // Not found - show invite link
@@ -225,7 +216,17 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
         pendingInvitePhoneRef.current = trimmedPhone;
         try {
             const client = NetworkManager.getClient(serverUrl);
-            client.createInvitation(currentUserId, trimmedPhone, teamId).catch(() => {
+            client.createInvitation(currentUserId, trimmedPhone, teamId).then((invitation: any) => {
+                // Save invitation ID for the link
+                if (invitation?.id) {
+                    setSearchResult((prev) => {
+                        if (prev?.type === 'not_found') {
+                            return {...prev, invitationId: invitation.id};
+                        }
+                        return prev;
+                    });
+                }
+            }).catch(() => {
                 // best-effort
             });
         } catch {
@@ -234,25 +235,34 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
     }, [searchResult, currentUserId, serverUrl, searchTerm, teamId]);
 
     const handleCopyLink = useCallback(() => {
-        const inviteLink = `https://${serverUrl}/invite?id=${teamInviteId}`;
+        const inviteId = searchResult?.invitationId || teamInviteId;
+        const inviteLink = `https://${serverUrl}/invite?id=${inviteId}`;
         Clipboard.setString(inviteLink);
         Alert.alert(
             intl.formatMessage({id: 'invite.link_copied', defaultMessage: 'Link copied'}),
             intl.formatMessage({id: 'invite.link_copied_message', defaultMessage: 'Invite link has been copied to clipboard.'}),
         );
-    }, [serverUrl, teamInviteId, intl]);
+    }, [serverUrl, teamInviteId, searchResult?.invitationId, intl]);
 
-    const handleConfirm = useCallback(() => {
-        if (searchResult?.type === 'found' && searchResult.user) {
+    const handleConfirm = useCallback(async () => {
+        if (searchResult?.type === 'found' && searchResult.user && serverUrl) {
             const userId = searchResult.user.id;
-            // TODO: Call API to add user to team/enterprise
-            Alert.alert(
-                intl.formatMessage({id: 'invite.success', defaultMessage: 'Success'}),
-                intl.formatMessage({id: 'invite.user_added', defaultMessage: 'User has been added to the enterprise.'}),
-            );
-            popTopScreen(componentId);
+            try {
+                const client = NetworkManager.getClient(serverUrl);
+                await client.addUsersToTeam(teamId, [userId]);
+                Alert.alert(
+                    intl.formatMessage({id: 'invite.success', defaultMessage: 'Success'}),
+                    intl.formatMessage({id: 'invite.user_added', defaultMessage: 'User has been added to the enterprise.'}),
+                );
+                popTopScreen(componentId);
+            } catch (error) {
+                Alert.alert(
+                    intl.formatMessage({id: 'invite.add_failed', defaultMessage: 'Failed to add user'}),
+                    error instanceof Error ? error.message : intl.formatMessage({id: 'invite.add_failed_message', defaultMessage: 'Please try again.'}),
+                );
+            }
         }
-    }, [searchResult, componentId, intl]);
+    }, [searchResult, componentId, intl, serverUrl, teamId]);
 
     // Handle navigation bar right button press
     useNavButtonPressed('confirm', componentId, handleConfirm, [handleConfirm]);
@@ -277,15 +287,12 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                 <View style={style.userProfile}>
                     <AvatarNoInitials author={user} size={48}/>
                     <View style={style.userInfo}>
-                        <Text style={style.userName}>{user.nickname || user.username}</Text>
                         <Text style={style.userDetail}>
-                            {intl.formatMessage({id: 'invite.account', defaultMessage: 'Account:'})} {user.username}
+                            {intl.formatMessage({id: 'invite.account', defaultMessage: 'Account:'})} {user.phone || user.username}
                         </Text>
-                        {user.email && (
-                            <Text style={style.userDetail}>
-                                {intl.formatMessage({id: 'invite.email', defaultMessage: 'Email:'})} {user.email}
-                            </Text>
-                        )}
+                        <Text style={style.userDetail}>
+                            {intl.formatMessage({id: 'invite.nickname', defaultMessage: 'Nickname:'})} {user.nickname || user.first_name || user.username}
+                        </Text>
                     </View>
                 </View>
             </View>
@@ -293,7 +300,8 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
     };
 
     const renderNotFound = () => {
-        const inviteLink = `https://${serverUrl}/invite?id=${teamInviteId}`;
+        const inviteId = searchResult?.invitationId || teamInviteId;
+        const inviteLink = `https://${serverUrl}/invite?id=${inviteId}`;
         return (
             <View style={style.resultCard}>
                 <View style={style.resultHeader}>
@@ -330,19 +338,13 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                 <CompassIcon
                     name='information-outline'
                     size={20}
-                    color='#2196F3'
+                    color='#FF9800'
                     style={style.resultIcon}
                 />
                 <Text style={style.resultTitle}>
-                    {intl.formatMessage({id: 'invite.already_in_enterprise', defaultMessage: 'Already in enterprise:'})}
+                    {intl.formatMessage({id: 'invite.already_in_enterprise', defaultMessage: '该用户已是企业成员'})}
                 </Text>
             </View>
-            <Text style={style.messageText}>
-                {intl.formatMessage({
-                    id: 'invite.already_in_enterprise_message',
-                    defaultMessage: 'This user is already a member of the enterprise.',
-                })}
-            </Text>
         </View>
     );
 
@@ -374,9 +376,11 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={intl.formatMessage({id: 'invite.search_placeholder', defaultMessage: 'Enter phone number'})}
+                        placeholder={intl.formatMessage({id: 'invite.search_placeholder', defaultMessage: '输入手机号或用户名'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                        keyboardType='phone-pad'
+                        keyboardType='default'
+                        autoCapitalize='none'
+                        autoCorrect={false}
                         onSubmitEditing={handleSearch}
                     />
                     <TouchableOpacity

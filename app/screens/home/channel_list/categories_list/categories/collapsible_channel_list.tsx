@@ -16,7 +16,7 @@ import ConversationListSwipeableItem from '../../conversation_list/conversation_
 import CompassIcon from '@components/compass_icon';
 import {FAVORITES_CATEGORY} from '@constants/categories';
 import {MM_TABLES} from '@constants/database';
-import {Preferences, Screens} from '@constants';
+import {Preferences} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {queryChannelsById, parseUserIdsFromGroupedChannelName} from '@queries/servers/channel';
@@ -30,7 +30,13 @@ import {getUserIdFromChannelName} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {showSnackBar} from '@utils/snack_bar';
-import {showModal} from '@screens/navigation';
+import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
+import {bottomSheetSnapPoint} from '@utils/helpers';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import {moveChannelToCategory} from '@actions/remote/category';
+import {getChannelById} from '@queries/servers/channel';
+import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
+import DatabaseManager from '@database/manager';
 import {from} from 'rxjs';
 
 import type {WithDatabaseArgs} from '@typings/database/database';
@@ -240,14 +246,218 @@ const CollapsibleChannelListRenderer = ({
     }, [expandedSections, theme, toggleSection, handleDeleteCategory]);
 
     const handleChannelLongPress = useCallback((channel: ChannelModel, categoryId?: string) => {
-        showModal(Screens.CHANNEL_CATEGORY_MENU, '', {
-            channelId: channel.id,
-            currentCategoryId: categoryId,
-        }, {
-            topBar: {visible: false},
-            modalPresentationStyle: 'overCurrentContext',
+        const showCategorySelection = async () => {
+            try {
+                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                const teamId = await getCurrentTeamId(database);
+                if (!teamId) return;
+                const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
+                const customCategories = cats.filter((c) => c.type === 'custom');
+
+                const renderCategoryContent = () => (
+                    <>
+                        {customCategories.map((cat) => (
+                            <SlideUpPanelItem
+                                key={cat.id}
+                                text={cat.displayName}
+                                onPress={async () => {
+                                    await dismissBottomSheet();
+                                    try {
+                                        const {error} = await moveChannelToCategory(serverUrl, channel.id, cat.id);
+                                        if (error) throw error;
+                                        showSnackBar({
+                                            barType: 'FAVORITE_CHANNEL' as any,
+                                            customMessage: intl.formatMessage(
+                                                {id: 'category.moved_success', defaultMessage: 'Moved to {categoryName}'},
+                                                {categoryName: cat.displayName},
+                                            ),
+                                        });
+                                    } catch {
+                                        showSnackBar({
+                                            barType: 'UNFAVORITE_CHANNEL' as any,
+                                            customMessage: intl.formatMessage({id: 'category.move_failed', defaultMessage: 'Failed to move channel'}),
+                                        });
+                                    }
+                                }}
+                                testID={`channel_menu.category.${cat.id}`}
+                            />
+                        ))}
+                        <SlideUpPanelItem
+                            leftIcon='close'
+                            text={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                            onPress={() => dismissBottomSheet()}
+                            testID='channel_menu.category.cancel'
+                        />
+                    </>
+                );
+
+                const catItemCount = customCategories.length + 1;
+                bottomSheet({
+                    closeButtonId: 'close-channel-category-select',
+                    renderContent: renderCategoryContent,
+                    snapPoints: [1, bottomSheetSnapPoint(catItemCount, ITEM_HEIGHT)],
+                    theme,
+                    title: intl.formatMessage({id: 'category.select_category', defaultMessage: 'Select Category'}),
+                });
+            } catch {
+                // ignore
+            }
+        };
+
+        const renderContent = () => (
+            <>
+                <SlideUpPanelItem
+                    leftIcon='folder-move-outline'
+                    text={intl.formatMessage({id: 'category.move_to', defaultMessage: 'Move to category'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        showCategorySelection();
+                    }}
+                    testID='channel_menu.move_to_category'
+                />
+                <SlideUpPanelItem
+                    leftIcon='auto-fix'
+                    text={intl.formatMessage({id: 'category.auto_classify', defaultMessage: 'Auto-classify'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        try {
+                            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                            const ch = await getChannelById(database, channel.id);
+                            if (!ch) throw new Error('Channel not found');
+
+                            const curUserId = await getCurrentUserId(database);
+                            const teamId = await getCurrentTeamId(database);
+                            if (!teamId || !curUserId) throw new Error('Missing team or user ID');
+
+                            const teamMemberIds = new Set<string>();
+                            const teamMembers = await database.get('TeamMember').query().fetch();
+                            for (const member of teamMembers) {
+                                if ((member as any).teamId === teamId) {
+                                    teamMemberIds.add((member as any).userId);
+                                }
+                            }
+
+                            const allChannels = await database.get('Channel').query().fetch();
+                            const allMemberships = await database.get('ChannelMembership').query().fetch();
+                            const gmMemberIds = buildGmMemberMap(allChannels as any, allMemberships as any);
+
+                            const botUserIds = new Set<string>();
+                            const users = await database.get('User').query().fetch();
+                            for (const user of users) {
+                                if ((user as any).isBot) {
+                                    botUserIds.add((user as any).id);
+                                }
+                            }
+
+                            const classification = classifyChannel(ch, curUserId, teamMemberIds, gmMemberIds, botUserIds);
+                            const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
+                            const channelsCategory = cats.find((c) => c.type === 'channels');
+
+                            if (channelsCategory) {
+                                const {error} = await moveChannelToCategory(serverUrl, channel.id, channelsCategory.id);
+                                if (error) throw error;
+                            }
+
+                            const messageKey = classification === 'internal'
+                                ? 'category.auto_classified_internal'
+                                : 'category.auto_classified_external';
+                            showSnackBar({
+                                barType: 'FAVORITE_CHANNEL' as any,
+                                customMessage: intl.formatMessage({
+                                    id: messageKey,
+                                    defaultMessage: classification === 'internal'
+                                        ? 'Auto-classified to Internal'
+                                        : 'Auto-classified to External',
+                                }),
+                            });
+                        } catch {
+                            showSnackBar({
+                                barType: 'UNFAVORITE_CHANNEL' as any,
+                                customMessage: intl.formatMessage({id: 'category.auto_classify_failed', defaultMessage: 'Failed to auto-classify'}),
+                            });
+                        }
+                    }}
+                    testID='channel_menu.auto_classify'
+                />
+                {categoryId && (
+                    <SlideUpPanelItem
+                        leftIcon='close-circle-outline'
+                        text={intl.formatMessage({id: 'category.remove_from', defaultMessage: 'Remove from category'})}
+                        onPress={async () => {
+                            await dismissBottomSheet();
+                            try {
+                                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                                const curUserId = await getCurrentUserId(database);
+                                const teamId = await getCurrentTeamId(database);
+                                if (!teamId || !curUserId) throw new Error('Missing team or user ID');
+
+                                const ch = await getChannelById(database, channel.id);
+                                if (!ch) throw new Error('Channel not found');
+
+                                const teamMemberIds = new Set<string>();
+                                const teamMembers = await database.get('TeamMember').query().fetch();
+                                for (const member of teamMembers) {
+                                    if ((member as any).teamId === teamId) {
+                                        teamMemberIds.add((member as any).userId);
+                                    }
+                                }
+
+                                const allChannels = await database.get('Channel').query().fetch();
+                                const allMemberships = await database.get('ChannelMembership').query().fetch();
+                                const gmMemberIds = buildGmMemberMap(allChannels as any, allMemberships as any);
+
+                                const botUserIds = new Set<string>();
+                                const users = await database.get('User').query().fetch();
+                                for (const user of users) {
+                                    if ((user as any).isBot) {
+                                        botUserIds.add((user as any).id);
+                                    }
+                                }
+
+                                const classification = classifyChannel(ch, curUserId, teamMemberIds, gmMemberIds, botUserIds);
+                                const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
+                                const channelsCategory = cats.find((c) => c.type === 'channels');
+
+                                if (channelsCategory) {
+                                    const {error} = await moveChannelToCategory(serverUrl, channel.id, channelsCategory.id);
+                                    if (error) throw error;
+                                }
+
+                                showSnackBar({
+                                    barType: 'FAVORITE_CHANNEL' as any,
+                                    customMessage: intl.formatMessage({
+                                        id: 'category.removed_success',
+                                        defaultMessage: 'Removed from category and auto-classified',
+                                    }),
+                                });
+                            } catch {
+                                showSnackBar({
+                                    barType: 'UNFAVORITE_CHANNEL' as any,
+                                    customMessage: intl.formatMessage({id: 'category.remove_failed', defaultMessage: 'Failed to remove from category'}),
+                                });
+                            }
+                        }}
+                        testID='channel_menu.remove_from_category'
+                    />
+                )}
+                <SlideUpPanelItem
+                    leftIcon='close'
+                    text={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
+                    onPress={() => dismissBottomSheet()}
+                    testID='channel_menu.cancel'
+                />
+            </>
+        );
+
+        const itemCount = categoryId ? 4 : 3;
+        bottomSheet({
+            closeButtonId: 'close-channel-category-menu',
+            renderContent,
+            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
+            theme,
+            title: '',
         });
-    }, []);
+    }, [serverUrl, theme, intl]);
 
     const renderItem = useCallback(({item, section}: {item: ChannelModel; section: Section}) => {
         return (

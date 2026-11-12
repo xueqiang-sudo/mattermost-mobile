@@ -136,11 +136,6 @@ const LoginOptions = ({
     useNavButtonPressed(closeButtonId || '', componentId, dismiss, []);
     useAndroidHardwareBackHandler(componentId, pop);
 
-    const handleInviteLink = useCallback(() => {
-        const title = intl.formatMessage({id: 'login.invite_link_title', defaultMessage: 'Join via Invite Link'});
-        goToScreen(Screens.INVITE_LINK, title, {serverUrl: defaultServerUrl});
-    }, [defaultServerUrl, intl]);
-
     const title = (
         <FormattedText
             defaultMessage='Log In to Your Account'
@@ -181,6 +176,7 @@ const LoginOptions = ({
                             theme={theme}
                             serverUrl={defaultServerUrl}
                         />
+                        {/* 邀请链接入口暂时隐藏
                         <View style={styles.inviteLinkContainer}>
                             <TouchableOpacity
                                 onPress={handleInviteLink}
@@ -192,6 +188,7 @@ const LoginOptions = ({
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                        */}
                     </View>
                 </KeyboardAwareScrollView>
             </AnimatedSafeArea>

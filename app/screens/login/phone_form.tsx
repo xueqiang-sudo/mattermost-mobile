@@ -193,6 +193,7 @@ const PhoneLoginForm = ({
     const [isPhoneInput, setIsPhoneInput] = useState<boolean>(true);
     const [verificationCode, setVerificationCode] = useState<string>('');
     const [countdown, setCountdown] = useState<number>(0);
+    const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useAvoidKeyboard(keyboardAwareRef);
 
@@ -244,6 +245,24 @@ const PhoneLoginForm = ({
     //     }
     // }, [serverUrl])
 
+    // 手机号变化时重置倒计时
+    useEffect(() => {
+        if (countdown > 0 && countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+            setCountdown(0);
+        }
+    }, [loginId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // 组件卸载时清理计时器
+    useEffect(() => {
+        return () => {
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+            }
+        };
+    }, []);
+
     // 获取验证码
     const getVerificationCode = useCallback(async () => {
         const normalizedLoginId = isPhoneInput ? loginId : loginId.trim();
@@ -259,15 +278,18 @@ const PhoneLoginForm = ({
             const testCode = res && typeof res === 'object' && 'test_code' in res ? res.test_code : '';
             setVerificationCode(testCode || ''); // 这里的 code 正常不会有，这里是为了如果后端模拟发送，则返回结果里面携带模拟的验证码
 
-            // 模拟成功响应
-            setCountdown(60); // 60秒倒计时
-
             // 开始倒计时
-            const timer = setInterval(() => {
-                // eslint-disable-next-line max-nested-callbacks
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+            }
+            setCountdown(60); // 60秒倒计时
+            countdownTimerRef.current = setInterval(() => {
                 setCountdown((prevCountdown) => {
                     if (prevCountdown <= 1) {
-                        clearInterval(timer);
+                        if (countdownTimerRef.current) {
+                            clearInterval(countdownTimerRef.current);
+                            countdownTimerRef.current = null;
+                        }
                         return 0;
                     }
                     return prevCountdown - 1;

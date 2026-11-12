@@ -182,6 +182,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.centerChannelColor,
         ...typography('Body', 100),
     },
+    userDetail: {
+        color: changeOpacity(theme.centerChannelColor, 0.6),
+        ...typography('Body', 100),
+        marginBottom: 2,
+    },
     duplicateMessage: {
         ...typography('Body', 100),
         color: theme.errorTextColor,
@@ -323,6 +328,7 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
 
     // Track whether we've already created a pending invitation for the current phone
     const [pendingInvitePhone, setPendingInvitePhone] = useState('');
+    const [invitationId, setInvitationId] = useState<string | null>(null);
 
     const handleGoBack = useCallback(() => {
         try {
@@ -332,24 +338,9 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
         }
     }, [navigation]);
 
-    // Gender i18n helper
-    const getGenderLabel = useCallback((gender: string): string => {
-        switch (gender.toLowerCase()) {
-            case 'male':
-            case '男':
-                return intl.formatMessage({id: 'contacts.gender.male', defaultMessage: '男'});
-            case 'female':
-            case '女':
-                return intl.formatMessage({id: 'contacts.gender.female', defaultMessage: '女'});
-            case 'other':
-            case '其他':
-                return intl.formatMessage({id: 'contacts.gender.other', defaultMessage: '其他'});
-            default:
-                return gender;
-        }
-    }, [intl]);
-
-    const inviteUrl = `${serverUrl}/invite?invited_by=${ownerId}`;
+    const inviteUrl = invitationId
+        ? `${serverUrl}/invite?id=${invitationId}`
+        : `${serverUrl}/invite?invited_by=${ownerId}`;
 
     const handleSearch = usePreventDoubleTap(useCallback(async () => {
         const trimmedPhone = phone.trim();
@@ -404,7 +395,11 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
         setPendingInvitePhone(trimmedPhone);
         try {
             const client = NetworkManager.getClient(serverUrl);
-            client.createInvitation(ownerId, trimmedPhone).catch(() => {
+            client.createInvitation(ownerId, trimmedPhone).then((invitation: any) => {
+                if (invitation?.id) {
+                    setInvitationId(invitation.id);
+                }
+            }).catch(() => {
                 // best-effort: don't block UI if server call fails
             });
         } catch {
@@ -443,6 +438,7 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
             setSelectedTeamId(null);
             setCompany('');
             setTeamDropdownOpen(false);
+            setInvitationId(null);
         }
     }, [searchResult, searchError, notFound]);
 
@@ -617,85 +613,67 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
                     {/* Not found - show invite card */}
                     {notFound && (
                         <View style={styles.inviteCard}>
-                            <Text style={styles.inviteTitle}>
-                                {intl.formatMessage({id: 'contacts.external.add.not_found', defaultMessage: '未找到该用户'})}
-                            </Text>
-                            <Text style={styles.inviteDesc}>
-                                {intl.formatMessage({id: 'contacts.external.add.invite_desc', defaultMessage: 'Copy the invite link and send it to the other party. They will be automatically connected after registering with this phone number.'})}
-                            </Text>
+                            <View style={{flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8}}>
+                                <CompassIcon name='information-outline' size={16} color={theme.linkColor} style={{marginRight: 6, marginTop: 2}}/>
+                                <View style={{flex: 1}}>
+                                    <Text style={[styles.inviteTitle, {marginBottom: 4}]}>
+                                        {intl.formatMessage({id: 'contacts.external.add.not_found', defaultMessage: '未注册'})}
+                                    </Text>
+                                    <Text style={styles.inviteDesc}>
+                                        {intl.formatMessage({id: 'contacts.external.add.invite_desc', defaultMessage: '该手机号尚未注册。请复制邀请链接发送给对方，对方使用该手机号注册后将自动与您建立外部联系人关系。'})}
+                                    </Text>
+                                </View>
+                            </View>
                             <View style={styles.inviteUrlRow}>
                                 <Text style={styles.inviteUrl} numberOfLines={1}>{inviteUrl}</Text>
                                 <TouchableOpacity style={styles.copyBtn} onPress={handleCopyInviteUrl}>
                                     <Text style={styles.copyBtnText}>
-                                        {intl.formatMessage({id: 'contacts.external.add.copy', defaultMessage: 'Copy'})}
+                                        {intl.formatMessage({id: 'contacts.external.add.copy_link', defaultMessage: '复制链接'})}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                     )}
 
-                    {/* Duplicate message */}
+                    {/* Already a contact - warning style */}
                     {searchResult && searchResult.alreadyAdded && (
-                        <Text style={styles.duplicateMessage}>
-                            {intl.formatMessage({id: 'contacts.external.add.duplicate', defaultMessage: '联系人已存在'})}
-                        </Text>
+                        <View style={[styles.inviteCard, {backgroundColor: changeOpacity('#FF9800', 0.08), borderColor: changeOpacity('#FF9800', 0.3)}]}>
+                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                                <CompassIcon name='information-outline' size={16} color='#FF9800' style={{marginRight: 6}}/>
+                                <Text style={{...typography('Body', 100), color: '#FF9800'}}>
+                                    {intl.formatMessage({id: 'contacts.external.add.duplicate', defaultMessage: '该外部联系人已在您的列表中'})}
+                                </Text>
+                            </View>
+                        </View>
                     )}
 
                     {/* Search result */}
                     {searchResult && !searchResult.alreadyAdded && (
                         <View style={styles.resultSection}>
-                            {/* User info (read-only) */}
-                            <View style={styles.resultGrid}>
-                                <View style={styles.resultRow}>
-                                    <Text style={styles.resultLabel}>
-                                        {intl.formatMessage({id: 'contacts.nickname', defaultMessage: '昵称'})}
-                                    </Text>
-                                    <View style={styles.nicknameValueRow}>
-                                        <View style={styles.nicknameAvatar}>
-                                            <ContactAvatar
-                                                employee={getLastPictureUpdate(searchResult.employee) > 0 ? searchResult.employee : undefined}
-                                                size={32}
-                                            />
-                                        </View>
-                                        <Text style={styles.resultValue}>
-                                            {searchResult.employee.nickname || searchResult.employee.first_name || searchResult.employee.username}
+                            {/* Found registered user header */}
+                            <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
+                                <CompassIcon name='information-outline' size={16} color={theme.linkColor} style={{marginRight: 6}}/>
+                                <Text style={{...typography('Body', 200, 'SemiBold'), color: theme.centerChannelColor}}>
+                                    {intl.formatMessage({id: 'contacts.external.add.found_registered', defaultMessage: '找到了已注册用户'})}
+                                </Text>
+                            </View>
+
+                            {/* User info card - webapp style */}
+                            <View style={[styles.inviteCard, {marginBottom: 16}]}>
+                                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                                    <ContactAvatar
+                                        employee={getLastPictureUpdate(searchResult.employee) > 0 ? searchResult.employee : undefined}
+                                        size={48}
+                                    />
+                                    <View style={{flex: 1, marginLeft: 12}}>
+                                        <Text style={styles.userDetail}>
+                                            {intl.formatMessage({id: 'contacts.external.add.account_label', defaultMessage: '账号'})}: {searchResult.employee.phone || searchResult.employee.username}
+                                        </Text>
+                                        <Text style={styles.userDetail}>
+                                            {intl.formatMessage({id: 'contacts.external.add.nickname_label', defaultMessage: '昵称'})}: {searchResult.employee.nickname || searchResult.employee.first_name || searchResult.employee.username}
                                         </Text>
                                     </View>
                                 </View>
-                                <View style={styles.resultRow}>
-                                    <Text style={styles.resultLabel}>
-                                        {intl.formatMessage({id: 'contacts.phone', defaultMessage: '手机号'})}
-                                    </Text>
-                                    <Text style={styles.resultValue}>
-                                        {searchResult.employee.phone || '-'}
-                                    </Text>
-                                </View>
-                                <View style={styles.resultRow}>
-                                    <Text style={styles.resultLabel}>
-                                        {intl.formatMessage({id: 'address_book.email', defaultMessage: '邮箱'})}
-                                    </Text>
-                                    <Text style={styles.resultValue}>
-                                        {searchResult.employee.email || '-'}
-                                    </Text>
-                                </View>
-                                <View style={styles.resultRow}>
-                                    <Text style={styles.resultLabel}>
-                                        {intl.formatMessage({id: 'channel_info.position', defaultMessage: '职位'})}
-                                    </Text>
-                                    <Text style={styles.resultValue}>
-                                        {searchResult.employee.position || '-'}
-                                    </Text>
-                                </View>
-                                {searchResult.employee.gender && (
-                                    <View style={styles.resultRow}>
-                                        <Text style={styles.resultLabel}>
-                                            {intl.formatMessage({id: 'contacts.gender', defaultMessage: '性别'})}
-                                        </Text>
-                                        <Text style={styles.resultValue}>
-                                            {getGenderLabel(searchResult.employee.gender)}
-                                        </Text>
-                                    </View>
-                                )}
                             </View>
 
                             {/* Editable fields */}
@@ -742,8 +720,8 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
                                 >
                                     <Text style={styles.btnText}>
                                         {saving
-                                            ? intl.formatMessage({id: 'contacts.external.add.saving', defaultMessage: '保存中...'})
-                                            : intl.formatMessage({id: 'contacts.external.add.save', defaultMessage: '保存'})
+                                            ? intl.formatMessage({id: 'contacts.external.add.adding', defaultMessage: '添加中...'})
+                                            : intl.formatMessage({id: 'contacts.external.add.add_btn', defaultMessage: '添加'})
                                         }
                                     </Text>
                                 </TouchableOpacity>

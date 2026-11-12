@@ -1771,8 +1771,14 @@
   "contacts.external.add.company_placeholder": "Leave empty for individual client",
   "contacts.external.add.company_select": "Select company",
   "contacts.external.add.copy": "Copy",
-  "contacts.external.add.invite_desc": "Copy the invite link and send it to the other party. They will be automatically connected after registering with this phone number.",
+  "contacts.external.add.copy_link": "Copy Link",
+  "contacts.external.add.invite_desc": "This phone number is not registered yet. Please copy the invite link and send it to them. They will automatically establish an external contact relationship with you after registering with this phone number.",
   "contacts.external.add.no_company": "None (individual client)",
+  "contacts.external.add.found_registered": "Found registered user",
+  "contacts.external.add.account_label": "Account",
+  "contacts.external.add.nickname_label": "Nickname",
+  "contacts.external.add.add_btn": "Add",
+  "contacts.external.add.adding": "Adding...",
   "contacts.external.add_failed": "Failed to add contact",
   "contacts.external.edit": "Edit Contact",
   "contacts.external.edit_error": "Error",
@@ -2889,5 +2895,7 @@
   "invite.link_copied": "Link copied",
   "invite.link_copied_message": "Invite link has been copied to clipboard.",
   "invite.success": "Success",
-  "invite.user_added": "User has been added to the enterprise."
+  "invite.user_added": "User has been added to the enterprise.",
+  "invite.add_failed": "Failed to add user",
+  "invite.add_failed_message": "Please try again."
 }
