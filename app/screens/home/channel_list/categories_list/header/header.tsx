@@ -22,7 +22,7 @@ import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import WebsocketManager from '@managers/websocket_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {findChannels, showModal, goToScreen} from '@screens/navigation';
+import {findChannels, showModal, showModalWithBackButton, goToScreen} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import {alertServerLogout} from '@utils/server';
@@ -345,26 +345,6 @@ const ChannelListHeader = ({
 
     const isErpTeam = Boolean((currentTeam as any)?.erp_address);
 
-    // --- Invite dialog state ---
-    const [showInviteDialog, setShowInviteDialog] = useState(false);
-    const [showExternalInviteDialog, setShowExternalInviteDialog] = useState(false);
-    const [inviteCopied, setInviteCopied] = useState(false);
-    const [externalInviteCopied, setExternalInviteCopied] = useState(false);
-
-    const inviteLink = useMemo(() => {
-        if (!currentUser?.id || !serverUrl) {
-            return '';
-        }
-        return `${serverUrl}/invite?id=${currentUser.id}`;
-    }, [currentUser?.id, serverUrl]);
-
-    const externalInviteLink = useMemo(() => {
-        if (!currentUser?.id || !serverUrl) {
-            return '';
-        }
-        return `${serverUrl}/invite?invited_by=${currentUser.id}`;
-    }, [currentUser?.id, serverUrl]);
-
     const openGroupChat = useCallback(() => {
         const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
@@ -389,26 +369,32 @@ const ChannelListHeader = ({
     }, [currentTeam, intl]);
 
     const handleInviteInternal = useCallback(() => {
-        setInviteCopied(false);
-        setShowInviteDialog(true);
-    }, []);
+        goToScreen(
+            Screens.INVITE,
+            intl.formatMessage({id: 'contacts.invite_colleagues', defaultMessage: 'Invite Colleagues'}),
+            {},
+            {useBackIcon: true},
+        );
+    }, [intl]);
 
     const handleInviteExternal = useCallback(() => {
-        setExternalInviteCopied(false);
-        setShowExternalInviteDialog(true);
-    }, []);
-
-    const handleCopyInvite = useCallback(() => {
-        Clipboard.setString(inviteLink);
-        setInviteCopied(true);
-        setTimeout(() => setInviteCopied(false), 2000);
-    }, [inviteLink]);
-
-    const handleCopyExternalInvite = useCallback(() => {
-        Clipboard.setString(externalInviteLink);
-        setExternalInviteCopied(true);
-        setTimeout(() => setExternalInviteCopied(false), 2000);
-    }, [externalInviteLink]);
+        const uid = currentUser?.id;
+        const tid = currentTeam?.id;
+        if (!uid || !tid) {
+            return;
+        }
+        const closeBtnId = `close-${Screens.CONTACTS_EXTERNAL_ADD}`;
+        showModalWithBackButton(
+            Screens.CONTACTS_EXTERNAL_ADD,
+            intl.formatMessage({id: 'contacts.external.add', defaultMessage: 'Add External Contact'}),
+            closeBtnId,
+            {
+                ownerId: uid,
+                companyId: tid,
+                closeButtonId: closeBtnId,
+            },
+        );
+    }, [currentUser, currentTeam, intl]);
 
     const scanQRCode = useCallback(() => {
         showQrScannerModal(intl);
@@ -602,126 +588,6 @@ const ChannelListHeader = ({
                 <View style={styles.headerDivider}/>
             </View>
 
-            {/* Internal invite dialog */}
-            <Modal visible={showInviteDialog} transparent={true} animationType='fade' onRequestClose={() => setShowInviteDialog(false)}>
-                <TouchableWithFeedback
-                    onPress={() => setShowInviteDialog(false)}
-                    style={styles.inviteOverlay}
-                    type='opacity'
-                >
-                    <TouchableWithFeedback
-                        onPress={(e: any) => e?.stopPropagation?.()}
-                        style={styles.inviteDialog}
-                        type='opacity'
-                    >
-                        <Text style={styles.inviteTitle}>
-                            {intl.formatMessage(
-                                {id: 'sidebar_left.invite_people_title', defaultMessage: 'Invite people to join {companyName}'},
-                                {companyName},
-                            )}
-                        </Text>
-                        <Text style={styles.inviteLabel}>
-                            {intl.formatMessage({id: 'contacts.invite_link_label', defaultMessage: 'Invite link'})}
-                        </Text>
-                        <View style={styles.inviteLinkBox}>
-                            <Text
-                                numberOfLines={3}
-                                style={styles.inviteLinkText}
-                            >
-                                {inviteLink}
-                            </Text>
-                        </View>
-                        <View style={styles.inviteActions}>
-                            <TouchableWithFeedback
-                                onPress={handleCopyInvite}
-                                style={[styles.inviteBtn, styles.inviteBtnPrimary]}
-                                type='opacity'
-                            >
-                                <>
-                                    <CompassIcon name='content-copy' size={14} color={theme.buttonColor}/>
-                                    <Text style={[styles.inviteBtnText, styles.inviteBtnTextPrimary]}>
-                                        {inviteCopied
-                                            ? intl.formatMessage({id: 'contacts.invite_copied', defaultMessage: 'Copied!'})
-                                            : intl.formatMessage({id: 'contacts.invite_copy', defaultMessage: 'Copy'})
-                                        }
-                                    </Text>
-                                </>
-                            </TouchableWithFeedback>
-                            <TouchableWithFeedback
-                                onPress={() => setShowInviteDialog(false)}
-                                style={styles.inviteBtn}
-                                type='opacity'
-                            >
-                                <Text style={styles.inviteBtnText}>
-                                    {intl.formatMessage({id: 'common.close', defaultMessage: 'Close'})}
-                                </Text>
-                            </TouchableWithFeedback>
-                        </View>
-                    </TouchableWithFeedback>
-                </TouchableWithFeedback>
-            </Modal>
-
-            {/* External invite dialog */}
-            <Modal visible={showExternalInviteDialog} transparent={true} animationType='fade' onRequestClose={() => setShowExternalInviteDialog(false)}>
-                <TouchableWithFeedback
-                    onPress={() => setShowExternalInviteDialog(false)}
-                    style={styles.inviteOverlay}
-                    type='opacity'
-                >
-                    <TouchableWithFeedback
-                        onPress={(e: any) => e?.stopPropagation?.()}
-                        style={styles.inviteDialog}
-                        type='opacity'
-                    >
-                        <Text style={styles.inviteTitle}>
-                            {intl.formatMessage({id: 'plus_menu.invite_external_title', defaultMessage: 'Invite External People'})}
-                        </Text>
-                        <Text style={styles.inviteLabel}>
-                            {intl.formatMessage({id: 'contacts.invite_link_label', defaultMessage: 'Invite link'})}
-                        </Text>
-                        <View style={styles.inviteLinkBox}>
-                            <Text
-                                numberOfLines={3}
-                                style={styles.inviteLinkText}
-                            >
-                                {externalInviteLink}
-                            </Text>
-                        </View>
-                        <Text style={styles.inviteHint}>
-                            {intl.formatMessage({
-                                id: 'plus_menu.invite_external_hint',
-                                defaultMessage: 'Share this link with external contacts. They can register and connect with you after opening the link.',
-                            })}
-                        </Text>
-                        <View style={styles.inviteActions}>
-                            <TouchableWithFeedback
-                                onPress={handleCopyExternalInvite}
-                                style={[styles.inviteBtn, styles.inviteBtnPrimary]}
-                                type='opacity'
-                            >
-                                <>
-                                    <CompassIcon name='content-copy' size={14} color={theme.buttonColor}/>
-                                    <Text style={[styles.inviteBtnText, styles.inviteBtnTextPrimary]}>
-                                        {externalInviteCopied
-                                            ? intl.formatMessage({id: 'contacts.invite_copied', defaultMessage: 'Copied!'})
-                                            : intl.formatMessage({id: 'contacts.invite_copy', defaultMessage: 'Copy'})
-                                        }
-                                    </Text>
-                                </>
-                            </TouchableWithFeedback>
-                            <TouchableWithFeedback
-                                onPress={() => setShowExternalInviteDialog(false)}
-                                style={styles.inviteBtn}
-                                type='opacity'
-                            >
-                                <Text style={styles.inviteBtnText}>
-                                    {intl.formatMessage({id: 'common.close', defaultMessage: 'Close'})}
-                                </Text>
-                            </TouchableWithFeedback>
-                        </View>
-                    </TouchableWithFeedback>
-                </TouchableWithFeedback>
-            </Modal>
         </Animated.View>
     );
 };

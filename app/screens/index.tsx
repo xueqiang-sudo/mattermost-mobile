@@ -120,6 +120,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CONTACTS_EMPLOYEE_PROFILE:
             screen = withServerDatabase(require('@screens/home/contacts/employee_profile').default);
             break;
+        case Screens.CONTACTS_EXTERNAL_ADD:
+            screen = withServerDatabase(require('@screens/home/contacts/external_contacts_add').default);
+            break;
         case Screens.CONTACTS_MANAGE:
             screen = withServerDatabase(require('@screens/home/contacts/contacts_manage').default);
             break;

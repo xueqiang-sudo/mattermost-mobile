@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, Clipboard, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import NetworkManager from '@managers/network_manager';
 import {getLastPictureUpdate} from '@utils/user';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -227,6 +228,28 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
         }
     }, [searchTerm, serverUrl, intl]);
 
+    // Pre-invitation: when search returns not_found, create a pending invitation
+    // record on the server so the invitee auto-joins the team on registration.
+    const pendingInvitePhoneRef = useRef('');
+    useEffect(() => {
+        if (searchResult?.type !== 'not_found' || !currentUserId || !serverUrl || !searchTerm.trim()) {
+            return;
+        }
+        const trimmedPhone = searchTerm.trim();
+        if (trimmedPhone === pendingInvitePhoneRef.current) {
+            return;
+        }
+        pendingInvitePhoneRef.current = trimmedPhone;
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            client.createInvitation(currentUserId, trimmedPhone, teamId).catch(() => {
+                // best-effort
+            });
+        } catch {
+            // ignore
+        }
+    }, [searchResult, currentUserId, serverUrl, searchTerm, teamId]);
+
     const handleCopyLink = useCallback(() => {
         const inviteLink = `https://${serverUrl}/invite?id=${teamInviteId}`;
         Clipboard.setString(inviteLink);
@@ -315,8 +338,8 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                 </View>
                 <Text style={style.messageText}>
                     {intl.formatMessage({
-                        id: 'invite.not_registered_message',
-                        defaultMessage: 'This phone number is not registered yet. Share the invite link below to invite them.',
+                        id: 'invite.not_registered_message_preinvite',
+                        defaultMessage: 'This phone number is not registered yet. A pre-invitation record has been created. The person will automatically join the enterprise when they register with this phone number. You can also copy the invite link to send to them.',
                     })}
                 </Text>
                 <Text style={style.inviteLink}>{inviteLink}</Text>

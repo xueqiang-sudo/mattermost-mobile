@@ -14,6 +14,7 @@ export interface ClientUsersMix {
     autoRegisterUserPersonal: (phoneOrEmail: string, password: string, invitedBy?: string) => Promise<UserProfile>;
     createUser: (user: UserProfile, token: string, inviteId: string) => Promise<UserProfile>;
     acceptInvitation: (inviterId: string) => Promise<any>;
+    createInvitation: (userId: string, phone: string, teamId?: string) => Promise<any>;
     patchMe: (userPatch: Partial<UserProfile>, groupLabel?: RequestGroupLabel) => Promise<UserProfile>;
     patchUser: (userPatch: Partial<UserProfile> & {id: string}) => Promise<UserProfile>;
     updateUser: (user: UserProfile) => Promise<UserProfile>;
@@ -114,6 +115,16 @@ const ClientUsers = <TBase extends Constructor<ClientBase>>(superclass: TBase) =
             {
                 method: 'post',
                 body: {inviter_id: inviterId},
+            },
+        );
+    };
+
+    createInvitation = (userId: string, phone: string, teamId?: string) => {
+        return this.doFetch(
+            `${this.getUsersRoute()}/${userId}/invitations`,
+            {
+                method: 'post',
+                body: {phone, team_id: teamId || ''},
             },
         );
     };

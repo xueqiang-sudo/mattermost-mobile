@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import Clipboard from '@react-native-clipboard/clipboard';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';
@@ -33,6 +33,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
+import {popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getLastPictureUpdate} from '@utils/user';
@@ -287,15 +288,21 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 
 type ContactsExternalAddScreenRouteProp = RouteProp<ContactsStackParamList, typeof import('@constants').Screens.CONTACTS_EXTERNAL_ADD>;
 
-const ContactsExternalAddScreen = () => {
+type ExternalAddProps = {
+    ownerId?: string;
+    companyId?: string;
+};
+
+const ContactsExternalAddScreen = (props: ExternalAddProps) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
-    const route = useRoute<ContactsExternalAddScreenRouteProp>();
     const styles = getStyleSheet(theme);
 
-    const {ownerId} = route.params;
+    // Support both React Navigation (from contacts stack) and RNN modal (from "+" menu)
+    const ownerId = props.ownerId || '';
+    const companyId = props.companyId || '';
     const kind = MMEmployeeContactTypes.External;
 
     const [phone, setPhone] = useState('');
@@ -313,6 +320,17 @@ const ContactsExternalAddScreen = () => {
     const [userTeams, setUserTeams] = useState<Team[]>([]);
     const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
     const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+
+    // Track whether we've already created a pending invitation for the current phone
+    const [pendingInvitePhone, setPendingInvitePhone] = useState('');
+
+    const handleGoBack = useCallback(() => {
+        try {
+            handleGoBack();
+        } catch {
+            popTopScreen();
+        }
+    }, [navigation]);
 
     // Gender i18n helper
     const getGenderLabel = useCallback((gender: string): string => {
@@ -373,6 +391,27 @@ const ContactsExternalAddScreen = () => {
         }
     }, [phone, ownerId, serverUrl, kind]));
 
+    // Pre-invitation: when search returns not found, create a pending invitation
+    // record on the server so that the invitee is auto-matched on registration.
+    useEffect(() => {
+        if (!notFound || !ownerId || !serverUrl || !phone.trim()) {
+            return;
+        }
+        const trimmedPhone = phone.trim();
+        if (trimmedPhone === pendingInvitePhone) {
+            return; // already created for this phone
+        }
+        setPendingInvitePhone(trimmedPhone);
+        try {
+            const client = NetworkManager.getClient(serverUrl);
+            client.createInvitation(ownerId, trimmedPhone).catch(() => {
+                // best-effort: don't block UI if server call fails
+            });
+        } catch {
+            // ignore
+        }
+    }, [notFound, ownerId, serverUrl, phone, pendingInvitePhone]);
+
     const handleSave = usePreventDoubleTap(useCallback(async () => {
         if (!ownerId || !searchResult || searchResult.alreadyAdded) {
             return;
@@ -388,9 +427,9 @@ const ContactsExternalAddScreen = () => {
         });
         setSaving(false);
         if (result.error) {
-            setError(intl.formatMessage({id: 'contacts.external.add_failed', defaultMessage: '添加联系人失败'}));
+            setError(intl.formatMessage({id: 'contacts.external.add_failed', defaultMessage: 'Failed to add contact'}));
         } else {
-            navigation.goBack();
+            handleGoBack();
         }
     }, [ownerId, searchResult, remark, company, description, serverUrl, kind, intl, navigation]));
 
@@ -410,7 +449,7 @@ const ContactsExternalAddScreen = () => {
     const handleCopyInviteUrl = useCallback(() => {
         Clipboard.setString(inviteUrl);
         Alert.alert(
-            intl.formatMessage({id: 'mobile.link.copied', defaultMessage: '已复制'}),
+            intl.formatMessage({id: 'mobile.link.copied', defaultMessage: 'Copied to clipboard'}),
         );
     }, [inviteUrl, intl]);
 
@@ -435,7 +474,7 @@ const ContactsExternalAddScreen = () => {
             return (
                 <View style={styles.formField}>
                     <Text style={styles.formLabel}>
-                        {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: '企业名称'})}
+                        {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: 'Company'})}
                     </Text>
                     <TouchableOpacity
                         style={styles.companyDropdownBtn}
@@ -443,7 +482,7 @@ const ContactsExternalAddScreen = () => {
                         disabled={saving}
                     >
                         <Text style={[styles.companyDropdownText, !selectedTeam && styles.companyDropdownPlaceholder]}>
-                            {selectedTeam?.display_name || intl.formatMessage({id: 'contacts.external.add.company_select', defaultMessage: '请选择企业'})}
+                            {selectedTeam?.display_name || intl.formatMessage({id: 'contacts.external.add.company_select', defaultMessage: 'Select company'})}
                         </Text>
                         <CompassIcon
                             name={teamDropdownOpen ? 'menu-up' : 'menu-down'}
@@ -458,7 +497,7 @@ const ContactsExternalAddScreen = () => {
                                 onPress={() => handleTeamSelect(null)}
                             >
                                 <Text style={styles.dropdownItemText}>
-                                    {intl.formatMessage({id: 'contacts.external.add.no_company', defaultMessage: '无（个人客户）'})}
+                                    {intl.formatMessage({id: 'contacts.external.add.no_company', defaultMessage: 'None (individual client)'})}
                                 </Text>
                             </TouchableOpacity>
                             {userTeams.map((team) => (
@@ -481,7 +520,7 @@ const ContactsExternalAddScreen = () => {
             return (
                 <View style={styles.formField}>
                     <Text style={styles.formLabel}>
-                        {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: '企业名称'})}
+                        {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: 'Company'})}
                     </Text>
                     <TextInput
                         style={[styles.formInput, styles.formInputDisabled]}
@@ -496,13 +535,13 @@ const ContactsExternalAddScreen = () => {
         return (
             <View style={styles.formField}>
                 <Text style={styles.formLabel}>
-                    {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: '企业名称'})}
+                    {intl.formatMessage({id: 'contacts.external.add.company', defaultMessage: 'Company'})}
                 </Text>
                 <TextInput
                     style={styles.formInput}
                     value={company}
                     onChangeText={setCompany}
-                    placeholder={intl.formatMessage({id: 'contacts.external.add.company_placeholder', defaultMessage: '留空为个人客户'})}
+                    placeholder={intl.formatMessage({id: 'contacts.external.add.company_placeholder', defaultMessage: 'Leave empty for individual client'})}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.32)}
                     editable={!saving}
                 />
@@ -582,13 +621,13 @@ const ContactsExternalAddScreen = () => {
                                 {intl.formatMessage({id: 'contacts.external.add.not_found', defaultMessage: '未找到该用户'})}
                             </Text>
                             <Text style={styles.inviteDesc}>
-                                {intl.formatMessage({id: 'contacts.external.add.invite_desc', defaultMessage: '您可以复制邀请链接发送给对方，邀请其注册加入。'})}
+                                {intl.formatMessage({id: 'contacts.external.add.invite_desc', defaultMessage: 'Copy the invite link and send it to the other party. They will be automatically connected after registering with this phone number.'})}
                             </Text>
                             <View style={styles.inviteUrlRow}>
                                 <Text style={styles.inviteUrl} numberOfLines={1}>{inviteUrl}</Text>
                                 <TouchableOpacity style={styles.copyBtn} onPress={handleCopyInviteUrl}>
                                     <Text style={styles.copyBtnText}>
-                                        {intl.formatMessage({id: 'contacts.external.add.copy', defaultMessage: '复制'})}
+                                        {intl.formatMessage({id: 'contacts.external.add.copy', defaultMessage: 'Copy'})}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
