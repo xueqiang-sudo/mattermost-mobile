@@ -12,7 +12,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {dismissModal} from '@screens/navigation';
 import {showSnackBar} from '@utils/snack_bar';
 import {getFullErrorMessage} from '@utils/errors';
-import {logDebug} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -130,9 +130,13 @@ export default function CreateCategory({componentId, teamId}: Props) {
         Keyboard.dismiss();
         setCreating(true);
 
+        // 添加日志确认 handleCreate 被执行
+        debugLog('[handleCreate] called', {serverUrl, teamId, name});
+
         const {error: err} = await createCategory(serverUrl, teamId, name);
+        debugLog('[handleCreate] createCategory returned', {hasError: Boolean(err), errorMessage: err ? getFullErrorMessage(err) : undefined});
         if (err) {
-            logDebug('createCategory error', getFullErrorMessage(err));
+            debugLog('[handleCreate] error detail', getFullErrorMessage(err));
             setError(intl.formatMessage({id: 'create_category.error.message', defaultMessage: 'Failed to create category. Please try again.'}));
             setCreating(false);
             return;

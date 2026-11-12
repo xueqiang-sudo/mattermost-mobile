@@ -97,16 +97,6 @@ const ChannelInfoPublicPrivate = ({
     useNavButtonPressed(closeButtonId, componentId, close, [close]);
     useAndroidHardwareBackHandler(componentId, close);
 
-    const handleInvitePeople = useCallback(() => {
-        const title = intl.formatMessage({id: 'invite.title', defaultMessage: 'Invite'});
-        goToScreen(Screens.INVITE, title, {});
-    }, [intl]);
-
-    const handleRemovePeople = useCallback(() => {
-        const title = intl.formatMessage({id: 'channel_info.remove_members', defaultMessage: 'Remove Members'});
-        goToScreen(Screens.REMOVE_MEMBERS, title, {channelId});
-    }, [channelId, intl]);
-
     const handleSearchHistory = useCallback(async () => {
         const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
         goToScreen(Screens.SEARCH_CHAT_HISTORY, title, {channelId, memberIds});
@@ -248,12 +238,10 @@ const ChannelInfoPublicPrivate = ({
                     <View style={styles.section}>
                         <MemberGrid
                             memberIds={memberIds}
-                            showAddButton={true}
-                            showRemoveButton={isTeamAdmin}
+                            showAddButton={false}
+                            showRemoveButton={false}
                             showSearch={true}
                             maxVisible={MAX_VISIBLE_MEMBERS}
-                            onAddPress={handleInvitePeople}
-                            onRemovePress={handleRemovePeople}
                             onMemberPress={handleMemberPress}
                             testID='channel_info_public_private.member_grid'
                         />

@@ -104,14 +104,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         ...typography('Body', 200),
         color: theme.centerChannelColor,
     },
-    selectAllWrap: {
-        paddingHorizontal: 12,
-        justifyContent: 'center',
-    },
-    selectAllText: {
-        ...typography('Body', 200, 'SemiBold'),
-        color: theme.linkColor,
-    },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -498,13 +490,6 @@ const ContactsDepartmentAddMembersScreen = ({
         });
     }, []);
 
-    const allFilteredIds = useMemo(
-        () => filteredMembers.map((m) => m.employee.id),
-        [filteredMembers],
-    );
-
-    const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.has(id));
-
     const toggleMember = useCallback((id: string) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
@@ -516,21 +501,6 @@ const ContactsDepartmentAddMembersScreen = ({
             return next;
         });
     }, []);
-
-    const toggleSelectAll = useCallback(() => {
-        setSelectedIds((prev) => {
-            if (allSelected) {
-                // Deselect all filtered
-                const next = new Set(prev);
-                for (const id of allFilteredIds) {
-                    next.delete(id);
-                }
-                return next;
-            }
-            // Select all filtered
-            return new Set([...prev, ...allFilteredIds]);
-        });
-    }, [allFilteredIds, allSelected]);
 
     const handleConfirm = usePreventDoubleTap(useCallback(async () => {
         if (!serverUrl || selectedIds.size === 0 || effectiveTargetId == null) {
@@ -707,19 +677,6 @@ const ContactsDepartmentAddMembersScreen = ({
                             autoCorrect={false}
                             testID='department_add_members.search'
                         />
-                        {filteredMembers.length > 0 && (
-                            <TouchableOpacity
-                                style={styles.selectAllWrap}
-                                onPress={toggleSelectAll}
-                                testID='department_add_members.select_all'
-                            >
-                                <Text style={styles.selectAllText}>
-                                    {allSelected
-                                        ? intl.formatMessage({id: 'contacts.deselect_all', defaultMessage: 'Deselect all'})
-                                        : intl.formatMessage({id: 'contacts.select_all', defaultMessage: 'Select all'})}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
                     </View>
                     {loading ? (
                         <View style={styles.loadingContainer}>

@@ -383,7 +383,6 @@ const ChannelListHeader = ({
         goToScreen(
             Screens.CREATE_CATEGORY,
             intl.formatMessage({id: 'create_category_modal.title', defaultMessage: 'Create Category'}),
-            `close-${Screens.CREATE_CATEGORY}`,
             {teamId},
             {useBackIcon: true},
         );

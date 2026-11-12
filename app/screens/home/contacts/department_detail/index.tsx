@@ -861,6 +861,22 @@ const ContactsDepartmentDetail = ({
 
         const renderContent = () => (
             <>
+                {/* 邀请成员 */}
+                <SlideUpPanelItem
+                    leftIcon='person-add-outline'
+                    text={intl.formatMessage({id: 'contacts.invite_members', defaultMessage: 'Invite members'})}
+                    onPress={async () => {
+                        await dismissBottomSheet();
+                        const title = intl.formatMessage({id: 'contacts.invite_members', defaultMessage: 'Invite members'});
+                        goToScreen(
+                            Screens.INVITE,
+                            title,
+                            {},
+                            {useBackIcon: true},
+                        );
+                    }}
+                    testID='contacts.department_detail.manage.more.invite_members'
+                />
                 {/* 添加成员（原底部按钮1） */}
                 <SlideUpPanelItem
                     leftIcon='account-plus-outline'
@@ -1019,10 +1035,10 @@ const ContactsDepartmentDetail = ({
                 />
             </>
         );
-        // 计算菜单项数量：6个基础项 + 条件项（删除部门、转移控制权、解散企业）
+        // 计算菜单项数量：7个基础项 + 条件项（删除部门、转移控制权、解散企业）
         const extraItems = (departmentId != null && memberCount === 0 ? 1 : 0) +
             (isCurrentUserOwner && departmentId == null ? 2 : 0);
-        const itemCount = 6 + extraItems;
+        const itemCount = 7 + extraItems;
         bottomSheet({
             closeButtonId: 'close-contacts-manage-more',
             renderContent,

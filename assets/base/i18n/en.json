@@ -1723,6 +1723,7 @@
   "contacts.member_count": "Total {count} members",
   "contacts.add_feature_coming": "Feature coming soon",
   "contacts.add_member": "Add Member",
+  "contacts.invite_members": "Invite Members",
   "contacts.add_member_scan_qr": "Scan QR code",
   "contacts.add_member_invite": "Invite to join",
   "contacts.add_member.phone": "Phone Number",
