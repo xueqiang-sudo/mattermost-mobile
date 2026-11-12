@@ -3,7 +3,6 @@
 
 import {showModal} from '@screens/navigation';
 import {Screens} from '@constants';
-import {debugLog} from '@store/debug_log';
 
 import type {FileInfo} from '@mattermost/types/files';
 
@@ -16,7 +15,6 @@ const showFullscreenFilePickerModal = (
     title: string,
     photoMode = false,
 ) => {
-    debugLog('filePicker', `showFullscreenFilePickerModal called, channelId=${channelId}, photoMode=${photoMode}`);
     const closeButtonId = `close-${Screens.FILE_PICKER}`;
     const passProps = {
         onSend,
@@ -64,18 +62,6 @@ export const showSmartNotebookFilePicker = (
     onSend: (files: FileInfo[]) => void,
     title = 'Select Files',
 ) => {
-    debugLog('smartNotebook', `showSmartNotebookFilePicker called, title=${title}`);
-    // 使用临时 channelId（智能笔记本不需要真正的 channelId）
     const tempChannelId = 'smart_notebook_temp';
-
-    // 包装 onSend 回调以添加日志
-    const wrappedOnSend = (files: FileInfo[]) => {
-        debugLog('smartNotebook', `showSmartNotebookFilePicker: onSend callback called with ${files.length} files`);
-        files.forEach((file, i) => {
-            debugLog('smartNotebook', `showSmartNotebookFilePicker: file ${i + 1}: name=${file.name}, uri=${file.uri}, id=${file.id}, mime=${file.mime_type}, size=${file.size}, source=${(file as any).source || 'unknown'}`);
-        });
-        onSend(files);
-    };
-
-    showFullscreenFilePickerModal(tempChannelId, wrappedOnSend, title, false);
+    showFullscreenFilePickerModal(tempChannelId, onSend, title, false);
 };
