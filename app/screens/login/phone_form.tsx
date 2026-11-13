@@ -433,6 +433,23 @@ const PhoneLoginForm = ({
                 throw loginResult.error;
             }
 
+            // 登录成功后检查用户是否有 team，没有则创建个人团队
+            // (处理老用户被移除 team 后重新登录的情况)
+            try {
+                const teamsCheck = await apiClient.getMyTeams();
+                if (!teamsCheck || teamsCheck.length === 0) {
+                    debugLog('[Login]', 'user has no teams, creating personal team');
+                    try {
+                        await apiClient.createPersonalTeam();
+                        debugLog('[Login]', 'personal team created successfully');
+                    } catch (teamCreateErr) {
+                        debugLog('[Login]', 'failed to create personal team', {error: getFullErrorMessage(teamCreateErr)});
+                    }
+                }
+            } catch (teamsCheckErr) {
+                debugLog('[Login]', 'failed to check teams', {error: getFullErrorMessage(teamsCheckErr)});
+            }
+
             // 登录成功 — 处理邀请链接
             const pendingInviteAfterLogin = EphemeralStore.getPendingInviteInfo();
 
