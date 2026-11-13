@@ -7,7 +7,7 @@ import {FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View}
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {getEmployeeCandidates, searchEmployeeCandidates, type CandidateDraft} from '@actions/remote/candidate_search';
-import {addMembersToChannel, makeBotGroupChannel, makeDirectChannel, makeGroupChannel} from '@actions/remote/channel';
+import {addMembersToChannel, makeBotGroupChannel, makeDirectChannel, makeGroupChannel, switchToChannelById} from '@actions/remote/channel';
 import {getDashboardAccess} from '@screens/home/apps/api';
 import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
@@ -429,31 +429,34 @@ export default function CreateDirectMessage({
     useNavButtonPressed(CLOSE_BUTTON, componentId, handleClose, [handleClose]);
     useAndroidHardwareBackHandler(componentId, handleClose);
 
-    // Create direct channel
-    const createDirectChannel = useCallback(async (id: string): Promise<boolean> => {
-        const result = await makeDirectChannel(serverUrl, id, '', true, currentTeamId);
+    // Create direct channel (switch=false: close screen first, then switch manually to avoid nav race)
+    const createDirectChannel = useCallback(async (id: string): Promise<{ok: boolean; channelId?: string}> => {
+        const result = await makeDirectChannel(serverUrl, id, '', false, currentTeamId);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.dm);
+            return {ok: false};
         }
-        return !result.error;
+        return {ok: true, channelId: (result.data as any)?.id};
     }, [intl, serverUrl, currentTeamId]);
 
-    // Create group channel
-    const createGroupChannel = useCallback(async (ids: string[], groupCategory?: string): Promise<boolean> => {
-        const result = await makeGroupChannel(serverUrl, ids, true, groupCategory, currentTeamId);
+    // Create group channel (switch=false: close screen first, then switch manually to avoid nav race)
+    const createGroupChannel = useCallback(async (ids: string[], groupCategory?: string): Promise<{ok: boolean; channelId?: string}> => {
+        const result = await makeGroupChannel(serverUrl, ids, false, groupCategory, currentTeamId);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
+            return {ok: false};
         }
-        return !result.error;
+        return {ok: true, channelId: (result.data as any)?.id};
     }, [intl, serverUrl, currentTeamId]);
 
-    // Create bot group channel (Bot GM)
-    const createBotGroupChannel = useCallback(async (botUserId: string, teamId: string): Promise<boolean> => {
-        const result = await makeBotGroupChannel(serverUrl, botUserId, teamId);
+    // Create bot group channel (Bot GM, switch=false to avoid nav race)
+    const createBotGroupChannel = useCallback(async (botUserId: string, teamId: string): Promise<{ok: boolean; channelId?: string}> => {
+        const result = await makeBotGroupChannel(serverUrl, botUserId, teamId, false);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
+            return {ok: false};
         }
-        return !result.error;
+        return {ok: true, channelId: (result.data as any)?.id};
     }, [intl, serverUrl]);
 
     // Start conversation / add members
@@ -463,33 +466,35 @@ export default function CreateDirectMessage({
         }
         setStartingConversation(true);
 
-        let success;
-        if (isExistingChannel && channelId) {
-            const idsToAdd = selectedId ? [selectedId] : Array.from(newSelectedIds);
-            if (idsToAdd.length === 0) {
-                success = false;
-            } else {
+        try {
+            if (isExistingChannel && channelId) {
+                const idsToAdd = selectedId ? [selectedId] : Array.from(newSelectedIds);
+                if (idsToAdd.length === 0) {
+                    return;
+                }
                 const result = await addMembersToChannel(serverUrl, channelId, idsToAdd);
-                success = !result.error;
+                if (!result.error) {
+                    handleClose();
+                }
+                return;
             }
-        } else {
+
+            // New channel creation: close screen first, then switch to avoid navigation race
             const idsToUse = selectedId ? [selectedId] : Array.from(newSelectedIds);
             if (idsToUse.length === 0) {
-                success = false;
-            } else if (variant === 'dm_only') {
-                // dm_only: 始终创建 DM（私聊入口）
-                success = await createDirectChannel(idsToUse[0]);
+                return;
+            }
+
+            let created: {ok: boolean; channelId?: string};
+            if (variant === 'dm_only') {
+                created = await createDirectChannel(idsToUse[0]);
             } else {
-                // default / group_only: 始终创建 GM（对齐 webapp 逻辑）
                 const singleProfile = idsToUse.length === 1 ? knownProfiles.get(idsToUse[0]) : undefined;
                 const isSingleBot = singleProfile?.is_bot === true;
 
                 if (isSingleBot) {
-                    // Bot 用户 → Bot GM (POST /channels/bot_group)
-                    success = await createBotGroupChannel(idsToUse[0], currentTeamId);
+                    created = await createBotGroupChannel(idsToUse[0], currentTeamId);
                 } else {
-                    // 普通用户 → GM，自动检测 internal/external
-                    // 有 external 标签的成员 → 外部群（与 webapp 对齐）
                     const hasExternal = idsToUse.some((id) => {
                         const profile = knownProfiles.get(id);
                         if (!profile) {
@@ -499,17 +504,26 @@ export default function CreateDirectMessage({
                         return tags.includes('external');
                     });
                     const autoCategory = hasExternal ? 'external' : 'internal';
-                    success = await createGroupChannel(idsToUse, autoCategory);
+                    created = await createGroupChannel(idsToUse, autoCategory);
                 }
             }
-        }
 
-        if (success) {
-            handleClose();
-        } else {
+            if (created.ok) {
+                // Close CREATE_DIRECT_MESSAGE first (pop back to HOME),
+                // then switch to the new channel — avoids the race where
+                // switchToChannel pushes CHANNEL on top and popTopScreen
+                // accidentally pops CHANNEL instead of CREATE_DIRECT_MESSAGE.
+                await handleClose();
+                if (created.channelId) {
+                    switchToChannelById(serverUrl, created.channelId);
+                }
+            }
+        } finally {
+            // Always reset startingConversation so the button is re-enabled
+            // If the screen closed successfully, this is a no-op (component unmounted)
             setStartingConversation(false);
         }
-    }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, createBotGroupChannel, variant, knownProfiles, currentTeamId]);
+    }, [startingConversation, newSelectedIds, isExistingChannel, channelId, serverUrl, createGroupChannel, createDirectChannel, createBotGroupChannel, variant, knownProfiles, currentTeamId, handleClose]);
 
     // Toggle select
     const toggleSelect = useCallback((userId: string) => {

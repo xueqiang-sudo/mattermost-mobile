@@ -1167,7 +1167,7 @@ export async function makeGroupChannel(serverUrl: string, userIds: string[], sho
     }
 }
 
-export async function makeBotGroupChannel(serverUrl: string, botUserId: string, teamId: string) {
+export async function makeBotGroupChannel(serverUrl: string, botUserId: string, teamId: string, shouldSwitchToChannel = true) {
     try {
         const client = NetworkManager.getClient(serverUrl);
         const {operator, database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -1223,7 +1223,9 @@ export async function makeBotGroupChannel(serverUrl: string, botUserId: string, 
             await operator.batchRecords(models, 'makeBotGroupChannel');
         }
 
-        switchToChannelById(serverUrl, created.id);
+        if (shouldSwitchToChannel) {
+            switchToChannelById(serverUrl, created.id);
+        }
         EphemeralStore.creatingDMorGMTeammates = [];
         return {data: created};
     } catch (error) {

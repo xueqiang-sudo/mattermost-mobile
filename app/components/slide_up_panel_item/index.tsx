@@ -26,14 +26,16 @@ type SlideUpPanelProps = {
     textStyles?: TextStyle;
     testID?: string;
     text: string;
+    subtitle?: string;
 }
 
 export const ITEM_HEIGHT = 48;
+export const ITEM_HEIGHT_WITH_SUBTITLE = 64;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     return {
         container: {
-            height: ITEM_HEIGHT,
+            minHeight: ITEM_HEIGHT,
             marginHorizontal: -20,
             paddingHorizontal: 20,
         },
@@ -59,12 +61,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         textContainer: {
             justifyContent: 'center',
             flex: 1,
-            height: ITEM_HEIGHT,
+            minHeight: ITEM_HEIGHT,
             marginRight: 5,
         },
         text: {
             color: theme.centerChannelColor,
             ...typography('Body', 200, 'Regular'),
+        },
+        subtitle: {
+            color: changeOpacity(theme.centerChannelColor, 0.56),
+            ...typography('Body', 100, 'Regular'),
+            marginTop: 2,
         },
     };
 });
@@ -81,6 +88,7 @@ const SlideUpPanelItem = ({
     testID,
     text,
     textStyles,
+    subtitle,
 }: SlideUpPanelProps) => {
     const theme = useTheme();
     const style = getStyleSheet(theme);
@@ -89,6 +97,15 @@ const SlideUpPanelItem = ({
     const {image: rightImage, iconStyle: rightIconStyle} = useImageAndStyle(rightIcon, rightImageStyles, rightIconStyles, destructive);
 
     const handleOnPress = usePreventDoubleTap(onPress);
+
+    // Adjust icon container height when subtitle is present
+    const iconHeight = subtitle ? ITEM_HEIGHT_WITH_SUBTITLE : ITEM_HEIGHT;
+    const adjustedLeftIconStyle = leftIconStyle.map((s: any) =>
+        s === style.iconContainer ? {...s, height: iconHeight} : s,
+    );
+    const adjustedRightIconStyle = rightIconStyle.map((s: any) =>
+        s === style.iconContainer ? {...s, height: iconHeight} : s,
+    );
 
     return (
         <TouchableHighlight
@@ -99,13 +116,16 @@ const SlideUpPanelItem = ({
         >
             <View style={style.row}>
                 {Boolean(leftImage) &&
-                    <View style={leftIconStyle}>{leftImage}</View>
+                    <View style={adjustedLeftIconStyle}>{leftImage}</View>
                 }
                 <View style={style.textContainer}>
                     <Text style={[style.text, destructive && style.destructive, textStyles]}>{text}</Text>
+                    {Boolean(subtitle) &&
+                        <Text style={style.subtitle}>{subtitle}</Text>
+                    }
                 </View>
                 {Boolean(rightImage) &&
-                    <View style={rightIconStyle}>{rightImage}</View>
+                    <View style={adjustedRightIconStyle}>{rightImage}</View>
                 }
             </View>
         </TouchableHighlight>

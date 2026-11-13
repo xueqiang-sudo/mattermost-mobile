@@ -34,7 +34,7 @@ import {logDebug} from '@utils/log';
 import {getFullErrorMessage} from '@utils/errors';
 import {bottomSheet, dismissBottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import SlideUpPanelItem, {ITEM_HEIGHT, ITEM_HEIGHT_WITH_SUBTITLE} from '@components/slide_up_panel_item';
 import {moveChannelToCategory} from '@actions/remote/category';
 import {getChannelById} from '@queries/servers/channel';
 import {getCurrentTeamId, getCurrentUserId} from '@queries/servers/system';
@@ -247,7 +247,12 @@ const CollapsibleChannelListRenderer = ({
         );
     }, [expandedSections, theme, toggleSection, handleDeleteCategory]);
 
-    const handleChannelLongPress = useCallback((channel: ChannelModel, categoryId?: string) => {
+    const handleChannelLongPress = useCallback((channel: ChannelModel, sectionType?: 'internal' | 'external' | 'custom', categoryId?: string) => {
+        // Public channels (O) and smart notebook channels (sn_ prefix) cannot be long-pressed
+        // They always belong to the internal group
+        if (channel.type === 'O' || channel.name?.startsWith('sn_')) {
+            return;
+        }
         const showCategorySelection = async () => {
             try {
                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
@@ -307,95 +312,43 @@ const CollapsibleChannelListRenderer = ({
             }
         };
 
-        const renderContent = () => (
-            <>
-                <SlideUpPanelItem
-                    leftIcon='folder-move-outline'
-                    text={intl.formatMessage({id: 'category.move_to', defaultMessage: 'Move to category'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        showCategorySelection();
-                    }}
-                    testID='channel_menu.move_to_category'
-                />
-                <SlideUpPanelItem
-                    leftIcon='auto-fix'
-                    text={intl.formatMessage({id: 'category.auto_classify', defaultMessage: 'Auto-classify'})}
-                    onPress={async () => {
-                        await dismissBottomSheet();
-                        try {
-                            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                            const ch = await getChannelById(database, channel.id);
-                            if (!ch) throw new Error('Channel not found');
+        const renderContent = () => {
+            const items: React.ReactElement[] = [];
 
-                            const curUserId = await getCurrentUserId(database);
-                            const teamId = await getCurrentTeamId(database);
-                            if (!teamId || !curUserId) throw new Error('Missing team or user ID');
-
-                            const teamMemberIds = new Set<string>();
-                            const teamMembers = await database.get('TeamMember').query().fetch();
-                            for (const member of teamMembers) {
-                                if ((member as any).teamId === teamId) {
-                                    teamMemberIds.add((member as any).userId);
-                                }
-                            }
-
-                            const allChannels = await database.get('Channel').query().fetch();
-                            const allMemberships = await database.get('ChannelMembership').query().fetch();
-                            const gmMemberIds = buildGmMemberMap(allChannels as any, allMemberships as any);
-
-                            const botUserIds = new Set<string>();
-                            const users = await database.get('User').query().fetch();
-                            for (const user of users) {
-                                if ((user as any).isBot) {
-                                    botUserIds.add((user as any).id);
-                                }
-                            }
-
-                            const classification = classifyChannel(ch, curUserId, teamMemberIds, gmMemberIds, botUserIds);
-                            const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
-                            const channelsCategory = cats.find((c) => c.type === 'channels');
-
-                            if (channelsCategory) {
-                                const {error} = await moveChannelToCategory(serverUrl, channel.id, channelsCategory.id);
-                                if (error) throw error;
-                            }
-
-                            const messageKey = classification === 'internal'
-                                ? 'category.auto_classified_internal'
-                                : 'category.auto_classified_external';
-                            showSnackBar({
-                                barType: 'FAVORITE_CHANNEL' as any,
-                                customMessage: intl.formatMessage({
-                                    id: messageKey,
-                                    defaultMessage: classification === 'internal'
-                                        ? 'Auto-classified to Internal'
-                                        : 'Auto-classified to External',
-                                }),
-                            });
-                        } catch {
-                            showSnackBar({
-                                barType: 'UNFAVORITE_CHANNEL' as any,
-                                customMessage: intl.formatMessage({id: 'category.auto_classify_failed', defaultMessage: 'Failed to auto-classify'}),
-                            });
-                        }
-                    }}
-                    testID='channel_menu.auto_classify'
-                />
-                {categoryId && (
+            // Internal/External groups: show "Move to category" + "Cancel"
+            if (sectionType === 'internal' || sectionType === 'external') {
+                items.push(
                     <SlideUpPanelItem
+                        key='move'
+                        leftIcon='folder-move-outline'
+                        text={intl.formatMessage({id: 'category.move_to', defaultMessage: 'Move to category'})}
+                        onPress={async () => {
+                            await dismissBottomSheet();
+                            showCategorySelection();
+                        }}
+                        testID='channel_menu.move_to_category'
+                    />,
+                );
+            }
+
+            // Custom categories: show "Remove from category" + "Cancel"
+            if (sectionType === 'custom') {
+                items.push(
+                    <SlideUpPanelItem
+                        key='remove'
                         leftIcon='close-circle-outline'
-                        text={intl.formatMessage({id: 'category.remove_from', defaultMessage: 'Remove from category'})}
+                        text={intl.formatMessage({id: 'category.remove_from_category', defaultMessage: 'Remove from category'})}
+                        subtitle={intl.formatMessage({id: 'category.remove_hint', defaultMessage: 'Will auto-classify to Internal or External based on members'})}
                         onPress={async () => {
                             await dismissBottomSheet();
                             try {
                                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                                const ch = await getChannelById(database, channel.id);
+                                if (!ch) throw new Error('Channel not found');
+
                                 const curUserId = await getCurrentUserId(database);
                                 const teamId = await getCurrentTeamId(database);
                                 if (!teamId || !curUserId) throw new Error('Missing team or user ID');
-
-                                const ch = await getChannelById(database, channel.id);
-                                if (!ch) throw new Error('Channel not found');
 
                                 const teamMemberIds = new Set<string>();
                                 const teamMembers = await database.get('TeamMember').query().fetch();
@@ -418,6 +371,8 @@ const CollapsibleChannelListRenderer = ({
                                 }
 
                                 const classification = classifyChannel(ch, curUserId, teamMemberIds, gmMemberIds, botUserIds);
+
+                                // Remove from custom category by moving to default 'channels' category
                                 const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
                                 const channelsCategory = cats.find((c) => c.type === 'channels');
 
@@ -426,42 +381,55 @@ const CollapsibleChannelListRenderer = ({
                                     if (error) throw error;
                                 }
 
+                                const messageKey = classification === 'internal'
+                                    ? 'category.auto_classified_internal'
+                                    : 'category.auto_classified_external';
                                 showSnackBar({
                                     barType: 'FAVORITE_CHANNEL' as any,
                                     customMessage: intl.formatMessage({
-                                        id: 'category.removed_success',
-                                        defaultMessage: 'Removed from category and auto-classified',
+                                        id: messageKey,
+                                        defaultMessage: classification === 'internal'
+                                            ? '已自动分类到内部群'
+                                            : '已自动分类到外部群',
                                     }),
                                 });
                             } catch (error) {
-                                logDebug('[removeFromCategory] failed', {
+                                logDebug('[autoClassify] failed', {
                                     channelId: channel.id,
-                                    categoryId,
                                     error: getFullErrorMessage(error),
                                 });
                                 showSnackBar({
                                     barType: 'UNFAVORITE_CHANNEL' as any,
-                                    customMessage: intl.formatMessage({id: 'category.remove_failed', defaultMessage: 'Failed to remove from category'}),
+                                    customMessage: intl.formatMessage({id: 'category.auto_classify_failed', defaultMessage: '自动分类失败'}),
                                 });
                             }
                         }}
-                        testID='channel_menu.remove_from_category'
-                    />
-                )}
+                        testID='channel_menu.auto_classify'
+                    />,
+                );
+            }
+
+            items.push(
                 <SlideUpPanelItem
+                    key='cancel'
                     leftIcon='close'
                     text={intl.formatMessage({id: 'mobile.post.cancel', defaultMessage: 'Cancel'})}
                     onPress={() => dismissBottomSheet()}
                     testID='channel_menu.cancel'
-                />
-            </>
-        );
+                />,
+            );
 
-        const itemCount = categoryId ? 4 : 3;
+            return <>{items}</>;
+        };
+
+        // Calculate total height based on actual item heights
+        const totalHeight = sectionType === 'custom'
+            ? ITEM_HEIGHT_WITH_SUBTITLE + ITEM_HEIGHT  // "Remove from category" with subtitle + "Cancel"
+            : ITEM_HEIGHT * 2;  // "Move to category" + "Cancel"
         bottomSheet({
             closeButtonId: 'close-channel-category-menu',
             renderContent,
-            snapPoints: [1, bottomSheetSnapPoint(itemCount, ITEM_HEIGHT)],
+            snapPoints: [1, totalHeight],
             theme,
             title: '',
         });
@@ -472,7 +440,7 @@ const CollapsibleChannelListRenderer = ({
             <ConversationListSwipeableItem
                 channel={item}
                 onPress={onChannelSwitch}
-                onLongPress={(ch) => handleChannelLongPress(ch, section.categoryId)}
+                onLongPress={(ch) => handleChannelLongPress(ch, section.type, section.categoryId)}
                 swipeableRegistrar={swipeableRegistrar.current}
                 shouldHighlightActive={true}
                 shouldHighlightState={true}
