@@ -17,7 +17,7 @@ import {
 import {handleInAppNotification} from '@init/push_notifications';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
-import {logDebug, logError, logInfo, logWarning} from '@utils/log';
+import {debugLog} from '@store/debug_log';
 import {areSystemNotificationsEnabled, JPUSH_NEW_MESSAGE_CHANNEL_ID} from '@utils/notification/message_notification_pref';
 
 const JPUSH_APP_KEY = 'e5e6799b552158d3a1d22d0a';
@@ -66,18 +66,18 @@ class JPushManager {
      */
     async init() {
         if (this.initialized) {
-            logDebug(`${TAG} 已初始化，跳过重复 init`);
+            debugLog(TAG, '已初始化，跳过重复 init');
             return;
         }
 
         // 隐私合规检查：用户必须已同意隐私协议
         const agreed = await hasAcceptedAgreement();
         if (!agreed) {
-            logWarning(`${TAG} 用户尚未同意隐私协议，跳过 JPush 初始化`);
+            debugLog(TAG, '用户尚未同意隐私协议，跳过 JPush 初始化');
             return;
         }
 
-        logInfo(`${TAG} 开始初始化极光推送`, {
+        debugLog(TAG, '开始初始化极光推送', {
             platform: Platform.OS,
             '__DEV__ Value': __DEV__,
             production: !__DEV__,
@@ -90,14 +90,14 @@ class JPushManager {
             JPush.setLoggerEnable(true);
             // eslint-disable-next-line no-unused-expressions, @typescript-eslint/no-explicit-any
             JCore && typeof (JCore as any).setLoggerEnable === 'function' && (JCore as any).setLoggerEnable(true);
-            logDebug(`${TAG} 已开启极光 SDK 调试日志`);
+            debugLog(TAG, '已开启极光 SDK 调试日志');
         }
 
         try {
             // Android: 后台保持长连接，确保 App 退后台/杀进程也能即时收到推送
             // iOS: 开启后台长连接
             JPush.setBackgroundEnable(true);
-            logInfo(`${TAG} 已开启后台长连接`);
+            debugLog(TAG, '已开启后台长连接');
 
             // 必须在 init 之前注册：否则 Android onConnected 可能在 JS 返回前就触发，导致永远收不到「已连接」
             this.setupListeners();
@@ -121,19 +121,19 @@ class JPushManager {
                 production: !__DEV__,
             });
             this.initialized = true;
-            logInfo(`${TAG} 极光 SDK 初始化成功`);
+            debugLog(TAG, '极光 SDK 初始化成功');
 
             // Android：stopPush() 会持久化到下次启动；resume 由 syncForNotifyPush 在权限校验通过后调用
             if (Platform.OS === 'android') {
-                logInfo(`${TAG} 设置保留最近通知条数`);
+                debugLog(TAG, '设置保留最近通知条数');
                 JPush.setLatestNotificationNumber({notificationMaxNumber: 1});
                 const jpushModule = NativeModules.JPushModule as {
                     setLinkMergeEnable?: (enable: boolean) => void;
                 } | undefined;
                 jpushModule?.setLinkMergeEnable?.(false);
-                logInfo(`${TAG} 检查推送接收状态`);
+                debugLog(TAG, '检查推送接收状态');
                 JPush.isPushStopped((stopped) => {
-                    logDebug(`${TAG} 推送接收状态`, {stopped});
+                    debugLog(TAG, '推送接收状态', {stopped});
                 });
                 this.logKeepLongConnInBackground();
             }
@@ -143,7 +143,7 @@ class JPushManager {
             // DeviceEventEmitter 不排队：晚订阅的设置页会错过连接事件，启动后立刻重放当前状态
             setTimeout(() => this.emitStateForListeners(), 0);
         } catch (error) {
-            logError(`${TAG} 极光 SDK 初始化失败`, error);
+            debugLog(TAG, '极光 SDK 初始化失败', error);
             this.initialized = false;
         }
     }
@@ -173,7 +173,7 @@ class JPushManager {
             }
             this.lastAppState = nextState;
         });
-        logDebug(`${TAG} 已注册 App 前后台监听（进入前台时清理通知）`);
+        debugLog(TAG, '已注册 App 前后台监听（进入前台时清理通知）');
     }
 
     /**
@@ -185,7 +185,7 @@ class JPushManager {
             if (typeof RNUtils.clearAllDeliveredNotifications === 'function') {
                 RNUtils.clearAllDeliveredNotifications();
             } else {
-                logWarning(`${TAG} RNUtils.clearAllDeliveredNotifications 不可用，请重新编译原生工程`);
+                debugLog(TAG, 'RNUtils.clearAllDeliveredNotifications 不可用，请重新编译原生工程');
             }
             JPush.clearLocalNotifications();
             JPush.clearAllNotifications();
@@ -193,9 +193,9 @@ class JPushManager {
             if (source === 'appStart' && typeof JPush.setBadge === 'function') {
                 JPush.setBadge({badge: 0, appBadge: 0});
             }
-            logInfo(`${TAG} 已清除通知栏推送通知`, {source});
+            debugLog(TAG, '已清除通知栏推送通知', {source});
         } catch (error) {
-            logError(`${TAG} 清除通知栏推送失败`, {source, error});
+            debugLog(TAG, '清除通知栏推送失败', {source, error});
         }
     }
 
@@ -204,11 +204,11 @@ class JPushManager {
             return;
         }
         if (typeof JPush.getKeepLongConnInBackground !== 'function') {
-            logWarning(`${TAG} getKeepLongConnInBackground 不可用`);
+            debugLog(TAG, 'getKeepLongConnInBackground 不可用');
             return;
         }
         JPush.getKeepLongConnInBackground((result: {keepLongConn?: boolean}) => {
-            logInfo(`${TAG} 后台长连接保持状态`, {
+            debugLog(TAG, '后台长连接保持状态', {
                 keepLongConn: result?.keepLongConn,
                 result,
             });
@@ -224,7 +224,7 @@ class JPushManager {
         if (this.registerId) {
             DeviceEventEmitter.emit(Events.JPUSH_REGISTER_ID, {registerID: this.registerId});
         }
-        logDebug(`${TAG} 已重放状态: sdkConnected=${this.connected}, hasRegId=${Boolean(this.registerId)}, effective=${effectivelyConnected}`);
+        debugLog(TAG, `已重放状态: sdkConnected=${this.connected}, hasRegId=${Boolean(this.registerId)}, effective=${effectivelyConnected}`);
     }
 
     /**
@@ -232,7 +232,7 @@ class JPushManager {
      */
     refreshRegistrationFromSdk() {
         if (!this.initialized) {
-            logWarning(`${TAG} refreshRegistrationFromSdk 跳过：尚未初始化`);
+            debugLog(TAG, 'refreshRegistrationFromSdk 跳过：尚未初始化');
             return;
         }
         this.emitStateForListeners();
@@ -278,7 +278,7 @@ class JPushManager {
      * 保留 registerId 与 initialized，下次登录由 syncForNotifyPush 恢复。
      */
     resetForLogout(source: string) {
-        logInfo(`${TAG} resetForLogout`, {source});
+        debugLog(TAG, 'resetForLogout', {source});
         this.loggedIn = false;
         this.pendingUserId = '';
         this.lastUserId = '';
@@ -295,7 +295,7 @@ class JPushManager {
 
         if (this.initialized) {
             const sequence = Date.now();
-            logInfo(`${TAG} 清除用户别名`, {sequence, source});
+            debugLog(TAG, '清除用户别名', {sequence, source});
             JPush.deleteAlias({sequence});
             this.stopPush();
         }
@@ -317,7 +317,7 @@ class JPushManager {
             }, ms);
             this.registrationRetryTimeouts.push(handle);
         }
-        logDebug(`${TAG} 已安排 RegistrationID 拉取重试: ${REGISTRATION_ID_RETRY_DELAYS_MS.join(',')}ms`);
+        debugLog(TAG, `已安排 RegistrationID 拉取重试: ${REGISTRATION_ID_RETRY_DELAYS_MS.join(',')}ms`);
     }
 
     /**
@@ -329,9 +329,17 @@ class JPushManager {
         }
         this.listenersAttached = true;
 
+        JPush.addTagAliasListener((result: {code: number; sequence: number; alias?: string}) => {
+            if (result.code === 0) {
+                debugLog(TAG, '别名操作成功', {alias: result.alias, sequence: result.sequence});
+            } else {
+                debugLog(TAG, '别名操作失败', {code: result.code, sequence: result.sequence, alias: result.alias});
+            }
+        });
+
         JPush.addConnectEventListener((result) => {
             const status = result.connectEnable ? '已连接' : '未连接';
-            logInfo(`${TAG} 极光连接状态变化: ${status}`, result);
+            debugLog(TAG, `极光连接状态变化: ${status}`, result);
             this.connected = result.connectEnable;
             DeviceEventEmitter.emit(Events.JPUSH_CONNECT_STATUS, result);
             if (result.connectEnable) {
@@ -341,13 +349,13 @@ class JPushManager {
 
         JPush.addNotificationListener((notification: JPushNotificationEvent) => {
             if (!this.systemNotificationsEnabled) {
-                logDebug(`${TAG} 系统通知未开启，忽略极光远端通知`, {
+                debugLog(TAG, '系统通知未开启，忽略极光远端通知', {
                     eventType: notification.notificationEventType,
                 });
                 return;
             }
             if (!this.loggedIn) {
-                logInfo(`${TAG} 未登录，忽略极光远端通知`, {
+                debugLog(TAG, '未登录，忽略极光远端通知', {
                     eventType: notification.notificationEventType,
                 });
                 if (notification.notificationEventType === 'notificationOpened') {
@@ -356,7 +364,7 @@ class JPushManager {
                 }
                 return;
             }
-            logInfo(`${TAG} 收到极光远端通知`, {
+            debugLog(TAG, '收到极光远端通知', {
                 eventType: notification.notificationEventType,
                 title: notification.title,
                 extras: notification.extras,
@@ -371,7 +379,7 @@ class JPushManager {
             }
         });
 
-        logDebug(`${TAG} 事件监听已注册: connectEventListener, notificationListener`);
+        debugLog(TAG, '事件监听已注册: connectEventListener, notificationListener');
     }
 
     /**
@@ -381,18 +389,18 @@ class JPushManager {
     private handleNotificationOpened(notification: JPushNotificationEvent) {
         const {extras} = notification;
         if (!extras) {
-            logWarning(`${TAG} [handleNotificationOpened] 通知 extras 为空，无法处理`);
+            debugLog(TAG, '[handleNotificationOpened] 通知 extras 为空，无法处理');
             return;
         }
 
         if (!this.appReady) {
             this.pendingColdStartNotification = notification;
-            logInfo(`${TAG} [handleNotificationOpened] 冷启动，暂存通知等待 App 就绪`);
+            debugLog(TAG, '[handleNotificationOpened] 冷启动，暂存通知等待 App 就绪');
             return;
         }
 
         if (!this.loggedIn) {
-            logInfo(`${TAG} [handleNotificationOpened] 未登录，忽略通知跳转`);
+            debugLog(TAG, '[handleNotificationOpened] 未登录，忽略通知跳转');
             return;
         }
 
@@ -407,14 +415,14 @@ class JPushManager {
         }
 
         if (!this.appReady || !this.loggedIn) {
-            logInfo(`${TAG} [${source}] 冷启动通知等待 App 就绪与登录态恢复`, {
+            debugLog(TAG, `[${source}] 冷启动通知等待 App 就绪与登录态恢复`, {
                 appReady: this.appReady,
                 loggedIn: this.loggedIn,
             });
             return;
         }
 
-        logInfo(`${TAG} [${source}] App 就绪且已登录，处理暂存冷启动通知`);
+        debugLog(TAG, `[${source}] App 就绪且已登录，处理暂存冷启动通知`);
         this.pendingColdStartNotification = null;
         this.handleNotificationOpened(pending);
     }
@@ -426,17 +434,17 @@ class JPushManager {
         const {extras} = notification;
 
         if (!hasRequiredJPushExtras(extras, notification.content)) {
-            logWarning(`${TAG} [openChannelByExtras] extras 缺少必填字段`, {extras});
+            debugLog(TAG, '[openChannelByExtras] extras 缺少必填字段', {extras});
             return;
         }
 
         const serverUrl = await resolveJPushServerUrl();
         if (!serverUrl) {
-            logWarning(`${TAG} [openChannelByExtras] 无法解析 serverUrl（CONNECT_URL / DefaultServerUrl / 当前服务器）`);
+            debugLog(TAG, '[openChannelByExtras] 无法解析 serverUrl（CONNECT_URL / DefaultServerUrl / 当前服务器）');
             return;
         }
 
-        logInfo(`${TAG} [openChannelByExtras]`, {
+        debugLog(TAG, '[openChannelByExtras]', {
             serverUrl,
             channelId: extras.channel_id,
             postId: extras.post_id,
@@ -450,7 +458,7 @@ class JPushManager {
             screensInStack.includes(Screens.LOGIN);
 
         if (isAtLoginOrOnboarding) {
-            logInfo(`${TAG} [openChannelByExtras] 当前在登录/引导页，忽略通知跳转`);
+            debugLog(TAG, '[openChannelByExtras] 当前在登录/引导页，忽略通知跳转');
             return;
         }
 
@@ -459,14 +467,14 @@ class JPushManager {
         const isAtHome = screensInStack.includes(Screens.HOME);
 
         if (!isAtHome) {
-            logInfo(`${TAG} [openChannelByExtras] 尚未进入 Home，保留暂存通知`);
+            debugLog(TAG, '[openChannelByExtras] 尚未进入 Home，保留暂存通知');
             return;
         }
 
         try {
             await openNotification(serverUrl, notificationData);
         } catch (error) {
-            logError(`${TAG} [openChannelByExtras] 处理失败`, error);
+            debugLog(TAG, '[openChannelByExtras] 处理失败', error);
         } finally {
             EphemeralStore.clearPendingJPushNotification();
         }
@@ -483,7 +491,7 @@ class JPushManager {
         }
 
         if (!this.loggedIn) {
-            logDebug(`${TAG} [handleNotificationArrived] 未登录，忽略前台通知`);
+            debugLog(TAG, '[handleNotificationArrived] 未登录，忽略前台通知');
             return;
         }
 
@@ -492,17 +500,17 @@ class JPushManager {
         }
 
         if (!hasRequiredJPushExtras(extras, notification.content)) {
-            logDebug(`${TAG} [handleNotificationArrived] 前台抵达但 extras 不完整`);
+            debugLog(TAG, '[handleNotificationArrived] 前台抵达但 extras 不完整');
             return;
         }
 
         const serverUrl = await resolveJPushServerUrl();
         if (!serverUrl) {
-            logDebug(`${TAG} [handleNotificationArrived] 无法解析 serverUrl`);
+            debugLog(TAG, '[handleNotificationArrived] 无法解析 serverUrl');
             return;
         }
 
-        logInfo(`${TAG} [handleNotificationArrived] 前台通知到达`, {
+        debugLog(TAG, '[handleNotificationArrived] 前台通知到达', {
             serverUrl,
             channelId: extras.channel_id,
         });
@@ -518,7 +526,7 @@ class JPushManager {
                 notificationData as unknown as NotificationWithData,
             );
         } catch (error) {
-            logError(`${TAG} [handleNotificationArrived] 前台通知处理失败`, error);
+            debugLog(TAG, '[handleNotificationArrived] 前台通知处理失败', error);
         }
     }
 
@@ -529,7 +537,7 @@ class JPushManager {
         JPush.getRegistrationID((result) => {
             if (result.registerID) {
                 this.clearRegistrationIdRetries();
-                logInfo(`${TAG} 获取 Registration ID 成功: ${result.registerID}`);
+                debugLog(TAG, `获取 Registration ID 成功: ${result.registerID}`);
                 this.registerId = result.registerID;
                 DeviceEventEmitter.emit(Events.JPUSH_REGISTER_ID, result);
 
@@ -541,7 +549,7 @@ class JPushManager {
 
                 this.applyPendingUserAlias();
             } else {
-                logDebug(`${TAG} Registration ID 仍为空，将依赖后续重试或连接回调`, result);
+                debugLog(TAG, 'Registration ID 仍为空，将依赖后续重试或连接回调', result);
             }
         });
     }
@@ -554,12 +562,12 @@ class JPushManager {
         this.lastNotifyPush = push;
 
         if (!userId) {
-            logWarning(`${TAG} syncForNotifyPush 跳过，缺少 userId`);
+            debugLog(TAG, 'syncForNotifyPush 跳过，缺少 userId');
             return;
         }
         this.lastUserId = userId;
 
-        logDebug(`${TAG} syncForNotifyPush 开始`, {
+        debugLog(TAG, 'syncForNotifyPush 开始', {
             push,
             userId,
             initialized: this.initialized,
@@ -569,13 +577,13 @@ class JPushManager {
         this.systemNotificationsEnabled = systemEnabled;
 
         const shouldReceivePush = systemEnabled && push !== 'none';
-        logDebug(`${TAG} syncForNotifyPush 决策`, {
+        debugLog(TAG, 'syncForNotifyPush 决策', {
             systemEnabled,
             push,
             shouldReceivePush,
         });
         if (!shouldReceivePush) {
-            logInfo(`${TAG} 停止接收极光推送`, {
+            debugLog(TAG, '停止接收极光推送', {
                 push,
                 systemNotificationsEnabled: systemEnabled,
             });
@@ -592,19 +600,19 @@ class JPushManager {
         this.resumePush();
         this.pendingUserId = userId;
         this.applyPendingUserAlias();
-        logInfo(`${TAG} 已按 notify_props.push 同步极光`, {push, userId, hasRegistration: Boolean(this.registerId)});
+        debugLog(TAG, '已按 notify_props.push 同步极光', {push, userId, hasRegistration: Boolean(this.registerId)});
     }
 
     /** 从系统设置返回前台时，对齐 notify_props.push 并重新同步极光 */
     private async syncOnForegroundIfLoggedIn() {
         if (!this.loggedIn || !this.lastUserId) {
-            logDebug(`${TAG} syncOnForegroundIfLoggedIn 跳过`, {
+            debugLog(TAG, 'syncOnForegroundIfLoggedIn 跳过', {
                 loggedIn: this.loggedIn,
                 hasLastUserId: Boolean(this.lastUserId),
             });
             return;
         }
-        logDebug(`${TAG} syncOnForegroundIfLoggedIn 重新同步`, {
+        debugLog(TAG, 'syncOnForegroundIfLoggedIn 重新同步', {
             push: this.lastNotifyPush,
             userId: this.lastUserId,
         });
@@ -627,7 +635,7 @@ class JPushManager {
             return;
         }
         if (!this.registerId) {
-            logDebug(`${TAG} 等待 Registration 连接成功后再设置别名`, {userId: this.pendingUserId});
+            debugLog(TAG, '等待 Registration 连接成功后再设置别名', {userId: this.pendingUserId});
             return;
         }
         this.setUserAlias(this.pendingUserId);
@@ -639,15 +647,15 @@ class JPushManager {
      */
     setUserAlias(userId: string) {
         if (!this.initialized) {
-            logWarning(`${TAG} setUserAlias 跳过，JPush 尚未初始化`);
+            debugLog(TAG, 'setUserAlias 跳过，JPush 尚未初始化');
             return;
         }
         if (!this.registerId) {
-            logWarning(`${TAG} setUserAlias 跳过，Registration 尚未连接成功`);
+            debugLog(TAG, 'setUserAlias 跳过，Registration 尚未连接成功');
             return;
         }
         const sequence = Date.now();
-        logInfo(`${TAG} 设置用户别名`, {alias: userId, sequence, registerId: this.registerId});
+        debugLog(TAG, '设置用户别名', {alias: userId, sequence, registerId: this.registerId});
         JPush.setAlias({sequence, alias: userId});
     }
 
@@ -656,7 +664,7 @@ class JPushManager {
      */
     stopPush() {
         if (Platform.OS === 'android') {
-            logInfo(`${TAG} 停止推送服务`);
+            debugLog(TAG, '停止推送服务');
             JPush.stopPush();
         }
     }
@@ -666,7 +674,7 @@ class JPushManager {
      */
     resumePush() {
         if (Platform.OS === 'android') {
-            logInfo(`${TAG} 恢复推送服务`);
+            debugLog(TAG, '恢复推送服务');
             JPush.resumePush();
         }
     }
