@@ -18,7 +18,7 @@ import {handleInAppNotification} from '@init/push_notifications';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {debugLog} from '@store/debug_log';
-import {areSystemNotificationsEnabled, JPUSH_NEW_MESSAGE_CHANNEL_ID} from '@utils/notification/message_notification_pref';
+import {areSystemNotificationsEnabled} from '@utils/notification/message_notification_pref';
 
 const JPUSH_APP_KEY = 'e5e6799b552158d3a1d22d0a';
 const JPUSH_CHANNEL = 'developer-default';
@@ -102,17 +102,9 @@ class JPushManager {
             // 必须在 init 之前注册：否则 Android onConnected 可能在 JS 返回前就触发，导致永远收不到「已连接」
             this.setupListeners();
 
-            if (Platform.OS === 'android') {
-                const jpushModule = NativeModules.JPushModule as {
-                    setChannelAndSound?: (params: {channel: string; channelId: string; sound?: string}) => void;
-                } | undefined;
-                if (jpushModule?.setChannelAndSound) {
-                    jpushModule.setChannelAndSound({
-                        channel: '新消息通知',
-                        channelId: JPUSH_NEW_MESSAGE_CHANNEL_ID,
-                    });
-                }
-            }
+            // 通知渠道已在原生层 MainApplication.initializeSdk() 中通过
+            // CustomPushNotificationHelper.createNotificationChannels() 创建（含振动/LED/锁屏），
+            // 不再调用 setChannelAndSound 以免用不完整的配置覆盖已创建好的渠道。
 
             // Android 忽略参数（从 AndroidManifest.xml meta-data 读取），iOS 使用参数配置
             JPush.init({
@@ -334,6 +326,18 @@ class JPushManager {
                 debugLog(TAG, '别名操作成功', {alias: result.alias, sequence: result.sequence});
             } else {
                 debugLog(TAG, '别名操作失败', {code: result.code, sequence: result.sequence, alias: result.alias});
+
+                // 6027: alias 绑定设备数超限（JPush 上限 10 台）
+                // 先 deleteAlias 清除当前设备绑定，延迟后重试 setAlias
+                if (result.code === 6027 && result.alias) {
+                    const failedAlias = result.alias;
+                    debugLog(TAG, 'alias 绑定超限(6027)，执行 deleteAlias 后重试', {alias: failedAlias});
+                    JPush.deleteAlias({sequence: Date.now()});
+                    setTimeout(() => {
+                        debugLog(TAG, '重试设置别名', {alias: failedAlias});
+                        JPush.setAlias({sequence: Date.now(), alias: failedAlias});
+                    }, 3000);
+                }
             }
         });
 
@@ -367,7 +371,11 @@ class JPushManager {
             debugLog(TAG, '收到极光远端通知', {
                 eventType: notification.notificationEventType,
                 title: notification.title,
-                extras: notification.extras,
+                content: notification.content,
+                channel_id: notification.extras?.channel_id,
+                post_id: notification.extras?.post_id,
+                sender_name: notification.extras?.sender_name,
+                appState: AppState.currentState,
             });
             DeviceEventEmitter.emit(Events.JPUSH_NOTIFICATION_EVENT, notification);
 

@@ -20,6 +20,7 @@ import com.mattermost.networkclient.RCTOkHttpClientFactory
 import com.optibot.cnshare.helpers.RealPathUtil
 import com.mattermost.turbolog.TurboLog
 import com.mattermost.turbolog.ConfigureOptions
+import cn.jpush.android.api.JPushInterface
 import com.nozbe.watermelondb.jsi.JSIInstaller
 import com.nozbe.watermelondb.jsi.WatermelonDBJSIPackage
 import com.reactnativenavigation.NavigationApplication
@@ -157,6 +158,18 @@ class MainApplication : NavigationApplication() {
             nativeLog(this, "PrivacyVerify", "设置通知渠道...")
             setupNotificationChannels()
             nativeLog(this, "PrivacyVerify", "通知渠道设置完成")
+
+            // 注册自定义通知构建器：使用 HIGH 渠道 + 固定通知 ID + 禁用堆叠
+            // 必须在通知渠道创建之后、JPush SDK 初始化之前注册
+            nativeLog(this, "PrivacyVerify", "注册 JPush 通知构建器...")
+            try {
+                JPushInterface.setDefaultPushNotificationBuilder(
+                    OptibotJPushNotificationBuilder(this)
+                )
+                nativeLog(this, "PrivacyVerify", "JPush 通知构建器注册完成")
+            } catch (e: Exception) {
+                nativeLog(this, "PrivacyVerify", "JPush 通知构建器注册失败: ${e.message}")
+            }
 
             if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
                 // If you opted-in for the New Architecture, we load the native entry point for this app.
