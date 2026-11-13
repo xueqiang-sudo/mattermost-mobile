@@ -346,7 +346,7 @@ const ChannelListHeader = ({
     const isErpTeam = Boolean((currentTeam as any)?.erp_address);
 
     const openGroupChat = useCallback(() => {
-        const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Start group chat'});
+        const title = intl.formatMessage({id: 'plus_menu.open_group_chat.title', defaultMessage: 'Create group chat'});
         const closeIconColor = theme.sidebarHeaderTextColor;
         const closeButton = CompassIcon.getImageSourceSync('close', 24, closeIconColor);
         goToScreen(Screens.CREATE_DIRECT_MESSAGE, title, {

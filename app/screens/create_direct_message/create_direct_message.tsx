@@ -13,13 +13,13 @@ import {queryChannelMembers} from '@queries/servers/channel';
 import CompassIcon from '@components/compass_icon';
 import ProfilePicture from '@components/profile_picture';
 import {ACCOUNT_OUTLINE_IMAGE} from '@constants/profile';
-import {General} from '@constants';
+import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import SecurityManager from '@managers/security_manager';
-import {popTopScreen, setButtons} from '@screens/navigation';
+import {popTo, popTopScreen, setButtons} from '@screens/navigation';
 import {alertErrorWithFallback} from '@utils/draft';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -42,6 +42,7 @@ const messages = defineMessages({
 });
 
 const CLOSE_BUTTON = 'close-dms';
+const DONE_BUTTON = 'done-dms';
 
 type Props = {
     componentId: AvailableScreens;
@@ -100,9 +101,6 @@ function AvatarNoInitials({author, size, showStatus = false}: {author: Candidate
     );
 }
 
-const close = () => {
-    Keyboard.dismiss();
-};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     container: {
@@ -186,36 +184,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         color: theme.centerChannelColor,
         ...typography('Body', 200),
-    },
-    bottomBar: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
-    },
-    cancelButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-    },
-    cancelButtonText: {
-        color: theme.centerChannelColor,
-        ...typography('Body', 200),
-    },
-    doneButton: {
-        backgroundColor: theme.buttonBg,
-        borderRadius: 8,
-        paddingHorizontal: 24,
-        paddingVertical: 10,
-    },
-    doneButtonDisabled: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.2),
-    },
-    doneButtonText: {
-        color: theme.buttonColor,
-        ...typography('Body', 200, 'SemiBold'),
     },
     dropdownOverlay: {
         backgroundColor: theme.centerChannelBg,
@@ -409,18 +377,41 @@ export default function CreateDirectMessage({
         await popTopScreen(componentId);
     }, [componentId]);
 
-    // Set up the left close button in the navigation bar
+    // Done button label (must be before updateNavigationButtons which references it)
+    const doneLabel = useMemo(() => {
+        const count = newSelectedIds.size;
+        if (count >= 1) {
+            return intl.formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count});
+        }
+        if (isExistingChannel) {
+            return intl.formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
+        }
+        return intl.formatMessage({id: 'mobile.create_direct_message.done', defaultMessage: 'Done'});
+    }, [intl, newSelectedIds.size, isExistingChannel]);
+
+    // Set up navigation bar buttons: left close + right done
     const updateNavigationButtons = useCallback(async () => {
         const closeIconColor = changeOpacity(theme.centerChannelColor, 0.72);
         const closeIcon = await CompassIcon.getImageSource('close', 24, closeIconColor);
+        const rightButtons = [];
+        if (variant !== 'dm_only') {
+            rightButtons.push({
+                id: DONE_BUTTON,
+                text: doneLabel,
+                testID: 'done.create_direct_message.button',
+                enabled: newSelectedIds.size > 0 && !startingConversation,
+                color: newSelectedIds.size > 0 ? theme.buttonBg : changeOpacity(theme.centerChannelColor, 0.3),
+            });
+        }
         setButtons(componentId, {
             leftButtons: [{
                 id: CLOSE_BUTTON,
                 icon: closeIcon,
                 testID: 'close.create_direct_message.button',
             }],
+            rightButtons,
         });
-    }, [componentId, theme.centerChannelColor]);
+    }, [componentId, theme.centerChannelColor, theme.buttonBg, doneLabel, newSelectedIds.size, startingConversation, variant]);
 
     useEffect(() => {
         updateNavigationButtons();
@@ -509,11 +500,14 @@ export default function CreateDirectMessage({
             }
 
             if (created.ok) {
-                // Close CREATE_DIRECT_MESSAGE first (pop back to HOME),
-                // then switch to the new channel — avoids the race where
-                // switchToChannel pushes CHANNEL on top and popTopScreen
-                // accidentally pops CHANNEL instead of CREATE_DIRECT_MESSAGE.
-                await handleClose();
+                // Use popTo(HOME) instead of popTopScreen to avoid a race condition:
+                // Navigation.pop() updates NavigationStore via onPoppedListener (async),
+                // but Navigation.popTo() updates it via onCommandListener (sync).
+                // Without sync update, goToScreen(CHANNEL) may push onto the
+                // still-popping CREATE_DIRECT_MESSAGE, causing push to fail silently
+                // while TAB_BAR_VISIBLE:false has already been emitted.
+                Keyboard.dismiss();
+                await popTo(Screens.HOME);
                 if (created.channelId) {
                     await switchToChannelById(serverUrl, created.channelId);
                 }
@@ -568,17 +562,7 @@ export default function CreateDirectMessage({
         startConversation();
     }, [startConversation]);
 
-    // Done button label
-    const doneLabel = useMemo(() => {
-        const count = newSelectedIds.size;
-        if (count > 1) {
-            return intl.formatMessage({id: 'create_direct_message.done_with_count', defaultMessage: 'Done ({count})'}, {count});
-        }
-        if (isExistingChannel) {
-            return intl.formatMessage({id: 'mobile.add_members.done', defaultMessage: 'Done'});
-        }
-        return intl.formatMessage({id: 'mobile.create_direct_message.done', defaultMessage: 'Done'});
-    }, [intl, newSelectedIds.size, isExistingChannel]);
+    useNavButtonPressed(DONE_BUTTON, componentId, handleDone, [handleDone]);
 
     const renderCheckbox = (userId: string) => {
         const isSelected = selectedIds.has(userId);
@@ -748,26 +732,6 @@ export default function CreateDirectMessage({
                 }
             />
 
-            {/* Bottom bar — only for default and group_only variants */}
-            {variant !== 'dm_only' && (
-                <View style={style.bottomBar}>
-                    <TouchableOpacity
-                        style={style.cancelButton}
-                        onPress={close}
-                    >
-                        <Text style={style.cancelButtonText}>
-                            {intl.formatMessage({id: 'mobile.create_direct_message.cancel', defaultMessage: 'Cancel'})}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[style.doneButton, newSelectedIds.size === 0 && style.doneButtonDisabled]}
-                        onPress={handleDone}
-                        disabled={newSelectedIds.size === 0 || startingConversation}
-                    >
-                        <Text style={style.doneButtonText}>{doneLabel}</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
         </SafeAreaView>
     );
 }

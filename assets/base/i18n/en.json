@@ -2863,6 +2863,7 @@
   "category.auto_classify": "Auto-classify",
   "category.auto_classify_hint": "Automatically classify based on member rules",
   "category.remove_from": "Remove from category",
+  "category.remove_hint": "Will auto-classify to Internal or External based on members",
   "category.moved_success": "Moved to {categoryName}",
   "category.auto_classified_internal": "Auto-classified to Internal",
   "category.auto_classified_external": "Auto-classified to External",

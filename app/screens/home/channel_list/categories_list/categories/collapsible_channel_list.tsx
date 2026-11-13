@@ -14,7 +14,7 @@ import {fetchDirectChannelsInfo} from '@actions/remote/channel';
 import ChannelItem from '@components/channel_item';
 import ConversationListSwipeableItem from '../../conversation_list/conversation_list_swipeable_item';
 import CompassIcon from '@components/compass_icon';
-import {FAVORITES_CATEGORY} from '@constants/categories';
+import {CHANNELS_CATEGORY, DMS_CATEGORY, FAVORITES_CATEGORY} from '@constants/categories';
 import {MM_TABLES} from '@constants/database';
 import {Preferences} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -337,7 +337,7 @@ const CollapsibleChannelListRenderer = ({
                     <SlideUpPanelItem
                         key='remove'
                         leftIcon='close-circle-outline'
-                        text={intl.formatMessage({id: 'category.remove_from_category', defaultMessage: 'Remove from category'})}
+                        text={intl.formatMessage({id: 'category.remove_from', defaultMessage: 'Remove from category'})}
                         subtitle={intl.formatMessage({id: 'category.remove_hint', defaultMessage: 'Will auto-classify to Internal or External based on members'})}
                         onPress={async () => {
                             await dismissBottomSheet();
@@ -372,12 +372,15 @@ const CollapsibleChannelListRenderer = ({
 
                                 const classification = classifyChannel(ch, curUserId, teamMemberIds, gmMemberIds, botUserIds);
 
-                                // Remove from custom category by moving to default 'channels' category
+                                // Remove from custom category: move to the correct built-in category
+                                // DM/GM channels → direct_messages, regular channels → channels
                                 const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
-                                const channelsCategory = cats.find((c) => c.type === 'channels');
+                                const isDmOrGm = ch.type === 'D' || ch.type === 'G';
+                                const targetType = isDmOrGm ? DMS_CATEGORY : CHANNELS_CATEGORY;
+                                const targetCategory = cats.find((c) => c.type === targetType);
 
-                                if (channelsCategory) {
-                                    const {error} = await moveChannelToCategory(serverUrl, channel.id, channelsCategory.id);
+                                if (targetCategory) {
+                                    const {error} = await moveChannelToCategory(serverUrl, channel.id, targetCategory.id);
                                     if (error) throw error;
                                 }
 
@@ -478,35 +481,31 @@ const enhanced = withObservables(
         // when fetchTeamMembersForClassification writes new members
         const teamMemberIds$ = currentTeamId ? observeUserIdsInTeam(database, currentTeamId) : of$(new Set<string>());
 
-        // Get channel IDs from custom categories
-        const customCategoryChannelIds = of$(customCategories).pipe(
-            switchMap((cats) => {
-                return from((async () => {
-                    const customIds = new Set<string>();
-                    for (const cat of cats) {
-                        const cc = await cat.categoryChannels.fetch();
-                        for (const c of cc) {
-                            customIds.add(c.channelId);
-                        }
+        // Get channel IDs from custom categories (observe CategoryChannel table reactively)
+        const customCategoryIds = customCategories.map(cat => cat.id);
+        const customCategoryChannelIds = customCategoryIds.length > 0
+            ? database.get(MM_TABLES.SERVER.CATEGORY_CHANNEL).query(
+                Q.where('category_id', Q.oneOf(customCategoryIds)),
+            ).observe().pipe(
+                map((categoryChannels) => {
+                    const ids = new Set<string>();
+                    for (const cc of categoryChannels) {
+                        ids.add(cc.channelId);
                     }
-                    return customIds;
-                })());
-            }),
-        );
+                    return ids;
+                }),
+            )
+            : of$(new Set<string>());
 
-        // Get favorited channel IDs
-        const favoritedChannelIds = of$(builtInCategories).pipe(
-            switchMap((cats) => {
-                return from((async () => {
-                    const favoritesCategory = cats.find(cat => cat.type === FAVORITES_CATEGORY);
-                    if (!favoritesCategory) {
-                        return new Set<string>();
-                    }
-                    const favoriteChannels = await favoritesCategory.categoryChannels.fetch();
-                    return new Set(favoriteChannels.map(cc => cc.channelId));
-                })());
-            }),
-        );
+        // Get favorited channel IDs (observe CategoryChannel table reactively)
+        const favoritesCategory = builtInCategories.find(cat => cat.type === FAVORITES_CATEGORY);
+        const favoritedChannelIds = favoritesCategory
+            ? database.get(MM_TABLES.SERVER.CATEGORY_CHANNEL).query(
+                Q.where('category_id', favoritesCategory.id),
+            ).observe().pipe(
+                map((categoryChannels) => new Set(categoryChannels.map(cc => cc.channelId))),
+            )
+            : of$(new Set<string>());
 
         // Get channel IDs from built-in categories (DM/GM channels are placed here by the server per team)
         // Observe CategoryChannel table reactively so new channels added to categories trigger updates
@@ -745,15 +744,29 @@ const enhanced = withObservables(
             }),
         );
 
-        // Get custom category channels
-        const customCategorySections = of$(customCategories).pipe(
-            combineLatestWith(favoritedChannelIds),
-            switchMap(([cats, favoritedIds]) => {
+        // Get custom category channels (observe CategoryChannel table reactively)
+        const customCategoryCatIds = customCategories.map(cat => cat.id);
+        const customCategoryChannelRecords = customCategoryCatIds.length > 0
+            ? database.get(MM_TABLES.SERVER.CATEGORY_CHANNEL).query(
+                Q.where('category_id', Q.oneOf(customCategoryCatIds)),
+            ).observe()
+            : of$([] as any[]);
+
+        const customCategorySections = customCategoryChannelRecords.pipe(
+            combineLatestWith(of$(customCategories), favoritedChannelIds),
+            switchMap(([categoryChannels, cats, favoritedIds]) => {
+                // Group category channels by category ID
+                const channelsByCat = new Map<string, string[]>();
+                for (const cc of categoryChannels) {
+                    const ids = channelsByCat.get(cc.categoryId) || [];
+                    ids.push(cc.channelId);
+                    channelsByCat.set(cc.categoryId, ids);
+                }
+
                 return from((async () => {
                     const sections: Section[] = [];
                     for (const cat of cats) {
-                        const categoryChannels = await cat.categoryChannels.fetch();
-                        const channelIds = categoryChannels.map(cc => cc.channelId);
+                        const channelIds = channelsByCat.get(cat.id) || [];
                         if (channelIds.length > 0) {
                             const channelModels = await queryChannelsById(database, channelIds).fetch();
 
