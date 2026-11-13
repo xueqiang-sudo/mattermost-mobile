@@ -1161,6 +1161,18 @@ const ContactsEmployeeProfile = ({
 
                 {fromManage ? (
                     <View style={styles.buttonSection}>
+                        {canSendMessage && (
+                            <Button
+                                theme={theme}
+                                onPress={handleSendMessage}
+                                type='solid'
+                                size='lg'
+                                disabled={sending}
+                                buttonContainerStyle={styles.sendButton}
+                                testID='contacts.employee_profile.send_message'
+                                text={intl.formatMessage({id: 'contacts.send_message', defaultMessage: '发送消息'})}
+                            />
+                        )}
                         <Button
                             theme={theme}
                             onPress={handleSaveProfile}
@@ -1169,7 +1181,7 @@ const ContactsEmployeeProfile = ({
                             disabled={saving}
                             buttonContainerStyle={styles.sendButton}
                             testID='contacts.employee_profile.save'
-                            text={intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: 'Save'})}
+                            text={intl.formatMessage({id: 'mobile.edit_profile.save', defaultMessage: '保存'})}
                         />
                         {canDelete && (
                             <Button
@@ -1180,7 +1192,7 @@ const ContactsEmployeeProfile = ({
                                 disabled={deleting}
                                 buttonContainerStyle={styles.deleteButton}
                                 testID='contacts.employee_profile.delete'
-                                text={intl.formatMessage({id: 'contacts.delete_member', defaultMessage: 'Delete Member'})}
+                                text={intl.formatMessage({id: 'contacts.delete', defaultMessage: '删除'})}
                             />
                         )}
                     </View>

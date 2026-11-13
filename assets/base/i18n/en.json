@@ -1810,6 +1810,7 @@
   "contacts.manager_search_empty": "No users available to add",
   "contacts.manager_discard_changes": "You have unsaved changes. Are you sure you want to discard them?",
   "contacts.delete_department": "Delete department",
+  "contacts.delete": "Delete",
   "contacts.delete_member": "Delete Member",
   "contacts.delete_department_confirm": "Delete department \"{name}\"? This cannot be undone.",
   "contacts.delete_department_has_members": "This department has members and cannot be deleted.",

@@ -588,6 +588,7 @@
   "contacts.delete_department_confirm": "確定刪除部門「{name}」？此操作無法恢復。",
   "contacts.delete_department_failed": "刪除部門失敗，請重試。",
   "contacts.delete_department_has_members": "該部門已有成員，無法刪除。",
+  "contacts.delete": "刪除",
   "contacts.delete_member": "刪除成員",
   "contacts.delete_member_confirm": "確定將成員「{name}」從當前企業及其所屬部門中移除？此操作無法恢復。",
   "contacts.delete_member_failed": "移除成員失敗，請重試。",
