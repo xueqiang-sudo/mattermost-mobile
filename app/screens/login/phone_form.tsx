@@ -5,6 +5,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, Text, TextInput, TouchableOpacity, View} from 'react-native';
 
+import {debugLog} from '@store/debug_log';
 import {appEntry} from '@actions/remote/entry';
 import {doPing} from '@actions/remote/general';
 import {sendAccountCode, verifyAccountCode} from '@actions/remote/plugin_gateway';
@@ -322,33 +323,46 @@ const PhoneLoginForm = ({
 
         try {
             // 1. 验证验证码
+            debugLog('[Login]', 'step1: verifying code', {account: normalizedLoginId, codeLen: verificationCode.length});
             const verifyData = await verifyAccountCode(serverUrl, normalizedLoginId, verificationCode);
             const token = verifyData.token;
             if (!token) {
+                debugLog('[Login]', 'step1 FAILED: no token in response', {verifyData: JSON.stringify(verifyData)});
                 throw new Error('No token received');
             }
+            debugLog('[Login]', 'step1 OK: got token', {tokenPrefix: token.substring(0, 10) + '...'});
 
             // 2. ping 服务器并且获取配置
+            debugLog('[Login]', 'step2: pinging server');
             const pingResult = await doPing(serverUrl, true);
             if (pingResult.error) {
+                debugLog('[Login]', 'step2 FAILED: ping error', {error: String(pingResult.error)});
                 throw pingResult.error;
             }
+            debugLog('[Login]', 'step2 OK: ping success');
             canReceiveNotifications(serverUrl, pingResult.canReceiveNotifications as string, intl);
             // Use maxRetries=2 to ensure DiagnosticId is fetched reliably, especially on Android
+            debugLog('[Login]', 'step2b: fetching config and license');
             const cfgLicenseData = await fetchConfigAndLicense(serverUrl, true, undefined, 2);
             if (cfgLicenseData.error) {
+                debugLog('[Login]', 'step2b FAILED: config error', {error: String(cfgLicenseData.error)});
                 throw cfgLicenseData.error;
             }
+            debugLog('[Login]', 'step2b OK: config fetched');
 
             // 3. 登录前先获取 username
+            debugLog('[Login]', 'step3: getting username');
             let isNeedTryReg = true;
             const apiClient = await getAutoClient(serverUrl);
             let username = isPhoneInputTmp ? formatPhone(normalizedLoginId, true) : emailFormatUsername(normalizedLoginId);
             const usernameTmp = await (isPhoneInputTmp ? apiClient.getUsernameByPhone(normalizedLoginId) : apiClient.getUsernameByEmail(normalizedLoginId));
             if (usernameTmp) { // 已经有用户了，则不需要进行注册
+                debugLog('[Login]', 'step3: user exists', {username: usernameTmp});
                 logInfo(`${isPhoneInputTmp ? 'phone' : 'email'} username already exists, username: ${usernameTmp}`);
                 username = usernameTmp;
                 isNeedTryReg = false;
+            } else {
+                debugLog('[Login]', 'step3: user not found, will try auto-register', {defaultUsername: username});
             }
             logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} username: ${username}`);
 
@@ -359,25 +373,33 @@ const PhoneLoginForm = ({
 
             if (isNeedTryReg) {
                 try {
+                    debugLog('[Login]', 'step4: auto-registering user', {account: normalizedLoginId});
                     logInfo(`signInWithCode ${isPhoneInputTmp ? 'phone' : 'email'} try to auto register user (personal), user: ${normalizedLoginId}, invitedBy: ${invitedBy}`);
                     await apiClient.autoRegisterUserPersonal(normalizedLoginId, token, invitedBy || undefined);
 
                     // 成功创建用户（服务端自动创建个人团队）
+                    debugLog('[Login]', 'step4 OK: user created');
                     logInfo('user created successfully with personal team, user: ', normalizedLoginId);
                 } catch (createUserError) {
                     if (!((createUserError as ClientError).server_error_id === 'app.user.save.username_exists.app_error')) {
+                        debugLog('[Login]', 'step4 FAILED', {error: getFullErrorMessage(createUserError)});
                         throw createUserError;
                     }
 
                     // 已经创建用户，忽略错误
+                    debugLog('[Login]', 'step4: user already exists, ignored');
                     logInfo('user already exists, ignore error, user: ', normalizedLoginId);
                 }
+            } else {
+                debugLog('[Login]', 'step4: skipped (user exists)');
             }
 
             // 5. 调用登录接口
             // 5.1 调用 userPwdLoginAPI 进行登陆，获取 nickname，如果未获取到，需要让用户输入显示的昵称
+            debugLog('[Login]', 'step5: logging in', {username});
             const loginedUser = await userPwdLoginAPI(serverUrl, {ldapOnly: false, loginId: username, password: token});
             let userNickname = loginedUser?.nickname;
+            debugLog('[Login]', 'step5 OK: logged in', {hasNickname: Boolean(userNickname)});
 
             // 5.2 如果未获取到昵称，显示昵称输入对话框
             if (!userNickname) {
