@@ -376,7 +376,7 @@ const Invite = ({componentId, teamId, teamInviteId, currentUserId}: Props) => {
                         style={style.searchInput}
                         value={searchTerm}
                         onChangeText={setSearchTerm}
-                        placeholder={intl.formatMessage({id: 'invite.search_placeholder', defaultMessage: '输入手机号或用户名'})}
+                        placeholder={intl.formatMessage({id: 'invite.search_placeholder', defaultMessage: '输入手机号'})}
                         placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
                         keyboardType='default'
                         autoCapitalize='none'

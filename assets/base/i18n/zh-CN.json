@@ -2873,7 +2873,7 @@
   "category.auto_classify_failed": "自动分类失败",
   "category.remove_failed": "移除失败",
   "channel_info.invite_members": "邀请成员",
-  "invite.search_placeholder": "输入手机号或用户名",
+  "invite.search_placeholder": "输入手机号",
   "invite.search": "搜索",
   "invite.searching": "搜索中...",
   "invite.found_registered": "找到已注册用户:",

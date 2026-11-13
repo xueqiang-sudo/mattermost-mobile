@@ -2869,7 +2869,7 @@
   "category.auto_classify_failed": "自動分類失敗",
   "category.remove_failed": "移除失敗",
   "channel_info.invite_members": "邀請成員",
-  "invite.search_placeholder": "輸入手機號或用戶名",
+  "invite.search_placeholder": "輸入手機號",
   "invite.search": "搜尋",
   "invite.searching": "搜尋中...",
   "invite.found_registered": "找到已註冊用戶:",
