@@ -1269,15 +1269,17 @@ export async function switchToChannelById(serverUrl: string, channelId: string, 
 
     DeviceEventEmitter.emit(Events.CHANNEL_SWITCH, true);
 
-    fetchPostsForChannel(serverUrl, channelId, false, false, groupLabel);
-    fetchChannelBookmarks(serverUrl, channelId, false, groupLabel);
-    await switchToChannel(serverUrl, channelId, teamId, skipLastUnread);
-    openChannelIfNeeded(serverUrl, channelId, groupLabel);
-    markChannelAsRead(serverUrl, channelId, false, groupLabel);
-    fetchChannelStats(serverUrl, channelId, false, groupLabel);
-    fetchGroupsForChannelIfConstrained(serverUrl, channelId, false, groupLabel);
-
-    DeviceEventEmitter.emit(Events.CHANNEL_SWITCH, false);
+    try {
+        fetchPostsForChannel(serverUrl, channelId, false, false, groupLabel);
+        fetchChannelBookmarks(serverUrl, channelId, false, groupLabel);
+        await switchToChannel(serverUrl, channelId, teamId, skipLastUnread);
+        openChannelIfNeeded(serverUrl, channelId, groupLabel);
+        markChannelAsRead(serverUrl, channelId, false, groupLabel);
+        fetchChannelStats(serverUrl, channelId, false, groupLabel);
+        fetchGroupsForChannelIfConstrained(serverUrl, channelId, false, groupLabel);
+    } finally {
+        DeviceEventEmitter.emit(Events.CHANNEL_SWITCH, false);
+    }
 
     if (await AppsManager.isAppsEnabled(serverUrl)) {
         AppsManager.fetchBindings(serverUrl, channelId, false, groupLabel);

@@ -3,7 +3,7 @@
 
 import {DeviceEventEmitter} from 'react-native';
 
-import {General, Navigation as NavigationConstants, Screens} from '@constants';
+import {Events, General, Navigation as NavigationConstants, Screens} from '@constants';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import {extractChannelDisplayName} from '@helpers/database';
@@ -96,11 +96,13 @@ export async function switchToChannel(serverUrl: string, channelId: string, team
             }
         } else {
             logDebug('failed to navigate to channel because there was no membership, channel id: ', channelId);
+            DeviceEventEmitter.emit(Events.TAB_BAR_VISIBLE, true);
         }
 
         return {models};
     } catch (error) {
         logError('Failed to switch to channelId', channelId, 'teamId', teamId, 'error', error);
+        DeviceEventEmitter.emit(Events.TAB_BAR_VISIBLE, true);
         return {error};
     }
 }

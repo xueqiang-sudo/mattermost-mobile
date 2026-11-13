@@ -515,7 +515,7 @@ export default function CreateDirectMessage({
                 // accidentally pops CHANNEL instead of CREATE_DIRECT_MESSAGE.
                 await handleClose();
                 if (created.channelId) {
-                    switchToChannelById(serverUrl, created.channelId);
+                    await switchToChannelById(serverUrl, created.channelId);
                 }
             }
         } finally {
