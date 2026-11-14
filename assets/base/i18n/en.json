@@ -1615,7 +1615,7 @@
   "apps.network_error": "Network error, please try again",
   "apps.dispatch_box_required": "Box number is required for dispatch",
   "apps.empty": "No apps available",
-  "tab_bar.home.label": "Chat",
+  "tab_bar.home.label": "Messages",
   "me.my_enterprise": "My Enterprise",
   "me.my_profile": "My Profile",
   "tab_bar.me.label": "Me",

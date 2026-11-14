@@ -54,7 +54,7 @@ const TabComponents: Record<string, any> = {
 };
 
 const TAB_LABELS: Record<string, {id: string; defaultMessage: string}> = {
-    [Screens.HOME_TAB_CHAT]: {id: 'tab_bar.home.label', defaultMessage: 'Chat'},
+    [Screens.HOME_TAB_CHAT]: {id: 'tab_bar.home.label', defaultMessage: 'Messages'},
     [Screens.HOME_TAB_APPS]: {id: 'tab_bar.apps.label', defaultMessage: 'Apps'},
     [Screens.HOME_TAB_CONTACTS]: {id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'},
     [Screens.HOME_TAB_ME]: {id: 'tab_bar.me.label', defaultMessage: 'Me'},
