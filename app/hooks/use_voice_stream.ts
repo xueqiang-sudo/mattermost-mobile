@@ -197,7 +197,7 @@ export function useVoiceStream(serverUrl: string, token: string) {
                 setResult(r => ({...r, error: '麦克风权限被拒绝'}));
                 Alert.alert(
                     '需要麦克风权限',
-                    '请在设置中允许 Mattermost 访问麦克风',
+                    '请在设置中允许 Dedalix 访问麦克风',
                     [
                         {text: '取消', style: 'cancel'},
                         {text: '去设置', onPress: () => Permissions.openSettings()},

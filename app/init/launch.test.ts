@@ -77,7 +77,7 @@ describe('Launch', () => {
 
     describe('initialLaunch', () => {
         it('should handle deep link launch', async () => {
-            const deepLinkUrl = 'mattermost://server-1.com';
+            const deepLinkUrl = 'dedalix://server-1.com';
             const launchProps = {
                 launchType: Launch.DeepLink,
                 serverUrl: 'server-1.com',

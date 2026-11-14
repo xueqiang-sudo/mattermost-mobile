@@ -135,7 +135,7 @@ export function useVoiceRecorder(
 
                 Alert.alert(
                     '需要麦克风权限',
-                    '请在设置中允许 Mattermost 访问麦克风以使用语音功能',
+                    '请在设置中允许 Dedalix 访问麦克风以使用语音功能',
                     [
                         {text: '取消', style: 'cancel'},
                         {

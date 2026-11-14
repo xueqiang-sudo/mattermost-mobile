@@ -132,7 +132,7 @@ class NetworkManagerSingleton {
     };
 
     private buildConfig = async (preauthSecret?: string) => {
-        const userAgent = `Mattermost Mobile/${nativeApplicationVersion}+${nativeBuildVersion} (${osName}; ${osVersion}; ${modelName})`;
+        const userAgent = `Dedalix Mobile/${nativeApplicationVersion}+${nativeBuildVersion} (${osName}; ${osVersion}; ${modelName})`;
         const managedConfig = ManagedApp.enabled ? Emm.getManagedConfig<ManagedConfig>() : undefined;
         const headers: Record<string, string> = {
             [ClientConstants.HEADER_USER_AGENT]: userAgent,
