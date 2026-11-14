@@ -566,7 +566,7 @@ Are you sure you want to convert {displayName} to a group chat?";
 "intro.welcome" = "Welcome to {displayName} channel.";
 "intro.welcome.private" = "Only invited members can see messages posted in this group chat.";
 "intro.welcome.public" = "Add some more enterprise members to the channel or start a conversation below.";
-"invite_people_to_team.message" = "Here’s a link to collaborate and communicate with us on Mattermost.";
+"invite_people_to_team.message" = "Here’s a link to collaborate and communicate with us on Dedalix.";
 "invite_people_to_team.title" = "Join the {team} enterprise";
 "invite.custom_message" = "Enter a custom message";
 "invite.guest_magic_link" = "Use magic link";
@@ -760,7 +760,7 @@ Are you sure you want to convert {displayName} to a group chat?";
 "mobile.calls_limit_reached" = "Participant limit reached";
 "mobile.calls_lower_hand" = "Lower hand";
 "mobile.calls_make_host" = "Make host";
-"mobile.calls_mic_error" = "To participate, open Settings to grant Mattermost access to your microphone.";
+"mobile.calls_mic_error" = "To participate, open Settings to grant Dedalix access to your microphone.";
 "mobile.calls_more" = "More";
 "mobile.calls_mute" = "Mute";
 "mobile.calls_mute_others" = "Mute others";
@@ -964,9 +964,9 @@ Tap relaunch to open the app again. After restart, you can report the problem fr
 
 The app will now close.";
 "mobile.managed.logout" = "Logout";
-"mobile.managed.not_secured.android" = "This device must be secured with a screen lock to use Mattermost.";
+"mobile.managed.not_secured.android" = "This device must be secured with a screen lock to use Dedalix.";
 "mobile.managed.not_secured.android.vendor" = "This device must be secured with a screen lock to use {vendor}.";
-"mobile.managed.not_secured.ios" = "This device must be secured with biometrics or passcode to use Mattermost.
+"mobile.managed.not_secured.ios" = "This device must be secured with biometrics or passcode to use Dedalix.
 
 Go to Settings > Face ID & Passcode.";
 "mobile.managed.not_secured.ios.vendor" = "This device must be secured with biometrics or passcode to use {vendor}.
@@ -1101,7 +1101,7 @@ Go to Settings > Face ID & Passcode.";
 "mobile.server_requires_client_certificate" = "Server requires client certificate for authentication.";
 "mobile.server_upgrade.button" = "OK";
 "mobile.server_upgrade.description" = "
-A server upgrade is required to use the Mattermost app. Please ask your System Administrator for details.
+A server upgrade is required to use the Dedalix app. Please ask your System Administrator for details.
 ";
 "mobile.server_upgrade.title" = "Server upgrade required";
 "mobile.server_url.deeplink.emm.denied" = "This app is controlled by an EMM and the DeepLink server url does not match the EMM allowed server";
@@ -1226,7 +1226,7 @@ A server upgrade is required to use the Mattermost app. Please ask your System A
 "onboarding.realtime_collaboration" = "Collaborate in real‑time";
 "onboarding.realtime_collaboration_description" = "Persistent channels, direct messaging, and file sharing works seamlessly so you can stay connected, wherever you are.";
 "onboarding.welcome" = "Welcome";
-"onboaring.welcome_description" = "Mattermost is an open source platform for developer collaboration. Secure, flexible, and integrated with your tools.";
+"onboaring.welcome_description" = "Dedalix is an open source platform for developer collaboration. Secure, flexible, and integrated with your tools.";
 "password_send.description" = "To reset your password, enter the email address you used to sign up";
 "password_send.error" = "Please enter a valid email address.";
 "password_send.generic_error" = "We were unable to send you a reset password link. Please contact your System Admin for assistance.";
@@ -1450,7 +1450,7 @@ A server upgrade is required to use the Mattermost app. Please ask your System A
 "rate.error.text" = "There has been an error while opening the review modal.";
 "rate.error.title" = "Error";
 "rate.subtitle" = "Let us know what you think.";
-"rate.title" = "Enjoying Mattermost?";
+"rate.title" = "Enjoying Dedalix?";
 "report_a_problem.metadata.appPlatform" = "App Platform";
 "report_a_problem.metadata.appVersion" = "App Version";
 "report_a_problem.metadata.copy" = "Copy";
@@ -2053,9 +2053,9 @@ You can configure this in notification preferences for each discussion group.";
 "plus_menu.join_enterprise.title" = "Join Enterprise";
 "settings.manage_enterprise" = "Manage enterprises";
 "enterprise.manage.title" = "Manage enterprises";
-"enterprise.manage.subtitle_merged" = "Includes your Mattermost enterprises (mapped to contact companies) and enterprises in the contact directory. Create or join more above.";
-"enterprise.manage.source.mm_and_contact" = "Mattermost enterprise · Contact directory";
-"enterprise.manage.source.mm_only" = "Mattermost enterprise only";
+"enterprise.manage.subtitle_merged" = "Includes your Dedalix enterprises (mapped to contact companies) and enterprises in the contact directory. Create or join more above.";
+"enterprise.manage.source.mm_and_contact" = "Dedalix enterprise · Contact directory";
+"enterprise.manage.source.mm_only" = "Dedalix enterprise only";
 "enterprise.manage.source.contact_only" = "Contact directory";
 "enterprise.manage.create" = "Create enterprise";
 "enterprise.manage.create.name_placeholder" = "Enterprise name";

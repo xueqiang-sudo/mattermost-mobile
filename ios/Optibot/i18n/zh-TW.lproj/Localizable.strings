@@ -579,7 +579,7 @@
 "intro.welcome" = "歡迎來到 {displayName} 羣聊。";
 "intro.welcome.private" = "此羣聊中的訊息僅受邀成員可見。";
 "intro.welcome.public" = "加入更多的企業成員到羣聊裏或者從下面開始一個對話。";
-"invite_people_to_team.message" = "通過這個鏈接與我們在Mattermost上合作和交流。";
+"invite_people_to_team.message" = "通過這個鏈接與我們在Dedalix上合作和交流。";
 "invite_people_to_team.title" = "參加{team} 企業";
 "invite.custom_message" = "Enter a custom message";
 "invite.guest_magic_link" = "Use magic link";
@@ -720,7 +720,7 @@
 "mobile.action_menu.select_multiple" = "選擇一個或多個選項";
 "mobile.add_team.title" = "添加企業";
 "mobile.android.back_handler_exit" = "再次點擊返回以退出";
-"mobile.android.photos_permission_denied_description" = "上傳照片到您的 Mattermost 或保存到您的設備。打開設定並允許 Dedalix 讀寫到您的相冊。";
+"mobile.android.photos_permission_denied_description" = "上傳照片到您的 Dedalix 或保存到您的設備。打開設定並允許 Dedalix 讀寫到您的相冊。";
 "mobile.android.photos_permission_denied_title" = "Dedalix 想要訪問您的照片";
 "mobile.announcement_banner.title" = "公告";
 "mobile.burn_on_read.placeholder" = "View message";
@@ -778,7 +778,7 @@
 "mobile.calls_limit_reached" = "達到參與者上限";
 "mobile.calls_lower_hand" = "放下手";
 "mobile.calls_make_host" = "使其成爲主持人";
-"mobile.calls_mic_error" = "打開設置允許Mattermost訪問您的麥克風權限用來加入。";
+"mobile.calls_mic_error" = "打開設置允許Dedalix訪問您的麥克風權限用來加入。";
 "mobile.calls_more" = "更多";
 "mobile.calls_mute" = "靜音";
 "mobile.calls_mute_others" = "靜音其他人";
@@ -989,9 +989,9 @@
 
 應用將現在退出。";
 "mobile.managed.logout" = "註銷";
-"mobile.managed.not_secured.android" = "此設備必須開啓屏幕鎖才能使用 Mattermost。";
+"mobile.managed.not_secured.android" = "此設備必須開啓屏幕鎖才能使用 Dedalix。";
 "mobile.managed.not_secured.android.vendor" = "此設備必須由屏幕鎖保護以使用{vendor}。";
-"mobile.managed.not_secured.ios" = "此設備必須開啓生物識別或密碼鎖才能使用 Mattermost。
+"mobile.managed.not_secured.ios" = "此設備必須開啓生物識別或密碼鎖才能使用 Dedalix。
 
 前往設置 > 面容 ID 與密碼。";
 "mobile.managed.not_secured.ios.vendor" = "此設備必須開啓生物識別或密碼鎖才能使用{vendor}。
@@ -1125,7 +1125,7 @@
 "mobile.server_requires_client_certificate" = "服務器需要客戶證書來完成認證。";
 "mobile.server_upgrade.button" = "確定";
 "mobile.server_upgrade.description" = "
-爲了使用Mattermost需要一次服務器更新。請聯繫您的系統管理員瞭解更多信息。
+爲了使用Dedalix需要一次服務器更新。請聯繫您的系統管理員瞭解更多信息。
 ";
 "mobile.server_upgrade.title" = "服務器需要更新";
 "mobile.server_url.deeplink.emm.denied" = "此應用被EMM控制，且DeepLink服務器鏈接與EMM允許的服務器不匹配";
@@ -1141,7 +1141,7 @@
 "mobile.set_status.dnd" = "請勿打擾";
 "mobile.set_status.offline" = "離線";
 "mobile.set_status.online" = "在線";
-"mobile.storage_permission_denied_description" = "上傳文件到您的 Mattermost。打開設定並允許 Dedalix 讀寫此設備上的文件。";
+"mobile.storage_permission_denied_description" = "上傳文件到您的 Dedalix。打開設定並允許 Dedalix 讀寫此設備上的文件。";
 "mobile.storage_permission_denied_title" = "Dedalix 想要訪問您的文件";
 "mobile.suggestion.members" = "成員";
 "mobile.system_message.change_channel_privacy.to_private" = "此羣聊已設為僅受邀成員可檢視。";
@@ -1288,7 +1288,7 @@
 "onboarding.realtime_collaboration" = "即時協作";
 "onboarding.realtime_collaboration_description" = "持久化羣聊、聊天、文件共享無縫的一起工作使得您可以時刻保持與他人連接不管您在哪裏。";
 "onboarding.welcome" = "歡迎";
-"onboaring.welcome_description" = "Mattermost是一個開源的開發者協作平臺。安全，靈活而且與可以與您的工具進行集成。";
+"onboaring.welcome_description" = "Dedalix是一個開源的開發者協作平臺。安全，靈活而且與可以與您的工具進行集成。";
 "password_send.description" = "重置您的密碼，輸入您用於註冊的郵箱地址";
 "password_send.error" = "請輸入一個有效的郵箱地址。";
 "password_send.generic_error" = "我們無法發送您重置密碼的鏈接。請聯繫您的系統管理員尋求幫助。";
@@ -1518,7 +1518,7 @@
 "rate.error.text" = "當打開評估對話框時發生錯誤。";
 "rate.error.title" = "錯誤";
 "rate.subtitle" = "讓我們聽到你的想法。";
-"rate.title" = "喜歡Mattermost？";
+"rate.title" = "喜歡Dedalix？";
 "report_a_problem.metadata.appPlatform" = "應用平臺";
 "report_a_problem.metadata.appVersion" = "應用版本";
 "report_a_problem.metadata.copy" = "複製";
@@ -2139,9 +2139,9 @@
 "plus_menu.join_enterprise.title" = "加入企業";
 "settings.manage_enterprise" = "管理企業";
 "enterprise.manage.title" = "管理企業";
-"enterprise.manage.subtitle_merged" = "下列包含您在 Mattermost 中的企業（與通訊錄企業一一對應，企業 ID 即通訊錄公司 ID）以及通訊錄中自建/加入的企業。更多企業請使用上方按鈕。";
-"enterprise.manage.source.mm_and_contact" = "Mattermost 企業 · 通訊錄";
-"enterprise.manage.source.mm_only" = "僅 Mattermost 企業";
+"enterprise.manage.subtitle_merged" = "下列包含您在 Dedalix 中的企業（與通訊錄企業一一對應，企業 ID 即通訊錄公司 ID）以及通訊錄中自建/加入的企業。更多企業請使用上方按鈕。";
+"enterprise.manage.source.mm_and_contact" = "Dedalix 企業 · 通訊錄";
+"enterprise.manage.source.mm_only" = "僅 Dedalix 企業";
 "enterprise.manage.source.contact_only" = "通訊錄企業";
 "enterprise.manage.create" = "創建企業";
 "enterprise.manage.create.name_placeholder" = "企業名稱";
