@@ -4,6 +4,7 @@
 import React, {useCallback, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, SectionList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {debugLog} from '@store/debug_log';
 import {Q} from '@nozbe/watermelondb';
 import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
@@ -342,13 +343,22 @@ const CollapsibleChannelListRenderer = ({
                         onPress={async () => {
                             await dismissBottomSheet();
                             try {
+                                debugLog('[RemoveCat]', 'step1: start', {channelId: channel.id});
                                 const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
                                 const ch = await getChannelById(database, channel.id);
-                                if (!ch) throw new Error('Channel not found');
+                                if (!ch) {
+                                    debugLog('[RemoveCat]', 'FAILED: channel not found', {channelId: channel.id});
+                                    throw new Error('Channel not found');
+                                }
+                                debugLog('[RemoveCat]', 'step2: got channel', {type: ch.type, name: ch.displayName});
 
                                 const curUserId = await getCurrentUserId(database);
                                 const teamId = await getCurrentTeamId(database);
-                                if (!teamId || !curUserId) throw new Error('Missing team or user ID');
+                                if (!teamId || !curUserId) {
+                                    debugLog('[RemoveCat]', 'FAILED: missing team/user', {teamId, curUserId});
+                                    throw new Error('Missing team or user ID');
+                                }
+                                debugLog('[RemoveCat]', 'step3: got teamId', {teamId});
 
                                 const teamMemberIds = new Set<string>();
                                 const teamMembers = await database.get('TeamMember').query().fetch();
@@ -371,22 +381,33 @@ const CollapsibleChannelListRenderer = ({
                                 }
 
                                 const classification = classifyChannel(ch, curUserId, teamMemberIds, gmMemberIds, botUserIds);
+                                debugLog('[RemoveCat]', 'step4: classified', {classification});
 
                                 // Remove from custom category: move to the correct built-in category
                                 // DM/GM channels → direct_messages, regular channels → channels
                                 const cats = await queryCategoriesByTeamIds(database, [teamId]).fetch();
+                                debugLog('[RemoveCat]', 'step5: categories', {count: cats.length, types: cats.map(c => `${c.type}(${c.id.substring(0,8)})`).join(',')});
                                 const isDmOrGm = ch.type === 'D' || ch.type === 'G';
                                 const targetType = isDmOrGm ? DMS_CATEGORY : CHANNELS_CATEGORY;
                                 const targetCategory = cats.find((c) => c.type === targetType);
+                                debugLog('[RemoveCat]', 'step6: target', {targetType, found: Boolean(targetCategory), targetId: targetCategory?.id});
 
                                 if (targetCategory) {
+                                    debugLog('[RemoveCat]', 'step7: calling moveChannelToCategory', {channelId: channel.id, targetId: targetCategory.id});
                                     const {error} = await moveChannelToCategory(serverUrl, channel.id, targetCategory.id);
-                                    if (error) throw error;
+                                    if (error) {
+                                        debugLog('[RemoveCat]', 'FAILED: moveChannelToCategory error', {error: String(error)});
+                                        throw error;
+                                    }
+                                    debugLog('[RemoveCat]', 'step8: moveChannelToCategory success');
+                                } else {
+                                    debugLog('[RemoveCat]', 'WARNING: targetCategory not found, skipping move', {targetType});
                                 }
 
                                 const messageKey = classification === 'internal'
                                     ? 'category.auto_classified_internal'
                                     : 'category.auto_classified_external';
+                                debugLog('[RemoveCat]', 'step9: showing success snackbar', {classification});
                                 showSnackBar({
                                     barType: 'FAVORITE_CHANNEL' as any,
                                     customMessage: intl.formatMessage({
@@ -397,6 +418,7 @@ const CollapsibleChannelListRenderer = ({
                                     }),
                                 });
                             } catch (error) {
+                                debugLog('[RemoveCat]', 'CATCH: failed', {channelId: channel.id, error: getFullErrorMessage(error)});
                                 logDebug('[autoClassify] failed', {
                                     channelId: channel.id,
                                     error: getFullErrorMessage(error),
