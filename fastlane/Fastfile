@@ -810,7 +810,9 @@ platform :ios do
     UI.success("Main App Profile: #{main_profile}")
 
     # 直接修改 pbxproj 设置 PROVISIONING_PROFILE_SPECIFIER
-    pbxproj_path = './ios/Dedalix.xcodeproj/project.pbxproj'
+    # Fastlane 可能从 fastlane/ 目录运行，需要用绝对路径
+    root_dir = File.expand_path('..', __dir__)
+    pbxproj_path = File.join(root_dir, 'ios', 'Dedalix.xcodeproj', 'project.pbxproj')
     pbxproj_content = File.read(pbxproj_path)
 
     # 提取 profile name 的 lambda
