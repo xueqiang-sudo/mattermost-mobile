@@ -97,6 +97,7 @@ export const GLOBAL_DRAFTS_AND_SCHEDULED_POSTS = 'GlobalDraftsAndScheduledPosts'
 export const HOME = 'Home';
 /** 首页 `Tab.Navigator` 各槽位路由名（与 `HOME` RNN 根屏、各 Tab 内 Stack 业务屏区分） */
 export const HOME_TAB_CHAT = 'HomeTabChat';
+export const HOME_TAB_WORKSPACE = 'HomeTabWorkspace';
 export const HOME_TAB_APPS = 'HomeTabApps';
 export const HOME_TAB_AI_AGENT = 'HomeTabAIAgent';
 export const HOME_TAB_CONTACTS = 'HomeTabContacts';
@@ -270,6 +271,7 @@ export default {
     HOME_TAB_CHAT,
     HOME_TAB_CONTACTS,
     HOME_TAB_ME,
+    HOME_TAB_WORKSPACE,
     APPS_HOME,
     APPS_MES,
     APPS_PROMOTION,

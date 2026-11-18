@@ -35,6 +35,7 @@ import Contacts from './contacts';
 import TabBar from './tab_bar';
 import Me from './me';
 import AppsStack from './apps';
+import WorkspaceStack from './workspace/workspace_stack';
 
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 
@@ -190,6 +191,12 @@ export function HomeScreen(props: HomeProps) {
                             options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
                         >
                             {() => <ChannelList {...props}/>}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_WORKSPACE}
+                            options={{tabBarButtonTestID: 'tab_bar.workspace.tab', freezeOnBlur: true, lazy: true}}
+                        >
+                            {() => <WorkspaceStack/>}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.HOME_TAB_APPS}
