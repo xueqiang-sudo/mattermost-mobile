@@ -761,18 +761,34 @@ platform :ios do
       exit_status = $?
       UI.message("  security cms 退出状态: #{exit_status.exitstatus}")
 
-      # 提取 bundle ID — 从 application-identifier 字段精确提取
+      # 提取 bundle ID — 使用 PlistBuddy (macOS) 精确提取 Entitlements:application-identifier
+      plist_tmp = "/tmp/profile_check_#{File.basename(profile, '.mobileprovision')}.plist"
+      File.write(plist_tmp, plist)
       app_ids = []
-      if plist =~ /<key>application-identifier<\/key>\s*<string>([^<]+)<\/string>/
-        full_id = $1  # e.g. "DAR9DHG22M.com.optibot.cn.DedalixShare"
-        # 去掉 Team ID 前缀 (10字符 + 点)
-        bundle_id = full_id.sub(/^[A-Z0-9]+\./, '')
-        app_ids << bundle_id if bundle_id.length > 0
+      begin
+        full_id = `/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" #{plist_tmp.shellescape} 2>/dev/null`.strip
+        if full_id.length > 0
+          # 去掉 Team ID 前缀: "DAR9DHG22M.com.optibot.cn.DedalixShare" → "com.optibot.cn.DedalixShare"
+          bundle_id = full_id.sub(/^[A-Z0-9]+\./, '')
+          app_ids << bundle_id
+          UI.message("  application-identifier: #{full_id} → #{bundle_id}")
+        end
+      rescue => e
+        UI.message("  PlistBuddy 提取失败: #{e.message}")
       end
-      # 备用：扫描所有 com. 开头的 string
+      # 备用：正则提取
+      if app_ids.empty?
+        if plist =~ /<key>application-identifier<\/key>\s*<string>([^<]+)<\/string>/
+          full_id = $1
+          bundle_id = full_id.sub(/^[A-Z0-9]+\./, '')
+          app_ids << bundle_id if bundle_id.length > 0
+        end
+      end
+      # 最终备用：扫描 com. 开头的 string
       if app_ids.empty?
         app_ids = plist.scan(/<string>(com\.[^<]+)<\/string>/).flatten
       end
+      File.delete(plist_tmp) if File.exist?(plist_tmp)
       UI.message("  包含的 Bundle IDs: #{app_ids}")
 
       # 精确匹配：用提取出的 app_ids 数组判断，避免子串误匹配
