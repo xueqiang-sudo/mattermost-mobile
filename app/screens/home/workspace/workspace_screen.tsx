@@ -24,14 +24,14 @@ type WorkspaceCard = {
 };
 
 const CARDS: WorkspaceCard[] = [
-    {key: 'news', icon: 'bullhorn-outline', labelId: 'workspace.card.news', defaultLabel: '公司动态'},
+    {key: 'news', icon: 'bullhorn-outline', labelId: 'workspace.card.news', defaultLabel: '公司动态', screen: Screens.WORKSPACE_NEWS},
     {key: 'hot_products', icon: 'fire', labelId: 'workspace.card.hot_products', defaultLabel: '热销品', screen: Screens.APPS_HOT_PRODUCTS},
     {key: 'inventory', icon: 'package-variant-closed', labelId: 'workspace.card.inventory', defaultLabel: 'ERP 库存', screen: Screens.APPS_INVENTORY},
     {key: 'mes', icon: 'factory', labelId: 'workspace.card.mes', defaultLabel: '排产', screen: Screens.APPS_MES},
-    {key: 'orders', icon: 'clipboard-text-outline', labelId: 'workspace.card.orders', defaultLabel: '我的订单', wide: true, subtitle: '普通订单 / 打样订单'},
+    {key: 'orders', icon: 'clipboard-text-outline', labelId: 'workspace.card.orders', defaultLabel: '我的订单', screen: Screens.WORKSPACE_ORDERS, wide: true, subtitle: '普通订单 / 打样订单'},
     {key: 'messages', icon: 'message-text-outline', labelId: 'workspace.card.messages', defaultLabel: '消息'},
     {key: 'approvals', icon: 'check-decagram-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
-    {key: 'todos', icon: 'format-list-checks', labelId: 'workspace.card.todos', defaultLabel: '待办'},
+    {key: 'todos', icon: 'format-list-checks', labelId: 'workspace.card.todos', defaultLabel: '待办', screen: Screens.WORKSPACE_TODOS},
     {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: '智能笔记'},
 ];
 

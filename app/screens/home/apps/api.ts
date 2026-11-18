@@ -936,3 +936,72 @@ export async function createPickList(
         customer: doc.customer || customer || '',
     };
 }
+
+// ---- Orders API ----
+
+export type DashboardOrder = {
+    name: string;
+    status: string;
+    workflow_state: string;
+    customer_name: string;
+    company: string;
+    grand_total: number;
+    transaction_date: string;
+    delivery_date: string;
+    production_stage: string;
+    sales_person: string;
+    outstanding_amount: number;
+};
+
+export async function fetchOrders(serverUrl: string, teamId?: string): Promise<DashboardOrder[]> {
+    const client = NetworkManager.getClient(serverUrl);
+    let url = `${FRAPPE_SYNC_BASE}/api/dashboard/orders`;
+    const params: string[] = [];
+    if (teamId) {
+        params.push(`team_id=${encodeURIComponent(teamId)}`);
+    }
+    if (params.length > 0) {
+        url += '?' + params.join('&');
+    }
+    const data = await client.doFetch(url, {method: 'get'});
+    return (data?.orders || data?.data || []).map((o: any) => ({
+        name: o.name || '',
+        status: o.status || '',
+        workflow_state: o.workflow_state || '',
+        customer_name: o.customer_name || '',
+        company: o.company || '',
+        grand_total: o.grand_total || 0,
+        transaction_date: o.transaction_date || '',
+        delivery_date: o.delivery_date || '',
+        production_stage: o.production_stage || '',
+        sales_person: o.sales_person || o.owner_name || '',
+        outstanding_amount: o.outstanding_amount || 0,
+    }));
+}
+
+// ---- User Todos API (from fact-extractor) ----
+
+export type UserTodo = {
+    id: string;
+    memory: string;
+    channel_id: string;
+    channel_name: string;
+    date: string;
+};
+
+export async function fetchUserTodos(serverUrl: string, teamId?: string): Promise<UserTodo[]> {
+    const client = NetworkManager.getClient(serverUrl);
+    const body: Record<string, any> = {mode: 'channel_active'};
+    if (teamId) {
+        body.team_id = teamId;
+    }
+    const url = `${FRAPPE_SYNC_BASE}/api/query`;
+    const data = await client.doFetch(url, {method: 'post', body});
+    return (data?.results || data?.memories || []).map((m: any) => ({
+        id: m.id || '',
+        memory: m.memory || '',
+        channel_id: m.channel_id || '',
+        channel_name: m.channel_name || '',
+        date: m.date || '',
+    }));
+}
