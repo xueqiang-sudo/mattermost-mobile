@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {Text, TouchableOpacity, View} from 'react-native';
+import {BackHandler, Platform, Text, TouchableOpacity, View} from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Navigation} from 'react-native-navigation';
 import Animated from 'react-native-reanimated';
@@ -115,7 +115,12 @@ const LoginOptions = ({
     };
 
     const pop = useCallback(() => {
-        popTopScreen(componentId);
+        if (Platform.OS === 'android') {
+            // 登录页是 root screen，无法 pop，按返回键应退出应用
+            BackHandler.exitApp();
+        } else {
+            popTopScreen(componentId);
+        }
     }, [componentId]);
 
     useEffect(() => {
