@@ -10,7 +10,7 @@ import {transformerTimingConfig} from '@screens/gallery/animation_config/timing'
 import {clamp} from '@utils/gallery';
 import * as vec from '@utils/gallery/vectors';
 
-import type {WindowDimensions} from '@mattermost/rnutils';
+import type {WindowDimensions} from '@dedalix/rnutils';
 
 export type TransformerSharedValues = {
     isPagerInProgress: SharedValue<boolean>;

@@ -9,7 +9,7 @@ import TestHelper from '@test/test_helper';
 
 import SharedUploadItem from './shared_upload_item';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 import type {Database} from '@nozbe/watermelondb';
 
 jest.mock('@components/upload_item_shared/adapters', () => ({

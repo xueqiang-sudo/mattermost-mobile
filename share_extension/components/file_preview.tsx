@@ -8,7 +8,7 @@ import CompassIcon from '@components/compass_icon';
 import {getFormattedFileSize} from '@utils/file';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 
 type Props = {
     files: SharedItem[];

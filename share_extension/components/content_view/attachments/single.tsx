@@ -12,7 +12,7 @@ import {isImage, isVideo} from '@utils/file';
 
 import SharedUploadItem from './shared_upload_item';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 
 type Props = {
     file: SharedItem;

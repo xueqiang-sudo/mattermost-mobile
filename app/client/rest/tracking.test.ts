@@ -29,7 +29,7 @@ jest.mock('react-native', () => ({
     },
 }));
 
-jest.mock('@mattermost/rnutils', () => ({
+jest.mock('@dedalix/rnutils', () => ({
     getIOSAppGroupDetails: jest.fn().mockRejectedValue(''),
     isRunningInSplitView: jest.fn().mockReturnValue({isSplit: false, isTablet: false}),
 }));

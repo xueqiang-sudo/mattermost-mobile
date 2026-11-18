@@ -3,7 +3,7 @@
 
 /* eslint-disable max-lines */
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import {applicationName} from 'expo-application';
 import {Alert, InteractionManager, Platform} from 'react-native';
 import DocumentPicker, {type DocumentPickerResponse} from 'react-native-document-picker';
@@ -62,7 +62,7 @@ jest.mock('@utils/log', () => ({
     logError: jest.fn(),
 }));
 
-jest.mock('@mattermost/rnutils', () => ({
+jest.mock('@dedalix/rnutils', () => ({
     getRealFilePath: jest.fn(),
     isRunningInSplitView: jest.fn().mockReturnValue({isSplit: false, isTablet: false}),
     getConstants: jest.fn().mockReturnValue({

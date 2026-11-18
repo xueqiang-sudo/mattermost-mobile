@@ -1,6 +1,6 @@
 {
-    "AuthUrlScheme": "mmauth://",
-    "AuthUrlSchemeDev": "mmauthbeta://",
+    "AuthUrlScheme": "dedalix://",
+    "AuthUrlSchemeDev": "dedalixbeta://",
     "DefaultServerUrl": "https://ai.optibot.cn:8065",
     "DefaultServerName": "",
     "TestServerUrl": "http://localhost:8065",

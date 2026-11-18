@@ -1,13 +1,10 @@
-Mattermost is workplace messaging from behind your firewall.
+Dedalix is a mobile production management and collaboration platform for enterprise teams.
 
 - Discuss topics in private groups, one-to-one or team-wide
-- Find what you're looking for with full text search, filters and #hashtags
-- Easily share images, video, audio and files 
-- Personalize your experience with custom colors, formatting and fonts
-- Connect in-house systems with webhooks and Slack-compatible integrations
+- Easily share and view image files
+- Connect in-house systems with webhooks and integrations
+- Full text search, filters and hashtags
 
-To use this app, you need a "Server URL" from a Mattermost server. To host your own server go to https://about.mattermost.com/download
+Terms of Service: https://pipeline.optibot.cn/terms
 
-Find the Terms of Service for this app here: http://www.mattermost.com/terms/
-
-This is a reference implementation of an open source Mattermost app available at: https://github.com/mattermost/mattermost-mobile
+Privacy Policy: https://pipeline.optibot.cn/privacy

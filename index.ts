@@ -90,7 +90,7 @@ if (global.HermesInternal) {
 if (Platform.OS === 'android') {
     const ShareExtension = require('share_extension/index.tsx').default;
     const AppRegistry = require('react-native/Libraries/ReactNative/AppRegistry');
-    AppRegistry.registerComponent('MattermostShare', () => ShareExtension);
+    AppRegistry.registerComponent('DedalixShare', () => ShareExtension);
     if (UIManager.setLayoutAnimationEnabledExperimental) {
         UIManager.setLayoutAnimationEnabledExperimental(true);
     }

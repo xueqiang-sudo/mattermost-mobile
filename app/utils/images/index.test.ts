@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 
 import {IMAGE_MAX_HEIGHT, IMAGE_MIN_DIMENSION} from '@constants/image';
 
@@ -11,7 +11,7 @@ import {
     isGifTooLarge,
 } from './index';
 
-jest.mock('@mattermost/rnutils', () => ({
+jest.mock('@dedalix/rnutils', () => ({
     getWindowDimensions: jest.fn(() => ({width: 800, height: 600})),
 }));
 

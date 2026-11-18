@@ -3,7 +3,7 @@
 
 import '@utils/bootstrap_text_scaling';
 
-import MattermostShare, {type ShareExtensionDataToSend, type SharedItem} from '@mattermost/rnshare';
+import MattermostShare, {type ShareExtensionDataToSend, type SharedItem} from '@dedalix/rnshare';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import React, {useEffect, useMemo, useState} from 'react';

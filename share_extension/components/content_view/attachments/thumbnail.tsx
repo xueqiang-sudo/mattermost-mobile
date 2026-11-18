@@ -10,7 +10,7 @@ import CompassIcon from '@components/compass_icon';
 import {imageDimensions} from '@share/utils';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 
 type Props = {
     contentMode: 'small' | 'large';

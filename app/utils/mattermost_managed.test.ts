@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import {Platform} from 'react-native';
 
 import {
@@ -11,7 +11,7 @@ import {
     deleteEntitiesFile,
 } from './mattermost_managed';
 
-jest.mock('@mattermost/rnutils', () => ({
+jest.mock('@dedalix/rnutils', () => ({
     getConstants: jest.fn(),
     deleteDatabaseDirectory: jest.fn(),
     renameDatabase: jest.fn(),

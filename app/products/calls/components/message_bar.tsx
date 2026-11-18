@@ -109,7 +109,7 @@ const MessageBar = ({type, onDismiss}: Props) => {
         case Calls.MessageBarType.Microphone:
             message = intl.formatMessage({
                 id: 'mobile.calls_mic_error',
-                defaultMessage: 'To participate, open Settings to grant Mattermost access to your microphone.',
+                defaultMessage: 'To participate, open Settings to grant Dedalix access to your microphone.',
             });
             icon = (
                 <CompassIcon

@@ -60,7 +60,7 @@ function getSourceLabel(
     _entry: ManageEnterpriseEntry,
     formatMessage: (descriptor: {id: string; defaultMessage: string}) => string,
 ): string {
-    return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Mattermost enterprise only'});
+    return formatMessage({id: 'enterprise.manage.source.mm_only', defaultMessage: 'Dedalix enterprise only'});
 }
 
 function getEnterpriseInitials(displayName: string): string {

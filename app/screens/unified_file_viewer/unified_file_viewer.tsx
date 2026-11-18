@@ -7,7 +7,7 @@ import {
     type OnPasswordRequiredEvent,
     type OnPasswordFailedEvent,
     type OnPasswordLimitReachedEvent,
-} from '@mattermost/secure-pdf-viewer';
+} from '@dedalix/secure-pdf-viewer';
 import {cacheDirectory, copyAsync, deleteAsync, getInfoAsync, makeDirectoryAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';

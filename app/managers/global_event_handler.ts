@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils, {type SplitViewResult} from '@mattermost/rnutils';
+import RNUtils, {type SplitViewResult} from '@dedalix/rnutils';
 import {defineMessages} from 'react-intl';
 import {Alert, DeviceEventEmitter, Linking, NativeEventEmitter} from 'react-native';
 import semver from 'semver';

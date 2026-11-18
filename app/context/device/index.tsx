@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils, {type SplitViewResult} from '@mattermost/rnutils';
+import RNUtils, {type SplitViewResult} from '@dedalix/rnutils';
 import React, {createContext, useEffect, useState} from 'react';
 import {NativeEventEmitter} from 'react-native';
 

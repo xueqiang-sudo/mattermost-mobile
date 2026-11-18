@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import VoiceRecorder, {VOICE_RECORDER_PERMISSION_DENIED_CODE} from '@mattermost/voice-recorder';
+import VoiceRecorder, {VOICE_RECORDER_PERMISSION_DENIED_CODE} from '@dedalix/voice-recorder';
 import {getInfoAsync} from 'expo-file-system';
 import {useCallback, useRef, useState} from 'react';
 import {Alert, Platform} from 'react-native';

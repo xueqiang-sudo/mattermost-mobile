@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import {Image} from 'expo-image';
 import {type RefObject} from 'react';
 import {DeviceEventEmitter, Keyboard, Platform, View} from 'react-native';

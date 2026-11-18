@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 /* eslint max-lines: off */
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {

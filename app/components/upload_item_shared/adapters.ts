@@ -5,7 +5,7 @@ import {getDraftVideoLocalMeta} from '@utils/file/draft_video_local_processing';
 
 import type {UploadItemFile} from './index';
 export {SHARED_UPLOAD_STYLES} from './constants';
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 
 /**
  * Convert FileInfo to UploadItemFile for the shared component

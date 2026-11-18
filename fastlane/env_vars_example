@@ -5,7 +5,7 @@ export BRANCH_TO_BUILD=master
 export GIT_LOCAL_BRANCH=build
 
 export APP_NAME="Dedalix"
-export APP_SCHEME=mattermost
+export APP_SCHEME=dedalix
 
 #export INCREMENT_BUILD_NUMBER=false
 ## This sets the version number ex: 1.22.0 if not set it uses the one in the code base
@@ -27,7 +27,7 @@ export FASTLANE_PASSWORD=<itunes connect password>
 export MATCH_PASSWORD=<itunes connect password>
 export MATCH_KEYCHAIN_PASSWORD=<the password of the user running the build in the build machine>
 export MATCH_GIT_URL=<private git repository to allow match sync the provisioning profiles>
-export MATCH_APP_IDENTIFIER=com.optibot.cn.NotificationService,com.optibot.cn.MattermostShare,com.optibot.cn
+export MATCH_APP_IDENTIFIER=com.optibot.cn.NotificationService,com.optibot.cn.DedalixShare,com.optibot.cn
 export MATCH_TYPE=appstore
 export MATCH_SHALLOW_CLONE=true
 export MATCH_SKIP_DOCS=true
@@ -51,7 +51,7 @@ export REPLACE_ASSETS=false
 
 ############ APP IDENTIFIERS ############
 export MAIN_APP_IDENTIFIER=com.optibot.cn
-export EXTENSION_APP_IDENTIFIER=com.optibot.cn.MattermostShare
+export EXTENSION_APP_IDENTIFIER=com.optibot.cn.DedalixShare
 export NOTIFICATION_SERVICE_IDENTIFIER=com.optibot.cn.NotificationService
 export IOS_APP_GROUP=group.com.optibot.cn
 export IOS_ICLOUD_CONTAINER=iCloud.com.optibot.cn

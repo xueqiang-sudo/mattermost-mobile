@@ -10,7 +10,7 @@ import {typography} from '@utils/typography';
 
 import Single from './single';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 
 type Props = {
     files: SharedItem[];

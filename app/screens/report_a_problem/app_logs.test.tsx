@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import TurboLogger from '@mattermost/react-native-turbo-log';
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import {fireEvent, waitFor, waitForElementToBeRemoved} from '@testing-library/react-native';
 import React from 'react';
 import {Platform} from 'react-native';

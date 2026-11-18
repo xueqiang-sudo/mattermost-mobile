@@ -27,7 +27,7 @@ import {
     isMinimumLicenseTier,
 } from './helpers';
 
-jest.mock('@mattermost/rnshare', () => ({
+jest.mock('@dedalix/rnshare', () => ({
     default: {
         getCurrentActivityName: jest.fn().
             mockReturnValueOnce('MainActivity').

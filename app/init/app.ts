@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {NativeModules, Platform} from 'react-native';
-import VoiceRecorder from '@mattermost/voice-recorder';
+import VoiceRecorder from '@dedalix/voice-recorder';
 
 import LocalConfig from '@assets/config.json';
 import {CallsManager} from '@calls/calls_manager';

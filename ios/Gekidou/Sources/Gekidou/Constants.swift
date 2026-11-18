@@ -8,5 +8,5 @@
 import Foundation
 
 public struct GekidouConstants {
-    public static let HEADER_X_MATTERMOST_PREAUTH_SECRET = "X-Mattermost-Preauth-Secret"
+    public static let HEADER_X_MATTERMOST_PREAUTH_SECRET = "X-Dedalix-Preauth-Secret"
 }

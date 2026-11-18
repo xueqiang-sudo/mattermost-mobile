@@ -1,0 +1,22 @@
+{
+  "name": "@dedalix/rnshare",
+  "version": "0.0.0",
+  "description": "Dedalix Share extension for android",
+  "main": "src/index",
+  "android": {
+    "packageName": "com.optibot.cnshare"
+  },
+  "codegenConfig": {
+    "name": "DedalixShareSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "platforms": ["android"],
+    "android": {
+      "javaPackageName": "com.optibot.cnshare"
+    }
+  },
+  "author": "Beijing Yunzhi Technology Co., Ltd.",
+  "license": "Apache 2.0",
+  "private": true,
+  "homepage": "#readme"
+}

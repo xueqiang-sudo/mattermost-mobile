@@ -21,7 +21,7 @@ import {hasChannels} from '@share/queries';
 import {setShareExtensionState, setShareExtensionChannelId, useShareExtensionState} from '@share/state';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 import type ChannelModel from '@typings/database/models/servers/channel';
 
 const {SERVER: {CHANNEL}} = MM_TABLES;

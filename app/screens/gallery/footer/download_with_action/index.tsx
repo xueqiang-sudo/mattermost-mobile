@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import {CameraRoll} from '@react-native-camera-roll/camera-roll';
 import {applicationName} from 'expo-application';
 import {deleteAsync, getInfoAsync} from 'expo-file-system';

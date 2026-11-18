@@ -3,7 +3,7 @@
 
 import {fileInfoToUploadItemFile, sharedItemToUploadItemFile} from './adapters';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 
 describe('Adapters', () => {
     describe('fileInfoToUploadItemFile', () => {

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils from '@mattermost/rnutils';
+import RNUtils from '@dedalix/rnutils';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Alert, DeviceEventEmitter, Platform, View} from 'react-native';
 import {initialWindowMetrics, useSafeAreaInsets} from 'react-native-safe-area-context';

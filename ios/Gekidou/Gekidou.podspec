@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.author                = 'Optibot, Inc.'
   s.version               = '0.1.0'
   s.license               = 'MIT'
-  s.homepage              = 'https://github.com/mattermost/mattermost-mobile'
+  s.homepage              = 'https://github.com/optibot/optibot-mobile'
   s.summary               = 'Gekidou core library'
   s.platform              = :ios, '15.1'               # match repo baseline
   s.swift_versions        = ['5.9', '5.10']            # safe spread

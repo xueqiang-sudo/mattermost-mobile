@@ -5,7 +5,7 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import {Alert, NativeEventEmitter, NativeModules, Platform} from 'react-native';
 import Permissions from 'react-native-permissions';
 
-import {stopRealtimeRecording} from '@mattermost/voice-recorder';
+import {stopRealtimeRecording} from '@dedalix/voice-recorder';
 import {debugLog, flushLogsToDisk, isLogSystemReady} from '@store/debug_log';
 
 const {VoiceRecorder} = NativeModules;

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import MattermostShare, {type ShareExtensionDataToSend, type SharedItem} from '@mattermost/rnshare';
+import MattermostShare, {type ShareExtensionDataToSend, type SharedItem} from '@dedalix/rnshare';
 import {useEffect, useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useHardwareKeyboardEvents} from '@mattermost/hardware-keyboard';
+import {useHardwareKeyboardEvents} from '@dedalix/hardware-keyboard';
 import {forwardRef, useCallback, useImperativeHandle, useState} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
 import {StyleSheet, TextInput, View, type Insets, type NativeSyntheticEvent, type TextInputSubmitEditingEventData} from 'react-native';

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils, {type WindowDimensions} from '@mattermost/rnutils';
+import RNUtils, {type WindowDimensions} from '@dedalix/rnutils';
 import React, {type RefObject, useEffect, useRef, useState, useContext} from 'react';
 import {AppState, Keyboard, NativeEventEmitter, Platform, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';

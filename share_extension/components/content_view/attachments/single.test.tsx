@@ -11,7 +11,7 @@ import TestHelper from '@test/test_helper';
 
 import Single from './single';
 
-import type {SharedItem} from '@mattermost/rnshare';
+import type {SharedItem} from '@dedalix/rnshare';
 import type {Database} from '@nozbe/watermelondb';
 
 jest.mock('@share/state', () => ({

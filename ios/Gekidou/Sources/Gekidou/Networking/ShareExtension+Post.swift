@@ -11,7 +11,7 @@ import os.log
 extension ShareExtension {
     public func uploadFiles(serverUrl: String, channelId: String, message: String,
                             files: [String], completionHandler: @escaping () -> Void) -> String? {
-        let id = "mattermost-share-upload-\(UUID().uuidString)"
+        let id = "dedalix-share-upload-\(UUID().uuidString)"
 
         createUploadSessionData(
             id: id, serverUrl: serverUrl,

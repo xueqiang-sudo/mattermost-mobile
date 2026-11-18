@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import RNUtils, {type SplitViewResult} from '@mattermost/rnutils';
+import RNUtils, {type SplitViewResult} from '@dedalix/rnutils';
 import moment, {type Moment} from 'moment-timezone';
 import {Platform} from 'react-native';
 
@@ -209,8 +209,8 @@ export function hasTrailingSpaces(term: string) {
  */
 export function isMainActivity() {
     if (Platform.OS === 'android') {
-        const MattermostShare = require('@mattermost/rnshare').default;
-        return MattermostShare?.getCurrentActivityName().includes('MainActivity');
+        const DedalixShare = require('@dedalix/rnshare').default;
+        return DedalixShare?.getCurrentActivityName().includes('MainActivity');
     }
 
     return true;

@@ -44,7 +44,7 @@ const Options = ({channelDisplayName, hasChannels, serverDisplayName, theme}: Pr
     const errorLabel = useMemo(() => {
         return intl.formatMessage({
             id: 'share_extension.channel_error',
-            defaultMessage: 'You are not a member of a team on the selected server. Select another server or open Mattermost to join a team.',
+            defaultMessage: 'You are not a member of a team on the selected server. Select another server or open Dedalix to join a team.',
         });
     }, [intl.locale]);
 

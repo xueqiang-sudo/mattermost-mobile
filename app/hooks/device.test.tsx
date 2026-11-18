@@ -35,7 +35,7 @@ const mockEmitter = {
     }),
 } as any;
 
-jest.mock('@mattermost/rnutils', () => ({
+jest.mock('@dedalix/rnutils', () => ({
     getWindowDimensions: jest.fn(() => ({height: 800, width: 600})),
     isRunningInSplitView: jest.fn(() => false),
     default: {

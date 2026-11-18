@@ -35,7 +35,7 @@ jest.mock('jpush-react-native', () => ({
     },
 }));
 
-jest.mock('@mattermost/rnutils', () => ({
+jest.mock('@dedalix/rnutils', () => ({
     __esModule: true,
     default: {
         clearAllDeliveredNotifications: jest.fn(),

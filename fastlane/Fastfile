@@ -97,7 +97,7 @@ lane :set_app_version do
     )
 
     increment_version_number(
-        xcodeproj: './ios/Optibot.xcodeproj',
+        xcodeproj: './ios/Dedalix.xcodeproj',
         version_number: version_number
     )
 
@@ -121,9 +121,9 @@ lane :set_app_build_number do
   ## set the build number for both platforms
   # use the one for iOS if no env variable set
   if ENV['INCREMENT_BUILD_NUMBER'] === 'true'
-    build_number = ENV['BUILD_NUMBER'] || (get_build_number(xcodeproj: './ios/Optibot.xcodeproj').to_i + 1)
+    build_number = ENV['BUILD_NUMBER'] || (get_build_number(xcodeproj: './ios/Dedalix.xcodeproj').to_i + 1)
     increment_build_number(
-        xcodeproj: './ios/Optibot.xcodeproj',
+        xcodeproj: './ios/Dedalix.xcodeproj',
         build_number: build_number
     )
     android_set_version_code(
@@ -257,10 +257,10 @@ lane :upload_file_to_s3 do |options|
     else
       version_number = os_type == "android" ?
         android_get_version_name(gradle_file: './android/app/build.gradle') :
-        get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
+        get_version_number(xcodeproj: './ios/Dedalix.xcodeproj', target: 'Dedalix')
       build_number = os_type == "android" ?
         android_get_version_code(gradle_file: './android/app/build.gradle') :
-        get_build_number(xcodeproj: './ios/Optibot.xcodeproj')
+        get_build_number(xcodeproj: './ios/Dedalix.xcodeproj')
     end
 
     s3_region = ENV['AWS_REGION']
@@ -317,7 +317,7 @@ lane :upload_file_to_s3 do |options|
       if os_type == 'android'
         install_url = "https://#{s3_bucket_name}/#{s3_folder}/#{pr_file}"
       elsif os_type == 'ios'
-        current_build_number = get_build_number(xcodeproj: './ios/Optibot.xcodeproj')
+        current_build_number = get_build_number(xcodeproj: './ios/Dedalix.xcodeproj')
         plist_template = File.read('plist.erb')
         plist_body = ERB.new(plist_template).result(binding)
 
@@ -432,7 +432,7 @@ platform :ios do
     update_settings
     replace_assets
 
-    version_number = get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
+    version_number = get_version_number(xcodeproj: './ios/Dedalix.xcodeproj', target: 'Dedalix')
     if ENV['BETA_BUILD'] == 'true'
       output_name = "Dedalix_Beta_#{version_number}-unsigned.ipa"
     else
@@ -453,7 +453,7 @@ platform :ios do
     host_arch = `uname -m`.strip
 
     # Use arm64 for Apple Silicon (arm64), x86_64 for Intel
-    version_number = get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
+    version_number = get_version_number(xcodeproj: './ios/Dedalix.xcodeproj', target: 'Dedalix')
     if host_arch == "arm64"
       build_arch = "arm64"
       output_file = "Dedalix_#{version_number}-simulator-arm64.app.zip"
@@ -505,8 +505,8 @@ platform :ios do
     keychain_group = "$(AppIdentifierPrefix)#{ENV["IOS_KEYCHAIN_GROUP"] || app_bundle_id}"
     
     update_info_plist(
-      xcodeproj: './ios/Optibot.xcodeproj',
-      plist_path: 'Optibot/Info.plist',
+      xcodeproj: './ios/Dedalix.xcodeproj',
+      plist_path: 'Dedalix/Info.plist',
       block: proc do |plist|
         plist["CFBundleDisplayName"] = app_name
         plist["CFBundleIdentifier"] = app_bundle_id
@@ -515,37 +515,37 @@ platform :ios do
     )
 
     find_replace_string(
-        path_to_file: './ios/Optibot.xcodeproj/project.pbxproj',
+        path_to_file: './ios/Dedalix.xcodeproj/project.pbxproj',
         old_string: 'com.optibot.cn',
         new_string: app_bundle_id
     )
 
     update_icloud_container_identifiers(
-        entitlements_file: './ios/Optibot/Optibot.entitlements',
+        entitlements_file: './ios/Dedalix/Dedalix.entitlements',
         icloud_container_identifiers: [icloud_container]
     )
 
     update_app_group_identifiers(
-        entitlements_file: './ios/Optibot/Optibot.entitlements',
+        entitlements_file: './ios/Dedalix/Dedalix.entitlements',
         app_group_identifiers: [app_group_id]
     )
 
     update_url_schemes(
-      path: './ios/Optibot/Info.plist',
+      path: './ios/Dedalix/Info.plist',
       url_schemes: [app_scheme, app_auth_scheme]
     )
 
     update_keychain_access_groups(
-        entitlements_file: './ios/Optibot/Optibot.entitlements',
+        entitlements_file: './ios/Dedalix/Dedalix.entitlements',
         identifiers: [keychain_group],
     )
 
     # Configure Share extension settings
-    extension_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.OptibotShare'
+    extension_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.DedalixShare'
     
     update_info_plist(
-      xcodeproj: './ios/Optibot.xcodeproj',
-      plist_path: 'OptibotShare/Info.plist',
+      xcodeproj: './ios/Dedalix.xcodeproj',
+      plist_path: 'DedalixShare/Info.plist',
       block: proc do |plist|
         plist["CFBundleDisplayName"] = app_name
         plist["CFBundleIdentifier"] = extension_bundle_id
@@ -554,13 +554,13 @@ platform :ios do
     )
 
     find_replace_string(
-        path_to_file: './ios/Optibot.xcodeproj/project.pbxproj',
-        old_string: 'com.optibot.cn.OptibotShare',
+        path_to_file: './ios/Dedalix.xcodeproj/project.pbxproj',
+        old_string: 'com.optibot.cn.DedalixShare',
         new_string: extension_bundle_id
     )
 
     update_app_group_identifiers(
-      entitlements_file: './ios/OptibotShare/OptibotShare.entitlements',
+      entitlements_file: './ios/DedalixShare/DedalixShare.entitlements',
       app_group_identifiers: [app_group_id]
     )
 
@@ -568,7 +568,7 @@ platform :ios do
     if Dir.exist?('./ios/NotificationService')
     notification_bundle_id = ENV['NOTIFICATION_SERVICE_IDENTIFIER'] || 'com.optibot.cn.NotificationService'
     update_info_plist(
-      xcodeproj: './ios/Optibot.xcodeproj',
+      xcodeproj: './ios/Dedalix.xcodeproj',
       plist_path: 'NotificationService/Info.plist',
       block: proc do |plist|
         plist["CFBundleIdentifier"] = notification_bundle_id
@@ -577,13 +577,13 @@ platform :ios do
     )
 
     update_app_identifier(
-        xcodeproj: './ios/Optibot.xcodeproj',
+        xcodeproj: './ios/Dedalix.xcodeproj',
         plist_path: 'NotificationService/Info.plist',
         app_identifier: notification_bundle_id
     )
 
     find_replace_string(
-        path_to_file: './ios/Optibot.xcodeproj/project.pbxproj',
+        path_to_file: './ios/Dedalix.xcodeproj/project.pbxproj',
         old_string: 'com.optibot.cn.NotificationService',
         new_string: notification_bundle_id
     )
@@ -597,7 +597,7 @@ platform :ios do
     # Update the project Team ID if provided
     unless ENV['FASTLANE_TEAM_ID'].nil? || ENV['FASTLANE_TEAM_ID'].empty?
     update_project_team(
-        path: './ios/Optibot.xcodeproj',
+        path: './ios/Dedalix.xcodeproj',
         teamid: ENV['FASTLANE_TEAM_ID']
     )
     end
@@ -611,8 +611,8 @@ platform :ios do
       intune_redirect_uri = "msauth.#{app_bundle_id}://auth"
 
       update_info_plist(
-          xcodeproj: './ios/Optibot.xcodeproj',
-          plist_path: 'Optibot/Info.plist',
+          xcodeproj: './ios/Dedalix.xcodeproj',
+          plist_path: 'Dedalix/Info.plist',
           block: proc do |plist|
             urlScheme = plist["CFBundleURLTypes"].find{|scheme| scheme["CFBundleURLName"] == "com.optibot"}
             urlScheme[:CFBundleURLSchemes] = [
@@ -646,7 +646,7 @@ platform :ios do
       )
 
       update_keychain_access_groups(
-          entitlements_file: './ios/Optibot/Optibot.entitlements',
+          entitlements_file: './ios/Dedalix/Dedalix.entitlements',
           identifiers: [
             keychain_group,
             "$(AppIdentifierPrefix)com.microsoft.intune.mam",
@@ -660,10 +660,10 @@ platform :ios do
 
   lane :replace_assets do
     if ENV['REPLACE_ASSETS'] == 'true'
-      sh 'cp -R ../dist/assets/release/icons/ios/* ../ios/Optibot/Images.xcassets/AppIcon.appiconset/'
+      sh 'cp -R ../dist/assets/release/icons/ios/* ../ios/Dedalix/Images.xcassets/AppIcon.appiconset/'
       sh 'cp -R ../dist/assets/release/splash_screen/ios/LaunchScreen.storyboard ../ios/SplashScreenResource/LaunchScreen.storyboard'
-      sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashBackground.imageset ../ios/Optibot/Images.xcassets/'
-      sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashIcon.imageset ../ios/Optibot/Images.xcassets/'
+      sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashBackground.imageset ../ios/Dedalix/Images.xcassets/'
+      sh 'cp -R ../dist/assets/release/splash_screen/ios/SplashIcon.imageset ../ios/Dedalix/Images.xcassets/'
     end
 
     app_name =  ENV['APP_NAME'] || 'Dedalix'
@@ -698,7 +698,7 @@ platform :ios do
       plist_strings = "CFBundleDisplayName = \"#{display_name_escaped}\";\n" + plist_strings
 
       language = item.split('.').first
-      project_localization_path = "../ios/Optibot/i18n/#{language}.lproj"
+      project_localization_path = "../ios/Dedalix/i18n/#{language}.lproj"
       FileUtils.mkdir_p project_localization_path
       File.write("#{project_localization_path}/InfoPlist.strings", plist_strings)
       File.write("#{project_localization_path}/Localizable.strings", localized_strings)
@@ -714,8 +714,8 @@ platform :ios do
   end
 
   error do |lane, exception|
-    version = get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
-    build_number = get_build_number(xcodeproj: './ios/Optibot.xcodeproj')
+    version = get_version_number(xcodeproj: './ios/Dedalix.xcodeproj', target: 'Dedalix')
+    build_number = get_build_number(xcodeproj: './ios/Dedalix.xcodeproj')
     send_message_to_mattermost({
                                    :version_number => version,
                                    :build_number => build_number,
@@ -748,7 +748,7 @@ platform :ios do
     end
 
     main_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
-    share_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.MattermostShare'
+    share_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.DedalixShare'
     UI.message("main_bundle_id: #{main_bundle_id}")
     UI.message("share_bundle_id: #{share_bundle_id}")
 
@@ -782,9 +782,9 @@ platform :ios do
     UI.success("Main App Profile: #{main_profile}")
 
     update_project_provisioning(
-      xcodeproj: './ios/Optibot.xcodeproj',
+      xcodeproj: './ios/Dedalix.xcodeproj',
       profile: main_profile,
-      target_filter: ".*Optibot$",
+      target_filter: ".*Dedalix$",
       build_configuration: config_mode,
       code_signing_identity: 'iPhone Distribution'
     )
@@ -793,9 +793,9 @@ platform :ios do
     if !share_profile.nil?
       UI.success("Share Extension Profile: #{share_profile}")
       update_project_provisioning(
-        xcodeproj: './ios/Optibot.xcodeproj',
+        xcodeproj: './ios/Dedalix.xcodeproj',
         profile: share_profile,
-        target_filter: ".*OptibotShare$",
+        target_filter: ".*DedalixShare$",
         build_configuration: config_mode,
         code_signing_identity: 'iPhone Distribution'
       )
@@ -808,16 +808,16 @@ platform :ios do
   end
 
   def build_ios
-    version_number = get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
+    version_number = get_version_number(xcodeproj: './ios/Dedalix.xcodeproj', target: 'Dedalix')
 
     # Use CI run number as build number to ensure uniqueness
     build_number = ENV['GITHUB_RUN_NUMBER']
     if build_number.nil? || build_number.empty?
-      increment_build_number(xcodeproj: './ios/Optibot.xcodeproj')
+      increment_build_number(xcodeproj: './ios/Dedalix.xcodeproj')
     else
-      increment_build_number(build_number: build_number, xcodeproj: './ios/Optibot.xcodeproj')
+      increment_build_number(build_number: build_number, xcodeproj: './ios/Dedalix.xcodeproj')
     end
-    UI.message("Build number: #{get_build_number(xcodeproj: './ios/Optibot.xcodeproj')}")
+    UI.message("Build number: #{get_build_number(xcodeproj: './ios/Dedalix.xcodeproj')}")
 
     if ENV['BETA_BUILD'] == 'true'
       output_base_name = "Dedalix_Beta_#{version_number}"
@@ -834,8 +834,8 @@ platform :ios do
 
     # Sync share extension version with main app (App Store requires them to match)
     update_info_plist(
-      xcodeproj: './ios/Optibot.xcodeproj',
-      plist_path: 'OptibotShare/Info.plist',
+      xcodeproj: './ios/Dedalix.xcodeproj',
+      plist_path: 'DedalixShare/Info.plist',
       block: proc do |plist|
         plist["CFBundleShortVersionString"] = version_number
       end
@@ -853,9 +853,9 @@ platform :ios do
 
     gym(
         clean: true,
-        scheme: 'Optibot',
+        scheme: 'Dedalix',
         configuration: config_mode,
-        workspace: './ios/Optibot.xcworkspace',
+        workspace: './ios/Dedalix.xcworkspace',
         export_method: method,
         skip_profile_detection: true,
         output_name: "#{output_base_name}.ipa",
@@ -865,7 +865,7 @@ platform :ios do
             iCloudContainerEnvironment: 'Production',
             provisioningProfiles: {
                 "com.optibot.cn" => app_profile_name,
-                "com.optibot.cn.MattermostShare" => share_profile_name
+                "com.optibot.cn.DedalixShare" => share_profile_name
             }
         },
         xcargs: xcargs
@@ -885,11 +885,11 @@ platform :ios do
     replace_assets
 
     sh "rm -rf #{ios_build_dir}/"
-    sh "cd #{root_dir}/ios && xcodebuild -workspace Optibot.xcworkspace -scheme Optibot -configuration Release -parallelizeTargets CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO SYMROOT='#{ios_build_dir}' #{more_xc_args} "
+    sh "cd #{root_dir}/ios && xcodebuild -workspace Dedalix.xcworkspace -scheme Dedalix -configuration Release -parallelizeTargets CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO SYMROOT='#{ios_build_dir}' #{more_xc_args} "
     if rel_build_dir == "Release-iphoneos"
-      sh "cd #{ios_build_dir}/#{rel_build_dir} && mkdir -p Payload && cp -r Optibot.app Payload/ && zip -r #{output_file} Payload && rm -rf Payload"
+      sh "cd #{ios_build_dir}/#{rel_build_dir} && mkdir -p Payload && cp -r Dedalix.app Payload/ && zip -r #{output_file} Payload && rm -rf Payload"
     else
-      sh "cd #{ios_build_dir}/#{rel_build_dir} && zip -r #{output_file} Optibot.app"
+      sh "cd #{ios_build_dir}/#{rel_build_dir} && zip -r #{output_file} Dedalix.app"
     end
     sh "mv #{ios_build_dir}/#{rel_build_dir}/#{output_file} #{root_dir}"
   end
@@ -1262,13 +1262,13 @@ def submit_to_testflight(ipa_path)
   end
 
   filename = File.basename(ipa)
-  version_number = get_version_number(xcodeproj: './ios/Optibot.xcodeproj', target: 'Optibot')
-  build_number = get_build_number(xcodeproj: './ios/Optibot.xcodeproj')
+  version_number = get_version_number(xcodeproj: './ios/Dedalix.xcodeproj', target: 'Dedalix')
+  build_number = get_build_number(xcodeproj: './ios/Dedalix.xcodeproj')
   s3_folder = "#{ENV['AWS_FOLDER_NAME']}/#{version_number}/#{build_number}"
   public_link = "https://#{ENV['AWS_BUCKET_DNS_NAME']}/#{s3_folder}/#{filename}"
 
 
-  # Send a build message to Optibot
+  # Send a build message to Dedalix
   pretext = '#### New iOS released ready to be published'
   msg = "Release has been cut and is on TestFlight ready to be published.\nDownload link: #{public_link}"
 
@@ -1327,7 +1327,7 @@ def submit_to_google_play(file_path)
   public_path = "https://#{ENV['AWS_BUCKET_DNS_NAME']}/#{s3_folder}"
   links = (filenames.map { |f| "* #{public_path}/#{f}"}).join("\n")
 
-  # Send a build message to Optibot
+  # Send a build message to Dedalix
   pretext = '#### New Android released ready to be published'
   msg = "Release has been cut and is on the Beta track ready to be published.\nDownload links:\n#{links}"
 
