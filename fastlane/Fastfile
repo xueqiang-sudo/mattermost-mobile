@@ -809,26 +809,44 @@ platform :ios do
     end
     UI.success("Main App Profile: #{main_profile}")
 
-    update_project_provisioning(
-      xcodeproj: './ios/Dedalix.xcodeproj',
-      profile: main_profile,
-      target_filter: ".*Dedalix$",
-      build_configuration: config_mode,
-      code_signing_identity: 'iPhone Distribution'
-    )
-    UI.success("Main App 签名配置完成")
+    # 直接修改 pbxproj 设置 PROVISIONING_PROFILE_SPECIFIER，比 update_project_provisioning 的 target_filter 更可靠
+    pbxproj_path = './ios/Dedalix.xcodeproj/project.pbxproj'
+    pbxproj_content = File.read(pbxproj_path)
 
-    if !share_profile.nil?
-      UI.success("Share Extension Profile: #{share_profile}")
-      update_project_provisioning(
-        xcodeproj: './ios/Dedalix.xcodeproj',
-        profile: share_profile,
-        target_filter: ".*DedalixShare$",
-        build_configuration: config_mode,
-        code_signing_identity: 'iPhone Distribution'
-      )
-      UI.success("Share Extension 签名配置完成")
-    else
+    # 提取 profile name（从 profile 文件中用 PlistBuddy 读取）
+    def self.extract_profile_name(profile_path)
+      plist_tmp = "/tmp/profile_name_#{File.basename(profile_path, '.mobileprovision')}.plist"
+      File.write(plist_tmp, `security cms -D -i #{profile_path.shellescape} 2>/dev/null`)
+      name = `/usr/libexec/PlistBuddy -c "Print :Name" #{plist_tmp.shellescape} 2>/dev/null`.strip
+      File.delete(plist_tmp) if File.exist?(plist_tmp)
+      name
+    end
+
+    main_profile_name = extract_profile_name(main_profile)
+    share_profile_name_val = share_profile ? extract_profile_name(share_profile) : nil
+
+    UI.message("Main profile name: '#{main_profile_name}'")
+    UI.message("Share profile name: '#{share_profile_name_val}'")
+
+    # 按 PRODUCT_BUNDLE_IDENTIFIER 精确匹配并设置 PROVISIONING_PROFILE_SPECIFIER
+    # 对 Dedalix (com.optibot.cn) 设置 main profile
+    # 对 DedalixShare (com.optibot.cn.DedalixShare) 设置 share profile
+    pbxproj_content.gsub!(/PRODUCT_BUNDLE_IDENTIFIER = com\.optibot\.cn\.DedalixShare;.*?PROVISIONING_PROFILE_SPECIFIER = "[^"]*";/m) do |match|
+      if share_profile_name_val && !share_profile_name_val.empty?
+        match.sub(/PROVISIONING_PROFILE_SPECIFIER = "[^"]*"/, "PROVISIONING_PROFILE_SPECIFIER = \"#{share_profile_name_val}\"")
+      else
+        match
+      end
+    end
+    # 注意：先替换 DedalixShare（长 ID），再替换 Dedalix（短 ID），避免子串覆盖
+    pbxproj_content.gsub!(/PRODUCT_BUNDLE_IDENTIFIER = com\.optibot\.cn;.*?PROVISIONING_PROFILE_SPECIFIER = "[^"]*";/m) do |match|
+      match.sub(/PROVISIONING_PROFILE_SPECIFIER = "[^"]*"/, "PROVISIONING_PROFILE_SPECIFIER = \"#{main_profile_name}\"")
+    end
+
+    File.write(pbxproj_path, pbxproj_content)
+    UI.success("直接写入 pbxproj PROVISIONING_PROFILE_SPECIFIER 完成")
+
+    if share_profile.nil?
       UI.important("未找到匹配 #{share_bundle_id} 的 Profile，跳过 Share Extension")
     end
 
