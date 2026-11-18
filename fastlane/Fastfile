@@ -730,140 +730,62 @@ platform :ios do
 
   def setup_code_signing
     UI.message("=== setup_code_signing 开始 ===")
-    config_mode = ENV['BUILD_FOR_RELEASE'] == 'true' ? 'Release' : 'Debug'
-    UI.message("config_mode: #{config_mode}")
 
-    profiles_dir = File.expand_path('~/Library/MobileDevice/Provisioning Profiles')
-    UI.message("profiles_dir: #{profiles_dir}")
-    UI.message("HOME: #{ENV['HOME']}")
+    # 直接从 CI 环境变量获取 profile name（CI workflow 已提取好）
+    main_name = ENV["APP_PROVISIONING_NAME"].to_s.strip
+    share_name = ENV["SHARE_PROVISIONING_NAME"].to_s.strip
 
-    if !Dir.exist?(profiles_dir)
-      UI.user_error!("Provisioning Profiles 目录不存在: #{profiles_dir}")
+    UI.message("APP_PROVISIONING_NAME = '#{main_name}'")
+    UI.message("SHARE_PROVISIONING_NAME = '#{share_name}'")
+
+    if main_name.empty?
+      UI.user_error!("APP_PROVISIONING_NAME is empty")
+    end
+    if share_name.empty?
+      UI.user_error!("SHARE_PROVISIONING_NAME is empty")
     end
 
-    profiles = Dir.glob("#{profiles_dir}/*.mobileprovision")
-    UI.message("找到 #{profiles.length} 个 profile 文件")
-    if profiles.empty?
-      UI.user_error!("未找到已安装的 Provisioning Profile")
-    end
-
-    main_bundle_id = ENV['MAIN_APP_IDENTIFIER'] || 'com.optibot.cn'
-    share_bundle_id = ENV['EXTENSION_APP_IDENTIFIER'] || 'com.optibot.cn.DedalixShare'
-    UI.message("main_bundle_id: #{main_bundle_id}")
-    UI.message("share_bundle_id: #{share_bundle_id}")
-
-    main_profile = nil
-    share_profile = nil
-
-    profiles.each do |profile|
-      UI.message("检查 profile: #{profile}")
-      plist = `security cms -D -i #{profile.shellescape} 2>&1`
-      exit_status = $?
-      UI.message("  security cms 退出状态: #{exit_status.exitstatus}")
-
-      # 提取 bundle ID — 使用 PlistBuddy (macOS) 精确提取 Entitlements:application-identifier
-      plist_tmp = "/tmp/profile_check_#{File.basename(profile, '.mobileprovision')}.plist"
-      File.write(plist_tmp, plist)
-      app_ids = []
-      begin
-        full_id = `/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" #{plist_tmp.shellescape} 2>/dev/null`.strip
-        if full_id.length > 0
-          # 去掉 Team ID 前缀: "DAR9DHG22M.com.optibot.cn.DedalixShare" → "com.optibot.cn.DedalixShare"
-          bundle_id = full_id.sub(/^[A-Z0-9]+\./, '')
-          app_ids << bundle_id
-          UI.message("  application-identifier: #{full_id} → #{bundle_id}")
-        end
-      rescue => e
-        UI.message("  PlistBuddy 提取失败: #{e.message}")
-      end
-      # 备用：正则提取
-      if app_ids.empty?
-        if plist =~ /<key>application-identifier<\/key>\s*<string>([^<]+)<\/string>/
-          full_id = $1
-          bundle_id = full_id.sub(/^[A-Z0-9]+\./, '')
-          app_ids << bundle_id if bundle_id.length > 0
-        end
-      end
-      # 最终备用：扫描 com. 开头的 string
-      if app_ids.empty?
-        app_ids = plist.scan(/<string>(com\.[^<]+)<\/string>/).flatten
-      end
-      File.delete(plist_tmp) if File.exist?(plist_tmp)
-      UI.message("  包含的 Bundle IDs: #{app_ids}")
-
-      # 精确匹配：用提取出的 app_ids 数组判断，避免子串误匹配
-      # (com.optibot.cn.DedalixShare 包含 com.optibot.cn 子串)
-      if app_ids.include?(share_bundle_id)
-        share_profile = profile
-        UI.message("  → 匹配为 Share Extension profile")
-      elsif app_ids.include?(main_bundle_id)
-        main_profile = profile
-        UI.message("  → 匹配为 Main App profile")
-      else
-        UI.message("  → 未匹配")
-      end
-    end
-
-    if main_profile.nil?
-      UI.user_error!("未找到匹配 #{main_bundle_id} 的 Provisioning Profile。已扫描: #{profiles}")
-    end
-    UI.success("Main App Profile: #{main_profile}")
-
-    # 直接修改 pbxproj 设置 PROVISIONING_PROFILE_SPECIFIER
-    # Fastlane 可能从 fastlane/ 目录运行，需要用绝对路径
+    # 修改 pbxproj — 直接写入 profile name
     root_dir = File.expand_path('..', __dir__)
     pbxproj_path = File.join(root_dir, 'ios', 'Dedalix.xcodeproj', 'project.pbxproj')
-    pbxproj_content = File.read(pbxproj_path)
 
-    # 提取 profile name 的 lambda
-    extract_name = lambda do |profile_path|
-      plist_tmp = "/tmp/pname_#{File.basename(profile_path, '.mobileprovision')}.plist"
-      File.write(plist_tmp, `security cms -D -i #{profile_path.shellescape} 2>/dev/null`)
-      name = `/usr/libexec/PlistBuddy -c "Print :Name" #{plist_tmp.shellescape} 2>/dev/null`.strip
-      File.delete(plist_tmp) if File.exist?(plist_tmp)
-      name
-    end
+    UI.message("pbxproj_path: #{pbxproj_path}")
+    UI.message("pbxproj exists: #{File.exist?(pbxproj_path)}")
 
-    main_profile_name = extract_name.call(main_profile)
-    share_profile_name_val = share_profile ? extract_name.call(share_profile) : ""
+    content = File.read(pbxproj_path)
 
-    UI.message("Main profile name: '#{main_profile_name}'")
-    UI.message("Share profile name: '#{share_profile_name_val}'")
+    # 逐行扫描：找到 PRODUCT_BUNDLE_IDENTIFIER 后，在下一个 PROVISIONING_PROFILE_SPECIFIER 写入 profile name
+    lines = content.split("\n")
+    current_bid = nil
+    replaced_count = 0
 
-    if main_profile_name.empty?
-      UI.user_error!("无法提取 Main App profile name，profile 可能无效")
-    end
-
-    # 用逐行扫描方式替换，比正则更可靠
-    lines = pbxproj_content.split("\n")
-    current_bundle_id = nil
     lines.each_with_index do |line, i|
       if line =~ /PRODUCT_BUNDLE_IDENTIFIER\s*=\s*([^;]+);/
-        current_bundle_id = $1.strip
+        current_bid = $1.strip
       end
-      if line =~ /PROVISIONING_PROFILE_SPECIFIER\s*=\s*"[^"]*"/ && current_bundle_id
-        if current_bundle_id == 'com.optibot.cn.DedalixShare' && !share_profile_name_val.empty?
-          lines[i] = line.sub(/PROVISIONING_PROFILE_SPECIFIER\s*=\s*"[^"]*"/, "PROVISIONING_PROFILE_SPECIFIER = \"#{share_profile_name_val}\"")
-          UI.message("  设置 DedalixShare → #{share_profile_name_val}")
-        elsif current_bundle_id == 'com.optibot.cn'
-          lines[i] = line.sub(/PROVISIONING_PROFILE_SPECIFIER\s*=\s*"[^"]*"/, "PROVISIONING_PROFILE_SPECIFIER = \"#{main_profile_name}\"")
-          UI.message("  设置 Dedalix → #{main_profile_name}")
+
+      if current_bid && line.include?('PROVISIONING_PROFILE_SPECIFIER')
+        if current_bid == 'com.optibot.cn.DedalixShare'
+          lines[i] = "\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{share_name}\";"
+          UI.message("  ✅ DedalixShare → #{share_name}")
+          replaced_count += 1
+        elsif current_bid == 'com.optibot.cn'
+          lines[i] = "\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{main_name}\";"
+          UI.message("  ✅ Dedalix → #{main_name}")
+          replaced_count += 1
         end
-        current_bundle_id = nil  # reset after processing
+        current_bid = nil
       end
     end
+
+    UI.message("共替换 #{replaced_count} 处 PROVISIONING_PROFILE_SPECIFIER")
 
     File.write(pbxproj_path, lines.join("\n"))
-    UI.success("pbxproj PROVISIONING_PROFILE_SPECIFIER 写入完成")
 
-    # 验证写入结果
-    verify_content = File.read(pbxproj_path)
-    specifier_lines = verify_content.scan(/PROVISIONING_PROFILE_SPECIFIER\s*=\s*"([^"]*)"/)
-    UI.message("验证 PROVISIONING_PROFILE_SPECIFIER 值: #{specifier_lines.flatten}")
-
-    if share_profile.nil?
-      UI.important("未找到匹配 #{share_bundle_id} 的 Profile，跳过 Share Extension")
-    end
+    # 验证
+    verify = File.read(pbxproj_path)
+    specs = verify.scan(/PROVISIONING_PROFILE_SPECIFIER\s*=\s*"([^"]*)"/)
+    UI.message("验证结果: #{specs.flatten.inspect}")
 
     UI.message("=== setup_code_signing 完成 ===")
   end
