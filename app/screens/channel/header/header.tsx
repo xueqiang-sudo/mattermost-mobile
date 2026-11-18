@@ -479,7 +479,7 @@ const ChannelHeader = ({
                     isTopItem={!showBookmarkBar}
                 />
             }
-            {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL || channelType === General.GM_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
+            {(channelType === General.PRIVATE_CHANNEL || channelType === General.DM_CHANNEL || channelType === General.GM_CHANNEL || channelType === General.OPEN_CHANNEL) && Boolean(announcementMarkdown.trim()) &&
                 <View
                     style={{paddingTop: defaultHeight}}
                     onLayout={(e) => onAnnouncementBarHeightChange?.(e.nativeEvent.layout.height)}

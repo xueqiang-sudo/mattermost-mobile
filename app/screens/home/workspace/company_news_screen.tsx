@@ -95,25 +95,25 @@ const CompanyNewsScreen = () => {
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-            // Query channels that have a non-empty header (announcement)
-            // Only include open channels and private channels the user is a member of
-            const channelInfos = await database.get<ChannelInfoModel>('ChannelInfo').query(
-                Q.where('header', Q.notEq('')),
+            // Query public channels (type 'O') first
+            const publicChannels = await database.get<ChannelModel>('Channel').query(
+                Q.where('type', 'O'),
             ).fetch();
 
-            if (channelInfos.length === 0) {
+            if (publicChannels.length === 0) {
                 setAnnouncements([]);
                 setLoading(false);
                 return;
             }
 
-            // Get channel details for each
-            const channelIds = channelInfos.map((ci) => ci.id);
-            const channels = await database.get<ChannelModel>('Channel').query(
+            // Get channel info (with announcement/header) for public channels
+            const channelIds = publicChannels.map((ch) => ch.id);
+            const channelInfos = await database.get<ChannelInfoModel>('ChannelInfo').query(
                 Q.where('id', Q.oneOf(channelIds)),
+                Q.where('header', Q.notEq('')),
             ).fetch();
 
-            const channelMap = new Map(channels.map((ch) => [ch.id, ch]));
+            const channelMap = new Map(publicChannels.map((ch) => [ch.id, ch]));
 
             const items: Announcement[] = [];
             for (const ci of channelInfos) {

@@ -979,11 +979,91 @@ export async function fetchOrders(serverUrl: string, teamId?: string): Promise<D
     }));
 }
 
+// ---- Projects API ----
+
+export type DashboardProject = {
+    name: string;
+    project_name: string;
+    status: string;
+    project_type: string;
+    percent_complete: number;
+    expected_start_date: string;
+    expected_end_date: string;
+    customer: string;
+    sales_order: string;
+    total_sales_amount: number;
+    gross_margin: number;
+    per_gross_margin: number;
+    task_total: number;
+    task_completed: number;
+};
+
+export async function fetchProjects(serverUrl: string, teamId?: string): Promise<DashboardProject[]> {
+    const client = NetworkManager.getClient(serverUrl);
+    let url = `${FRAPPE_SYNC_BASE}/api/dashboard/projects`;
+    const params: string[] = [];
+    if (teamId) {
+        params.push(`team_id=${encodeURIComponent(teamId)}`);
+    }
+    if (params.length > 0) {
+        url += '?' + params.join('&');
+    }
+    const data = await client.doFetch(url, {method: 'get'});
+    return (data?.projects || data?.data || []).map((p: any) => ({
+        name: p.name || '',
+        project_name: p.project_name || p.name || '',
+        status: p.status || '',
+        project_type: p.project_type || '',
+        percent_complete: p.percent_complete || 0,
+        expected_start_date: p.expected_start_date || '',
+        expected_end_date: p.expected_end_date || '',
+        customer: p.customer || '',
+        sales_order: p.sales_order || '',
+        total_sales_amount: p.total_sales_amount || 0,
+        gross_margin: p.gross_margin || 0,
+        per_gross_margin: p.per_gross_margin || 0,
+        task_total: p.task_total || 0,
+        task_completed: p.task_completed || 0,
+    }));
+}
+
+// ---- Todo Update / Delete API (fact-extractor) ----
+
+export async function updateTodo(
+    serverUrl: string,
+    teamId: string,
+    channelId: string,
+    lineNumber: number,
+    text: string,
+): Promise<{ok: boolean; content?: string; error?: string}> {
+    const client = NetworkManager.getClient(serverUrl);
+    const url = `${FRAPPE_SYNC_BASE}/api/todo/update`;
+    return client.doFetch(url, {
+        method: 'post',
+        body: {team_id: teamId, channel_id: channelId, lineNumber, text},
+    });
+}
+
+export async function deleteTodo(
+    serverUrl: string,
+    teamId: string,
+    channelId: string,
+    lineNumber: number,
+): Promise<{ok: boolean; remainingCount?: number; removedText?: string; content?: string; error?: string}> {
+    const client = NetworkManager.getClient(serverUrl);
+    const url = `${FRAPPE_SYNC_BASE}/api/todo/delete`;
+    return client.doFetch(url, {
+        method: 'post',
+        body: {team_id: teamId, channel_id: channelId, lineNumber},
+    });
+}
+
 // ---- User Todos API (from fact-extractor) ----
 
 export type UserTodo = {
-    id: string;
-    memory: string;
+    lineNumber: number;
+    text: string;
+    path: string;
     channel_id: string;
     channel_name: string;
     date: string;
@@ -997,11 +1077,37 @@ export async function fetchUserTodos(serverUrl: string, teamId?: string): Promis
     }
     const url = `${FRAPPE_SYNC_BASE}/api/query`;
     const data = await client.doFetch(url, {method: 'post', body});
-    return (data?.results || data?.memories || []).map((m: any) => ({
-        id: m.id || '',
-        memory: m.memory || '',
-        channel_id: m.channel_id || '',
-        channel_name: m.channel_name || '',
-        date: m.date || '',
-    }));
+
+    const results = data?.results || [];
+    const todos: UserTodo[] = [];
+
+    for (const result of results) {
+        const content: string = result.memory || result.content || '';
+        const path: string = result.path || '';
+        const channelName: string = result.channel_name || '';
+        const channelId: string = result.channel_id || '';
+        const date: string = result.date || '';
+
+        // Parse markdown: extract lines starting with "- " (todo items)
+        const lines = content.split('\n');
+        let lineNum = 0;
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('- ')) {
+                lineNum++;
+                // Strip the "- " prefix and any [since MM-DD] tag for display
+                let text = trimmed.substring(2).trim();
+                todos.push({
+                    lineNumber: lineNum,
+                    text,
+                    path,
+                    channel_id: channelId,
+                    channel_name: channelName,
+                    date,
+                });
+            }
+        }
+    }
+
+    return todos;
 }

@@ -66,10 +66,19 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingBottom: 32,
     },
     gridContainer: {
+        paddingHorizontal: 16,
+        paddingTop: 8,
+    },
+    sectionHeader: {
+        ...typography('Body', 100, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: 20,
+        marginBottom: 12,
+        marginLeft: 4,
+    },
+    sectionGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        paddingHorizontal: 12,
-        paddingTop: 16,
     },
     appCard: {
         width: (Dimensions.get('window').width - 48) / 3,
@@ -363,6 +372,32 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         }
     }, [navigation, dashboardAccess]);
 
+    const renderAppCard = (app: AppDef) => (
+        <TouchableOpacity
+            key={app.key}
+            style={styles.appCard}
+            onPress={() => handleAppPress(app)}
+            activeOpacity={0.7}
+            testID={`apps.${app.key}`}
+        >
+            <View
+                style={[
+                    styles.appIconContainer,
+                    {backgroundColor: changeOpacity(ICON_COLORS[app.iconName] || theme.buttonBg, 0.12)},
+                ]}
+            >
+                <CompassIcon
+                    name={app.iconName}
+                    size={28}
+                    color={ICON_COLORS[app.iconName] || theme.buttonBg}
+                />
+            </View>
+            <Text style={styles.appLabel}>
+                {intl.formatMessage({id: app.labelId, defaultMessage: app.defaultLabel})}
+            </Text>
+        </TouchableOpacity>
+    );
+
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),
         transform: [{translateX: withTiming(0, {duration: 150})}],
@@ -378,7 +413,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 >
                     <View style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center', paddingTop: insets.top}]}>
                         <Text style={styles.headerTitle}>
-                            {intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: '应用'})}
+                            {intl.formatMessage({id: 'apps.center.title', defaultMessage: '应用中心'})}
                         </Text>
                     </View>
                     <View style={styles.loadingContainer}>
@@ -405,7 +440,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                                 style={styles.headerTitle}
                                 testID='apps.header.title'
                             >
-                                {intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: '应用'})}
+                                {intl.formatMessage({id: 'apps.center.title', defaultMessage: '应用中心'})}
                             </Text>
                         </View>
                         <ScrollView
@@ -426,31 +461,85 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                                 </View>
                             ) : (
                                 <View style={styles.gridContainer}>
-                                    {visibleApps.map((app) => (
-                                        <TouchableOpacity
-                                            key={app.key}
-                                            style={styles.appCard}
-                                            onPress={() => handleAppPress(app)}
-                                            activeOpacity={0.7}
-                                            testID={`apps.${app.key}`}
-                                        >
-                                            <View
-                                                style={[
-                                                    styles.appIconContainer,
-                                                    {backgroundColor: changeOpacity(ICON_COLORS[app.iconName] || theme.buttonBg, 0.12)},
-                                                ]}
-                                            >
-                                                <CompassIcon
-                                                    name={app.iconName}
-                                                    size={28}
-                                                    color={ICON_COLORS[app.iconName] || theme.buttonBg}
-                                                />
+                                    {/* 生产与制造 (MES) */}
+                                    {(() => {
+                                        const items = visibleApps.filter((a) => ['mes'].includes(a.key));
+                                        if (items.length === 0) {return null;}
+                                        return (
+                                            <View>
+                                                <Text style={styles.sectionHeader}>
+                                                    {intl.formatMessage({id: 'apps.category.mes', defaultMessage: '生产与制造 (MES)'})}
+                                                </Text>
+                                                <View style={styles.sectionGrid}>
+                                                    {items.map((app) => renderAppCard(app))}
+                                                </View>
                                             </View>
-                                            <Text style={styles.appLabel}>
-                                                {intl.formatMessage({id: app.labelId, defaultMessage: app.defaultLabel})}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                        );
+                                    })()}
+
+                                    {/* 仓储物流 (WMS) */}
+                                    {(() => {
+                                        const items = visibleApps.filter((a) => ['stock_in', 'stock_out'].includes(a.key));
+                                        if (items.length === 0) {return null;}
+                                        return (
+                                            <View>
+                                                <Text style={styles.sectionHeader}>
+                                                    {intl.formatMessage({id: 'apps.category.wms', defaultMessage: '仓储物流 (WMS)'})}
+                                                </Text>
+                                                <View style={styles.sectionGrid}>
+                                                    {items.map((app) => renderAppCard(app))}
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {/* 数据分析 (ERP) */}
+                                    {(() => {
+                                        const items = visibleApps.filter((a) => ['hotproducts', 'sales', 'finance', 'inventory', 'approvals'].includes(a.key));
+                                        if (items.length === 0) {return null;}
+                                        return (
+                                            <View>
+                                                <Text style={styles.sectionHeader}>
+                                                    {intl.formatMessage({id: 'apps.category.erp', defaultMessage: '数据分析 (ERP)'})}
+                                                </Text>
+                                                <View style={styles.sectionGrid}>
+                                                    {items.map((app) => renderAppCard(app))}
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {/* 企业资料 */}
+                                    {(() => {
+                                        const items = visibleApps.filter((a) => ['cloud_drive', 'knowledge_base', 'smart_notebook'].includes(a.key));
+                                        if (items.length === 0) {return null;}
+                                        return (
+                                            <View>
+                                                <Text style={styles.sectionHeader}>
+                                                    {intl.formatMessage({id: 'apps.category.enterprise', defaultMessage: '企业资料'})}
+                                                </Text>
+                                                <View style={styles.sectionGrid}>
+                                                    {items.map((app) => renderAppCard(app))}
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {/* 管理与运营 */}
+                                    {(() => {
+                                        const items = visibleApps.filter((a) => ['conversations', 'promotion', 'role_management', 'debug'].includes(a.key));
+                                        if (items.length === 0) {return null;}
+                                        return (
+                                            <View>
+                                                <Text style={styles.sectionHeader}>
+                                                    {intl.formatMessage({id: 'apps.category.management', defaultMessage: '管理与运营'})}
+                                                </Text>
+                                                <View style={styles.sectionGrid}>
+                                                    {items.map((app) => renderAppCard(app))}
+                                                </View>
+                                            </View>
+                                        );
+                                    })()}
                                 </View>
                             )}
                         </ScrollView>

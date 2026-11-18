@@ -82,6 +82,10 @@ const APP_URL_MAP: Record<string, string> = {
     cloud_drive: '/workbench/cloud-drive',
     knowledge_base: '/workbench/knowledge-base',
     notebook: '/workbench/notebook',
+    erp_desk: '/workbench/erp-desk',
+    orders: '/workbench/orders',
+    overview: '/workbench/overview',
+    projects: '/workbench/projects',
 };
 
 const AppWebView = ({route}: Props) => {

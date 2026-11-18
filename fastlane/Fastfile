@@ -761,14 +761,26 @@ platform :ios do
       exit_status = $?
       UI.message("  security cms 退出状态: #{exit_status.exitstatus}")
 
-      # 提取 bundle ID
-      app_ids = plist.scan(/<string>[A-Z0-9]+\.(com\.[^<]+)<\/string>/).flatten
+      # 提取 bundle ID — 从 application-identifier 字段精确提取
+      app_ids = []
+      if plist =~ /<key>application-identifier<\/key>\s*<string>([^<]+)<\/string>/
+        full_id = $1  # e.g. "DAR9DHG22M.com.optibot.cn.DedalixShare"
+        # 去掉 Team ID 前缀 (10字符 + 点)
+        bundle_id = full_id.sub(/^[A-Z0-9]+\./, '')
+        app_ids << bundle_id if bundle_id.length > 0
+      end
+      # 备用：扫描所有 com. 开头的 string
+      if app_ids.empty?
+        app_ids = plist.scan(/<string>(com\.[^<]+)<\/string>/).flatten
+      end
       UI.message("  包含的 Bundle IDs: #{app_ids}")
 
-      if plist.include?(share_bundle_id)
+      # 精确匹配：用提取出的 app_ids 数组判断，避免子串误匹配
+      # (com.optibot.cn.DedalixShare 包含 com.optibot.cn 子串)
+      if app_ids.include?(share_bundle_id)
         share_profile = profile
         UI.message("  → 匹配为 Share Extension profile")
-      elsif plist.include?(main_bundle_id)
+      elsif app_ids.include?(main_bundle_id)
         main_profile = profile
         UI.message("  → 匹配为 Main App profile")
       else
