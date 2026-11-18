@@ -7,7 +7,7 @@ import androidx.core.view.WindowCompat
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import com.mattermost.hardware.keyboard.MattermostHardwareKeyboardImpl
+import com.dedalix.hardware.keyboard.DedalixHardwareKeyboardImpl
 import com.optibot.cnutils.helpers.FoldableObserver
 import com.reactnativenavigation.NavigationActivity
 import expo.modules.ReactActivityDelegateWrapper
@@ -86,7 +86,7 @@ class MainActivity : NavigationActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (HWKeyboardConnected) {
-            val ok = MattermostHardwareKeyboardImpl.dispatchKeyEvent(event)
+            val ok = DedalixHardwareKeyboardImpl.dispatchKeyEvent(event)
             if (ok) {
                 return true
             }
