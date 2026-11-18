@@ -729,65 +729,11 @@ platform :ios do
   end
 
   def setup_code_signing
-    UI.message("=== setup_code_signing 开始 ===")
-
-    # 直接从 CI 环境变量获取 profile name（CI workflow 已提取好）
-    main_name = ENV["APP_PROVISIONING_NAME"].to_s.strip
-    share_name = ENV["SHARE_PROVISIONING_NAME"].to_s.strip
-
-    UI.message("APP_PROVISIONING_NAME = '#{main_name}'")
-    UI.message("SHARE_PROVISIONING_NAME = '#{share_name}'")
-
-    if main_name.empty?
-      UI.user_error!("APP_PROVISIONING_NAME is empty")
-    end
-    if share_name.empty?
-      UI.user_error!("SHARE_PROVISIONING_NAME is empty")
-    end
-
-    # 修改 pbxproj — 直接写入 profile name
-    root_dir = File.expand_path('..', __dir__)
-    pbxproj_path = File.join(root_dir, 'ios', 'Dedalix.xcodeproj', 'project.pbxproj')
-
-    UI.message("pbxproj_path: #{pbxproj_path}")
-    UI.message("pbxproj exists: #{File.exist?(pbxproj_path)}")
-
-    content = File.read(pbxproj_path)
-
-    # 逐行扫描：找到 PRODUCT_BUNDLE_IDENTIFIER 后，在下一个 PROVISIONING_PROFILE_SPECIFIER 写入 profile name
-    lines = content.split("\n")
-    current_bid = nil
-    replaced_count = 0
-
-    lines.each_with_index do |line, i|
-      if line =~ /PRODUCT_BUNDLE_IDENTIFIER\s*=\s*([^;]+);/
-        current_bid = $1.strip
-      end
-
-      if current_bid && line.include?('PROVISIONING_PROFILE_SPECIFIER')
-        if current_bid == 'com.optibot.cn.DedalixShare'
-          lines[i] = "\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{share_name}\";"
-          UI.message("  ✅ DedalixShare → #{share_name}")
-          replaced_count += 1
-        elsif current_bid == 'com.optibot.cn'
-          lines[i] = "\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"#{main_name}\";"
-          UI.message("  ✅ Dedalix → #{main_name}")
-          replaced_count += 1
-        end
-        current_bid = nil
-      end
-    end
-
-    UI.message("共替换 #{replaced_count} 处 PROVISIONING_PROFILE_SPECIFIER")
-
-    File.write(pbxproj_path, lines.join("\n"))
-
-    # 验证
-    verify = File.read(pbxproj_path)
-    specs = verify.scan(/PROVISIONING_PROFILE_SPECIFIER\s*=\s*"([^"]*)"/)
-    UI.message("验证结果: #{specs.flatten.inspect}")
-
-    UI.message("=== setup_code_signing 完成 ===")
+    # Profile names 已硬编码在 pbxproj 的 PROVISIONING_PROFILE_SPECIFIER 中：
+    #   com.optibot.cn         → "com.optibot.cn AppStore"
+    #   com.optibot.cn.DedalixShare → "DedalixShare Distribution"
+    # CI 只需安装对应的 .mobileprovision 文件即可，无需动态修改项目文件。
+    UI.message("=== setup_code_signing: profile names 已硬编码在 pbxproj 中，跳过 ===")
   end
 
   def build_ios
