@@ -187,12 +187,6 @@ export function HomeScreen(props: HomeProps) {
                             />)}
                     >
                         <Tab.Screen
-                            name={Screens.HOME_TAB_CHAT}
-                            options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
-                        >
-                            {() => <ChannelList {...props}/>}
-                        </Tab.Screen>
-                        <Tab.Screen
                             name={Screens.HOME_TAB_WORKSPACE}
                             options={{tabBarButtonTestID: 'tab_bar.workspace.tab', freezeOnBlur: true, lazy: true}}
                         >
@@ -205,6 +199,12 @@ export function HomeScreen(props: HomeProps) {
                             {() => (
                                 <AppsStack rnnHomeComponentId={props.componentId}/>
                             )}
+                        </Tab.Screen>
+                        <Tab.Screen
+                            name={Screens.HOME_TAB_CHAT}
+                            options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
+                        >
+                            {() => <ChannelList {...props}/>}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.HOME_TAB_CONTACTS}
