@@ -9,7 +9,7 @@ import React
     private var recordingURL: URL?
     private weak var eventEmitter: RCTEventEmitter?  // 【修复】用于发送事件到 JS
 
-    private let logger = OSLog(subsystem: "com.mattermost.voicerecorder", category: "VoiceRecorder")
+    private let logger = OSLog(subsystem: "com.dedalix.voicerecorder", category: "VoiceRecorder")
 
     public typealias StopRecordingCompletion = ([String: Any]) -> Void
     private var stopCompletion: StopRecordingCompletion?

@@ -7,10 +7,10 @@ using namespace facebook::react;
 using namespace JS::NativeRNUtils;
 #endif
 
-#if __has_include("mattermost_rnutils-Swift.h")
-#import <mattermost_rnutils-Swift.h>
+#if __has_include("dedalix_rnutils-Swift.h")
+#import <dedalix_rnutils-Swift.h>
 #else
-#import <mattermost_rnutils/mattermost_rnutils-Swift.h>
+#import <dedalix_rnutils/dedalix_rnutils-Swift.h>
 #endif
 
 @interface RNUtils() <RNUtilsDelegate>

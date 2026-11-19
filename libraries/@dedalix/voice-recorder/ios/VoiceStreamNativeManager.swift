@@ -6,7 +6,7 @@ import os.log
 class VoiceStreamNativeManager: NSObject, URLSessionWebSocketDelegate {
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession: URLSession?
-    private let logger = OSLog(subsystem: "com.mattermost.voicerecorder", category: "VoiceStreamNative")
+    private let logger = OSLog(subsystem: "com.dedalix.voicerecorder", category: "VoiceStreamNative")
 
     // 回调（传回 JS 层）
     var onTranscription: ((String, Bool) -> Void)?

@@ -1,9 +1,9 @@
 #import "DedalixHardwareKeyboard.h"
 
-#if __has_include("mattermost_hardware_keyboard-Swift.h")
-#import "mattermost_hardware_keyboard-Swift.h"
+#if __has_include("dedalix_hardware_keyboard-Swift.h")
+#import "dedalix_hardware_keyboard-Swift.h"
 #else
-#import <mattermost_hardware_keyboard/mattermost_hardware_keyboard-Swift.h>
+#import <dedalix_hardware_keyboard/dedalix_hardware_keyboard-Swift.h>
 #endif
 
 @interface DedalixHardwareKeyboard () <DedalixHardwareKeyboardDelegate>
