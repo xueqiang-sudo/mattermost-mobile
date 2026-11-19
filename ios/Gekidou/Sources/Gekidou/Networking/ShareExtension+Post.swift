@@ -26,7 +26,7 @@ extension ShareExtension {
             createBackroundSession(id: id)
             os_log(
                 OSLogType.default,
-                "Optibot BackgroundSession: uploading %{public}@ files for identifier=%{public}@",
+                "Dedalix BackgroundSession: uploading %{public}@ files for identifier=%{public}@",
                 String(files.count),
                 id
             )
@@ -48,7 +48,7 @@ extension ShareExtension {
                         if let task = backgroundSession?.uploadTask(with: uploadRequest, fromFile: fileUrl) {
                             os_log(
                                 OSLogType.default,
-                                "Optibot BackgroundSession: Start uploading file %{public}@ for identifier=%{public}@",
+                                "Dedalix BackgroundSession: Start uploading file %{public}@ for identifier=%{public}@",
                                 filename,
                                 id
                             )
@@ -57,7 +57,7 @@ extension ShareExtension {
                         } else {
                             os_log(
                                 OSLogType.default,
-                                "Optibot BackgroundSession: Task not created to upload file %{public}@ for identifier=%{public}@",
+                                "Dedalix BackgroundSession: Task not created to upload file %{public}@ for identifier=%{public}@",
                                 filename,
                                 id
                             )
@@ -65,7 +65,7 @@ extension ShareExtension {
                     } else {
                         os_log(
                             OSLogType.default,
-                            "Optibot BackgroundSession: The file %{public}@ for identifier=%{public}@ could not be processed for upload",
+                            "Dedalix BackgroundSession: The file %{public}@ for identifier=%{public}@ could not be processed for upload",
                             filename,
                             id
                         )
@@ -74,7 +74,7 @@ extension ShareExtension {
                 } else {
                     os_log(
                         OSLogType.default,
-                        "Optibot BackgroundSession: File %{public}@ for identifier=%{public}@ not found or is not a valid URL",
+                        "Dedalix BackgroundSession: File %{public}@ for identifier=%{public}@ not found or is not a valid URL",
                         file,
                         id
                     )
@@ -85,7 +85,7 @@ extension ShareExtension {
         } else if !message.isEmpty {
             os_log(
                 OSLogType.default,
-                "Optibot BackgroundSession: posting message for identifier=%{public}@ without files",
+                "Dedalix BackgroundSession: posting message for identifier=%{public}@ without files",
                 id
             )
             self.postMessageForSession(withId: id, completionHandler: completionHandler)
@@ -99,7 +99,7 @@ extension ShareExtension {
         else {
             os_log(
                 OSLogType.default,
-                "Optibot BackgroundSession: postMessageForSession fail to get data for identifier=%{public}@",
+                "Dedalix BackgroundSession: postMessageForSession fail to get data for identifier=%{public}@",
                 id
             )
             return
@@ -118,7 +118,7 @@ extension ShareExtension {
                 completionHandler: {info, reponse, error in
                     if let err = error {
                         os_log(
-                            "Optibot BackgroundSession: error to create post for session identifier=%{public}@ -- %{public}@",
+                            "Dedalix BackgroundSession: error to create post for session identifier=%{public}@ -- %{public}@",
                             log: .default,
                             type: .error,
                             id,
@@ -129,7 +129,7 @@ extension ShareExtension {
                     if let handler = completionHandler {
                         os_log(
                             OSLogType.default,
-                            "Optibot BackgroundSession: postMessageForSession without files call completionHandler for identifier=%{public}@",
+                            "Dedalix BackgroundSession: postMessageForSession without files call completionHandler for identifier=%{public}@",
                             id
                         )
                         handler()

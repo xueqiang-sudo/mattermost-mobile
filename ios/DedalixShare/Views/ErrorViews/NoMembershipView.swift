@@ -21,7 +21,7 @@ struct NoMembershipView: View {
       .foregroundColor(Color.theme.centerChannelColor)
       Text(
         NSLocalizedString("extension.no_memberships.description",
-          value: "To share content, you'll need to be a member of a team on a Optibot server.",
+          value: "To share content, you'll need to be a member of a team on a Dedalix server.",
           comment: ""
         )
       )

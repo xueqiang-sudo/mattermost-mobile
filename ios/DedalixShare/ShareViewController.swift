@@ -120,7 +120,7 @@ class ShareViewController: UIViewController {
          let channel = channelId {
         os_log(
             OSLogType.default,
-            "Optibot BackgroundSession: Sharing content to serverUrl=%{public}@ in channelId=%{public}@ with message=%{public}@ and attaching %{public}@ files",
+            "Dedalix BackgroundSession: Sharing content to serverUrl=%{public}@ in channelId=%{public}@ with message=%{public}@ and attaching %{public}@ files",
             url,
             channel,
             message,

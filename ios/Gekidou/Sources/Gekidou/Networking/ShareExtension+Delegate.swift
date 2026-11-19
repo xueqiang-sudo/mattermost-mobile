@@ -25,7 +25,7 @@ extension ShareExtension: URLSessionDataDelegate {
         
         os_log(
             OSLogType.default,
-            "Optibot BackgroundSession: Created identifier=%{public}@",
+            "Dedalix BackgroundSession: Created identifier=%{public}@",
             id
         )
     }
@@ -34,7 +34,7 @@ extension ShareExtension: URLSessionDataDelegate {
         self.completionHandler = completionHandler
         os_log(
             OSLogType.default,
-            "Optibot BackgroundSession: Attached session with completionHandler identifier=%{public}@",
+            "Dedalix BackgroundSession: Attached session with completionHandler identifier=%{public}@",
             id
         )
         createBackroundSession(
@@ -61,7 +61,7 @@ extension ShareExtension: URLSessionDataDelegate {
           let uploadData = getUploadSessionData(id: id)
          else {
             os_log(
-                "Optibot BackgroundSession: didReceived failed to getUploadSessionData identifier=%{public}@",
+                "Dedalix BackgroundSession: didReceived failed to getUploadSessionData identifier=%{public}@",
                 log: .default,
                 type: .error,
                 session.configuration.identifier ?? "no identifier"
@@ -81,7 +81,7 @@ extension ShareExtension: URLSessionDataDelegate {
                 
                 os_log(
                     OSLogType.default,
-                    "Optibot BackgroundSession: identifier=%{public}@ did upload file %{public}@ with ID %{public}@ total files %{public}@ of %{public}@",
+                    "Dedalix BackgroundSession: identifier=%{public}@ did upload file %{public}@ with ID %{public}@ total files %{public}@ of %{public}@",
                     id,
                     filename,
                     fileId,
@@ -91,7 +91,7 @@ extension ShareExtension: URLSessionDataDelegate {
                 
                 os_log(
                     OSLogType.default,
-                    "Optibot BackgroundSession: Append file to session identifier=%{public}@ file=%{public}@ with ID %{public}@",
+                    "Dedalix BackgroundSession: Append file to session identifier=%{public}@ file=%{public}@ with ID %{public}@",
                     id,
                     filename,
                     fileId
@@ -101,28 +101,28 @@ extension ShareExtension: URLSessionDataDelegate {
             } else {
                 os_log(
                     OSLogType.default,
-                    "Optibot BackgroundSession: identifier=%{public}@ no file info received %{public}@",
+                    "Dedalix BackgroundSession: identifier=%{public}@ no file info received %{public}@",
                     id,
                     json
                 )
             }
         } catch {
             os_log(
-                "Optibot BackgroundSession: Failed to receive data identifier=%{public}@ error=%{public}",
+                "Dedalix BackgroundSession: Failed to receive data identifier=%{public}@ error=%{public}",
                 log: .default,
                 type: .error,
                 id,
                 error.localizedDescription
             )
             
-            print("Optibot BackgroundSession: Failed to get the file upload response for id %@ %@", id, error.localizedDescription)
+            print("Dedalix BackgroundSession: Failed to get the file upload response for id %@ %@", id, error.localizedDescription)
         }
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if error != nil {
             os_log(
-                "Optibot BackgroundSession: didCompleteWithError delegate failed identifier=%{public}@ with error %{public}@",
+                "Dedalix BackgroundSession: didCompleteWithError delegate failed identifier=%{public}@ with error %{public}@",
                 log: .default,
                 type: .error,
                 session.configuration.identifier ?? "no identifier",
@@ -133,7 +133,7 @@ extension ShareExtension: URLSessionDataDelegate {
         
         os_log(
             OSLogType.default,
-            "Optibot BackgroundSession: didCompleteWithError delegate for identifier=%{public}@ after calling postMessageIfUploadFinished",
+            "Dedalix BackgroundSession: didCompleteWithError delegate for identifier=%{public}@ after calling postMessageIfUploadFinished",
             session.configuration.identifier ?? "no identifier"
         )
     }
@@ -142,7 +142,7 @@ extension ShareExtension: URLSessionDataDelegate {
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         os_log(
             OSLogType.default,
-            "Optibot BackgroundSession: urlSessionDidFinishEvents identifier=%{public}@",
+            "Dedalix BackgroundSession: urlSessionDidFinishEvents identifier=%{public}@",
             session.configuration.identifier ?? "no identifier"
         )
         
@@ -152,7 +152,7 @@ extension ShareExtension: URLSessionDataDelegate {
                 if let handler = self.completionHandler {
                     os_log(
                         OSLogType.default,
-                        "Optibot BackgroundSession: Called completionHandler"
+                        "Dedalix BackgroundSession: Called completionHandler"
                     )
                     handler()
                 }
@@ -166,7 +166,7 @@ extension ShareExtension: URLSessionDataDelegate {
         guard let id = session.configuration.identifier, let data = getUploadSessionData(id: id)
         else {
             os_log(
-                "Optibot BackgroundSession: postMessageIfUploadFinished failed to getUploadSessionData identifier=%{public}@",
+                "Dedalix BackgroundSession: postMessageIfUploadFinished failed to getUploadSessionData identifier=%{public}@",
                 log: .default,
                 type: .error,
                 session.configuration.identifier ?? "no identifier"
@@ -180,7 +180,7 @@ extension ShareExtension: URLSessionDataDelegate {
         if count == total {
             os_log(
                 OSLogType.default,
-                "Optibot BackgroundSession: posting message for identifier=%{public}@",
+                "Dedalix BackgroundSession: posting message for identifier=%{public}@",
                 id
             )
 
@@ -192,7 +192,7 @@ extension ShareExtension: URLSessionDataDelegate {
         } else {
             os_log(
                 OSLogType.default,
-                "Optibot BackgroundSession: finish uploading files %{public}@ of %{public}@ for identifier=%{public}@",
+                "Dedalix BackgroundSession: finish uploading files %{public}@ of %{public}@ for identifier=%{public}@",
                 "\(count)",
                 "\(total)",
                 id

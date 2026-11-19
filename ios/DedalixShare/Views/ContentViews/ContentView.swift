@@ -97,7 +97,7 @@ struct ContentView: View {
           Spacer()
           ErrorLabelView(
             error: NSLocalizedString("share_extension.channel_error",
-              value: "You are not a member of a team on the selected server. Select another server or open Optibot to join a team.",
+              value: "You are not a member of a team on the selected server. Select another server or open Dedalix to join a team.",
               comment: ""
             )
           )

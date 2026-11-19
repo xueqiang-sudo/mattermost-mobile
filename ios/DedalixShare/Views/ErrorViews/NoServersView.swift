@@ -21,7 +21,7 @@ struct NoServersView: View {
       .foregroundColor(Color.theme.centerChannelColor)
       Text(
         NSLocalizedString("extension.no_servers.description",
-          value: "To share content, you'll need to be logged in to a Optibot server.",
+          value: "To share content, you'll need to be logged in to a Dedalix server.",
           comment: ""
         )
       )

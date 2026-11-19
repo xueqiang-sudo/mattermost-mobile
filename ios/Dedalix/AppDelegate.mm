@@ -9,7 +9,7 @@
 #import <UserNotifications/UserNotifications.h>
 #import <TurboLogIOSNative/TurboLog.h>
 
-#import "Optibot-Swift.h"
+#import "Dedalix-Swift.h"
 #import <os/log.h>
 
 #import <RCTJPushModule.h>
@@ -39,9 +39,9 @@
 @synthesize orientationLock;
 
 -(void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler {
-  os_log(OS_LOG_DEFAULT, "Optibot will attach session from handleEventsForBackgroundURLSession!! identifier=%{public}@", identifier);
+  os_log(OS_LOG_DEFAULT, "Dedalix will attach session from handleEventsForBackgroundURLSession!! identifier=%{public}@", identifier);
   [[GekidouWrapper default] attachSession:identifier completionHandler:completionHandler];
-  os_log(OS_LOG_DEFAULT, "Optibot session ATTACHED from handleEventsForBackgroundURLSession!! identifier=%{public}@", identifier);
+  os_log(OS_LOG_DEFAULT, "Dedalix session ATTACHED from handleEventsForBackgroundURLSession!! identifier=%{public}@", identifier);
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
@@ -84,7 +84,7 @@
   [[GekidouWrapper default] setPreference:@"true" forKey:@"ApplicationIsRunning"];
 
   // JPush 初始化由 JS JPush.init() 触发；AppDelegate 负责 APNs/JPush 系统回调转发至 RCTJPushModule
-  os_log(OS_LOG_DEFAULT, "Optibot started!!");
+  os_log(OS_LOG_DEFAULT, "Dedalix started!!");
   [ReactNativeNavigation bootstrapWithDelegate:self launchOptions:launchOptions];
 
 #if INTUNE_AVAILABLE
