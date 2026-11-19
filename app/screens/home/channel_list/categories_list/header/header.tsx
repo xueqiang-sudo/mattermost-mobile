@@ -21,6 +21,7 @@ import {type PlusMenuEntry, usePlusMenu} from '@context/plus_menu';
 import {useServerDisplayName, useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import WebsocketManager from '@managers/websocket_manager';
+import {useDefaultHeaderHeight} from '@hooks/header';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {findChannels, showModal, showModalWithBackButton, goToScreen} from '@screens/navigation';
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
@@ -55,6 +56,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         backgroundColor: getChatListBackdropColor(theme),
     },
     headerContent: {
+        flex: 1,
         paddingLeft: WECHAT_HOME_PADDING_H,
         paddingRight: WECHAT_HOME_PADDING_H,
     },
@@ -131,11 +133,10 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         height: 40,
     },
     outsideBox: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        minHeight: 44,
-        paddingVertical: 8,
     },
     firstBox: {
         flex: 1,
@@ -247,6 +248,7 @@ const ChannelListHeader = ({
     const theme = useTheme();
     const intl = useIntl();
     const insets = useSafeAreaInsets();
+    const headerHeight = useDefaultHeaderHeight();
     const {openDrawer} = useLeftDrawer();
     const {openPlusMenu} = usePlusMenu();
     const serverDisplayName = useServerDisplayName();
@@ -581,7 +583,7 @@ const ChannelListHeader = ({
 
     return (
         <Animated.View style={animatedStyle}>
-            <View style={[styles.headerContainer, {paddingTop: insets.top}]}>
+            <View style={[styles.headerContainer, {height: headerHeight, paddingTop: insets.top}]}>
                 <View style={styles.headerContent}>
                     {header}
                 </View>
