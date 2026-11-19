@@ -7,7 +7,7 @@ import {Freeze} from 'react-freeze';
 import {Alert} from 'react-native';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {logout} from '@actions/remote/session';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
@@ -20,6 +20,7 @@ import {usePreventDoubleTap} from '@hooks/utils';
 import {alertServerLogout} from '@utils/server';
 import {goToScreen} from '@screens/navigation';
 import {changeOpacity, getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
+import {useDefaultHeaderHeight} from '@hooks/header';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';
 import {useUserLocale} from '@context/user_locale';
@@ -115,7 +116,7 @@ const MeScreen = ({currentUser}: Props) => {
     const serverUrl = useServerUrl();
     const serverDisplayName = useServerDisplayName();
     const locale = useUserLocale();
-    const insets = useSafeAreaInsets();
+    const headerHeight = useDefaultHeaderHeight();
     const isFocused = useIsFocused();
     const styles = getStyleSheet(theme);
 
@@ -198,7 +199,7 @@ const MeScreen = ({currentUser}: Props) => {
                 style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
                 testID='me.screen'
             >
-                <View style={{alignItems: 'center', paddingTop: insets.top + 8, paddingBottom: 8, backgroundColor: getChatListBackdropColor(theme)}}>
+                <View style={{height: headerHeight, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8, backgroundColor: getChatListBackdropColor(theme)}}>
                     <Text style={{color: theme.centerChannelColor, fontSize: 17, fontWeight: '600'}}>
                         {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: '我的'})}
                     </Text>
