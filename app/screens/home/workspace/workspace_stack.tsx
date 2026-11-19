@@ -5,13 +5,14 @@ import {createStackNavigator} from '@react-navigation/stack';
 import React from 'react';
 
 import {Screens} from '@constants';
+import {useTheme} from '@context/theme';
+import {getChatListBackdropColor} from '@utils/theme';
 
 import CompanyNewsScreen from './company_news_screen';
 import ErpDeskScreen from './erp_desk_screen';
 import OrdersScreen from './orders_screen';
 import ProjectsScreen from './projects_screen';
 import TodosScreen from './todos_screen';
-import WorkspaceErpScreen from './workspace_erp_screen';
 import WorkspaceScreen from './workspace_screen';
 import AppWebView from '../apps/app_webview';
 import ApprovalsScreen from '../apps/erp/approvals_screen';
@@ -24,13 +25,16 @@ import MesScreen from '../apps/mes/mes_screen';
 const Stack = createStackNavigator();
 
 const WorkspaceStack = () => {
+    const theme = useTheme();
+    const headerBg = getChatListBackdropColor(theme);
+
     return (
         <Stack.Navigator
             initialRouteName={Screens.HOME_TAB_WORKSPACE}
             screenOptions={{
-                headerStyle: {backgroundColor: '#1B2838'},
-                headerTintColor: '#FFFFFF',
-                headerTitleStyle: {fontWeight: '600', fontSize: 17},
+                headerStyle: {backgroundColor: headerBg},
+                headerTintColor: theme.centerChannelColor,
+                headerTitleStyle: {fontWeight: '600', fontSize: 17, color: theme.centerChannelColor},
                 headerBackTitleVisible: false,
             }}
         >
@@ -40,14 +44,9 @@ const WorkspaceStack = () => {
                 options={{title: '工作台'}}
             />
             <Stack.Screen
-                name={Screens.WORKSPACE_ERP}
-                component={WorkspaceErpScreen}
-                options={{title: 'ERP'}}
-            />
-            <Stack.Screen
                 name={Screens.WORKSPACE_ERP_DESK}
                 component={ErpDeskScreen}
-                options={{title: 'ERP'}}
+                options={{headerShown: false}}
             />
             <Stack.Screen
                 name={Screens.WORKSPACE_ORDERS}

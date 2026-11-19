@@ -10,7 +10,7 @@ import {WebView} from 'react-native-webview';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {NetworkManager} from '@managers/network_manager';
+import NetworkManager from '@managers/network_manager';
 import DatabaseManager from '@database/manager';
 import {debugLog} from '@store/debug_log';
 import {getCurrentTeamId} from '@queries/servers/system';

@@ -23,16 +23,16 @@ type ErpModule = {
 };
 
 const ERP_MODULES: ErpModule[] = [
-    {key: 'overview', icon: 'view-dashboard-outline', labelId: 'erp.module.overview', defaultLabel: '总览', appKey: 'overview'},
+    {key: 'overview', icon: 'view-grid-plus-outline', labelId: 'erp.module.overview', defaultLabel: '总览', appKey: 'overview'},
     {key: 'hot_products', icon: 'fire', labelId: 'erp.module.hot_products', defaultLabel: '热销榜', appKey: 'hotproducts'},
-    {key: 'inventory', icon: 'package-variant-closed', labelId: 'erp.module.inventory', defaultLabel: '库存分析', appKey: 'inventory'},
+    {key: 'inventory', icon: 'products', labelId: 'erp.module.inventory', defaultLabel: '库存分析', appKey: 'inventory'},
     {key: 'sales', icon: 'chart-line', labelId: 'erp.module.sales', defaultLabel: '销售统计', appKey: 'sales'},
-    {key: 'finance', icon: 'cash-multiple', labelId: 'erp.module.finance', defaultLabel: '往来账', appKey: 'finance'},
-    {key: 'approvals', icon: 'check-decagram-outline', labelId: 'erp.module.approvals', defaultLabel: '审批清单', appKey: 'approvals'},
-    {key: 'orders', icon: 'clipboard-text-outline', labelId: 'erp.module.orders', defaultLabel: '我的订单', appKey: 'orders'},
+    {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: '往来账', appKey: 'finance'},
+    {key: 'approvals', icon: 'checkbox-marked-circle-outline', labelId: 'erp.module.approvals', defaultLabel: '审批清单', appKey: 'approvals'},
+    {key: 'orders', icon: 'file-text-outline', labelId: 'erp.module.orders', defaultLabel: '我的订单', appKey: 'orders'},
     {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: '我的项目', appKey: 'projects'},
-    {key: 'warehouse', icon: 'warehouse', labelId: 'erp.module.warehouse', defaultLabel: '出入库', appKey: 'warehouse_inout'},
-    {key: 'price_list', icon: 'tag-outline', labelId: 'erp.module.price_list', defaultLabel: '价格表', appKey: 'price_list'},
+    {key: 'warehouse', icon: 'archive-outline', labelId: 'erp.module.warehouse', defaultLabel: '出入库', appKey: 'warehouse_inout'},
+    {key: 'price_list', icon: 'format-list-numbered', labelId: 'erp.module.price_list', defaultLabel: '价格表', appKey: 'price_list'},
 ];
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
