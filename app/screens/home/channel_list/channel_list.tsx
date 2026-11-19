@@ -7,7 +7,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {BackHandler, DeviceEventEmitter, StyleSheet, Text, TouchableOpacity, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {retryInitialTeamAndChannel} from '@actions/remote/retry';
 import {refetchCurrentUser} from '@actions/remote/user';
@@ -29,6 +29,7 @@ import {setTeamLoading} from '@store/team_load_store';
 import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
+import {getChatListBackdropColor} from '@utils/theme';
 
 import AdditionalTabletView from './additional_tablet_view';
 import CategoriesList from './categories_list';
@@ -102,6 +103,8 @@ let hasRendered = false;
 
 const ChannelListScreen = (props: ChannelProps) => {
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
+    const headerBg = getChatListBackdropColor(theme);
 
     // const managedConfig = useManagedConfig<ManagedConfig>();
     const intl = useIntl();
@@ -285,12 +288,12 @@ const ChannelListScreen = (props: ChannelProps) => {
 
     return (
         <SafeAreaView
-            style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+            style={[styles.flex, {backgroundColor: headerBg}]}
             edges={edges}
             testID='channel_list.screen'
         >
-            <View style={{alignItems: 'center', paddingVertical: 10, backgroundColor: theme.sidebarBg}}>
-                <Text style={{color: theme.sidebarText, fontSize: 17, fontWeight: '600'}}>
+            <View style={{alignItems: 'center', paddingTop: insets.top + 8, paddingBottom: 8, backgroundColor: headerBg}}>
+                <Text style={{color: theme.centerChannelColor, fontSize: 17, fontWeight: '600'}}>
                     {intl.formatMessage({id: 'tab_bar.home.label', defaultMessage: '消息'})}
                 </Text>
             </View>

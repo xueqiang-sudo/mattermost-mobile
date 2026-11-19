@@ -18,7 +18,7 @@ import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {useTheme} from '@context/theme';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {username2Nickname} from '@utils/user';
 
@@ -45,12 +45,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
         paddingHorizontal: 16,
         paddingVertical: 2,
-        backgroundColor: theme.sidebarBg,
+        backgroundColor: getChatListBackdropColor(theme),
         flexShrink: 0,
     },
     headerTitle: {
         ...typography('Heading', 600, 'SemiBold'),
-        color: theme.sidebarText,
+        color: theme.centerChannelColor,
         textAlign: 'center',
         flexShrink: 1,
         minWidth: 0,
@@ -87,7 +87,7 @@ const MyHomepageMain = ({currentUser}: Props) => {
 
     const content = (
         <View style={styles.container}>
-            <View style={{backgroundColor: theme.sidebarBg}}>
+            <View style={{backgroundColor: getChatListBackdropColor(theme)}}>
                 <View style={styles.header}>
                     <Text
                         style={styles.headerTitle}
@@ -113,7 +113,7 @@ const MyHomepageMain = ({currentUser}: Props) => {
         <Freeze freeze={!isFocused}>
             <SafeAreaView
                 edges={edges}
-                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
             >
                 <Animated.View style={[styles.flex, animated]}>
                     {content}

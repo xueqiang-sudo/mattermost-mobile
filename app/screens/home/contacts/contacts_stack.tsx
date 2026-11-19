@@ -6,6 +6,8 @@ import {createStackNavigator, type StackNavigationProp} from '@react-navigation/
 import React, {createContext, useContext, useState, useCallback, useRef} from 'react';
 
 import {Screens} from '@constants';
+import {useTheme} from '@context/theme';
+import {getChatListBackdropColor} from '@utils/theme';
 
 import ContactsScreen from './contacts';
 import ContactsSearchScreen from './contacts_search';
@@ -159,13 +161,16 @@ function DepartmentAddMembersWrapper() {
 }
 
 export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rnnHomeComponentId}: ContactsStackProps) {
+    const theme = useTheme();
+    const headerBg = getChatListBackdropColor(theme);
+
     return (
         <ContactsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
             <Stack.Navigator
                 screenOptions={{
-                    headerStyle: {backgroundColor: '#1B2838'},
-                    headerTintColor: '#FFFFFF',
-                    headerTitleStyle: {fontWeight: '600', fontSize: 17},
+                    headerStyle: {backgroundColor: headerBg},
+                    headerTintColor: theme.centerChannelColor,
+                    headerTitleStyle: {fontWeight: '600', fontSize: 17, color: theme.centerChannelColor},
                     headerBackTitleVisible: false,
                 }}
                 initialRouteName={Screens.CONTACTS}

@@ -5,6 +5,8 @@ import {createStackNavigator} from '@react-navigation/stack';
 import React, {createContext, useContext} from 'react';
 
 import {Screens} from '@constants';
+import {useTheme} from '@context/theme';
+import {getChatListBackdropColor} from '@utils/theme';
 
 import AppsScreen from './apps';
 import AppWebView from './app_webview';
@@ -46,13 +48,16 @@ type AppsStackProps = {
 };
 
 export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsStackProps) {
+    const theme = useTheme();
+    const headerBg = getChatListBackdropColor(theme);
+
     return (
         <AppsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
             <Stack.Navigator
                 screenOptions={{
-                    headerStyle: {backgroundColor: '#1B2838'},
-                    headerTintColor: '#FFFFFF',
-                    headerTitleStyle: {fontWeight: '600', fontSize: 17},
+                    headerStyle: {backgroundColor: headerBg},
+                    headerTintColor: theme.centerChannelColor,
+                    headerTitleStyle: {fontWeight: '600', fontSize: 17, color: theme.centerChannelColor},
                     headerBackTitleVisible: false,
                 }}
                 initialRouteName={Screens.APPS_HOME}
