@@ -26,7 +26,7 @@ import {findChannels, showModal, showModalWithBackButton, goToScreen} from '@scr
 import {showQrScannerModal} from '@screens/qr_scanner/show_modal';
 
 import {alertServerLogout} from '@utils/server';
-import {changeOpacity, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_DROPDOWN_GAP, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
+import {changeOpacity, getChatListBackdropColor, makeStyleSheetFromTheme, WECHAT_HOME_DIVIDER_OPACITY, WECHAT_HOME_DROPDOWN_GAP, WECHAT_HOME_PADDING_H, WECHAT_HOME_SECONDARY_TEXT_OPACITY} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 
@@ -52,7 +52,7 @@ type Props = {
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     headerContainer: {
-        backgroundColor: theme.sidebarBg,
+        backgroundColor: getChatListBackdropColor(theme),
     },
     headerContent: {
         paddingLeft: WECHAT_HOME_PADDING_H,

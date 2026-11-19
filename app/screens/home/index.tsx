@@ -30,10 +30,10 @@ import {logError} from '@utils/log';
 import {alertChannelArchived, alertChannelRemove} from '@utils/navigation';
 import {notificationError, type NotificationErrorType} from '@utils/notification';
 
-import ChannelList from './channel_list';
+import ChannelListStack from './channel_list/channel_list_stack';
 import Contacts from './contacts';
 import TabBar from './tab_bar';
-import Me from './me';
+import MeStack from './me/me_stack';
 import AppsStack from './apps';
 import WorkspaceStack from './workspace/workspace_stack';
 
@@ -208,7 +208,7 @@ export function HomeScreen(props: HomeProps) {
                             name={Screens.HOME_TAB_CHAT}
                             options={{tabBarButtonTestID: 'tab_bar.home.tab', freezeOnBlur: true}}
                         >
-                            {() => <ChannelList {...props}/>}
+                            {() => <ChannelListStack {...props}/>}
                         </Tab.Screen>
                         <Tab.Screen
                             name={Screens.HOME_TAB_CONTACTS}
@@ -222,7 +222,7 @@ export function HomeScreen(props: HomeProps) {
                             name={Screens.HOME_TAB_ME}
                             options={{tabBarButtonTestID: 'tab_bar.me.tab', freezeOnBlur: true, lazy: true}}
                         >
-                            {() => <Me/>}
+                            {() => <MeStack/>}
                         </Tab.Screen>
                     </Tab.Navigator>
                 </NavigationContainer>

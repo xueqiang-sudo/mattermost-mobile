@@ -30,7 +30,6 @@ import {isMainActivity} from '@utils/helpers';
 import {tryRunAppReview} from '@utils/reviews';
 import {addSentryContext} from '@utils/sentry';
 import {getChatListBackdropColor} from '@utils/theme';
-import {useDefaultHeaderHeight} from '@hooks/header';
 
 import AdditionalTabletView from './additional_tablet_view';
 import CategoriesList from './categories_list';
@@ -104,8 +103,6 @@ let hasRendered = false;
 
 const ChannelListScreen = (props: ChannelProps) => {
     const theme = useTheme();
-    const headerHeight = useDefaultHeaderHeight();
-    const headerBg = getChatListBackdropColor(theme);
 
     // const managedConfig = useManagedConfig<ManagedConfig>();
     const intl = useIntl();
@@ -289,15 +286,10 @@ const ChannelListScreen = (props: ChannelProps) => {
 
     return (
         <SafeAreaView
-            style={[styles.flex, {backgroundColor: headerBg}]}
+            style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
             edges={edges}
             testID='channel_list.screen'
         >
-            <View style={{height: headerHeight, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8, backgroundColor: headerBg}}>
-                <Text style={{color: theme.centerChannelColor, fontSize: 17, fontWeight: '600'}}>
-                    {intl.formatMessage({id: 'tab_bar.home.label', defaultMessage: '消息'})}
-                </Text>
-            </View>
             {props.isLicensed &&
                 <AnnouncementBanner/>
             }
