@@ -19,7 +19,7 @@ import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {alertServerLogout} from '@utils/server';
 import {goToScreen} from '@screens/navigation';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';
 import {useUserLocale} from '@context/user_locale';
@@ -195,11 +195,11 @@ const MeScreen = ({currentUser}: Props) => {
         <Freeze freeze={!isFocused}>
             <SafeAreaView
                 edges={edges}
-                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
                 testID='me.screen'
             >
-                <View style={{alignItems: 'center', paddingVertical: 10, backgroundColor: theme.sidebarBg}}>
-                    <Text style={{color: theme.sidebarText, fontSize: 17, fontWeight: '600'}}>
+                <View style={{alignItems: 'center', paddingTop: insets.top + 8, paddingBottom: 8, backgroundColor: getChatListBackdropColor(theme)}}>
+                    <Text style={{color: theme.centerChannelColor, fontSize: 17, fontWeight: '600'}}>
                         {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: '我的'})}
                     </Text>
                 </View>
