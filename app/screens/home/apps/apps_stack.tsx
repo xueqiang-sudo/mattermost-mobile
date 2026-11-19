@@ -49,10 +49,15 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
     return (
         <AppsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
             <Stack.Navigator
-                screenOptions={{headerShown: false}}
+                screenOptions={{
+                    headerStyle: {backgroundColor: '#1B2838'},
+                    headerTintColor: '#FFFFFF',
+                    headerTitleStyle: {fontWeight: '600', fontSize: 17},
+                    headerBackTitleVisible: false,
+                }}
                 initialRouteName={Screens.APPS_HOME}
             >
-                <Stack.Screen name={Screens.APPS_HOME}>
+                <Stack.Screen name={Screens.APPS_HOME} options={{title: '应用中心'}}>
                     {() => (
                         <AppsScreen
                             currentUser={currentUser}
@@ -61,29 +66,29 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                         />
                     )}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.APPS_WEBVIEW} component={AppWebView}/>
-                <Stack.Screen name={Screens.APPS_CLOUD_DRIVE} component={CloudDriveScreen}/>
-                <Stack.Screen name={Screens.APPS_CONVERSATIONS} component={ConversationsScreen}/>
-                <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen}/>
-                <Stack.Screen name={Screens.KB_DETAIL} component={KbDetailScreen}/>
-                <Stack.Screen name={Screens.KB_ADD} component={KbAddScreen}/>
-                <Stack.Screen name={Screens.KB_EDIT} component={KbEditScreen}/>
-                <Stack.Screen name={Screens.APPS_MES} component={MesScreen}/>
-                <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen}/>
-                <Stack.Screen name={Screens.NOTE_DETAIL} component={NoteDetailScreen}/>
-                <Stack.Screen name={Screens.NOTE_ADD} component={NoteAddScreen}/>
-                <Stack.Screen name={Screens.APPS_SMART_NOTEBOOK} component={SmartNotebookScreen}/>
-                <Stack.Screen name={Screens.SMART_NOTE_DETAIL} component={SmartNoteDetailScreen}/>
-                <Stack.Screen name={Screens.QUICK_NOTE_DETAIL} component={QuickNoteDetailScreen}/>
-                <Stack.Screen name={Screens.APPS_PRICE_LIST} component={PriceListScreen}/>
-                <Stack.Screen name={Screens.APPS_PROMOTION} component={PromotionScreen}/>
-                <Stack.Screen name={Screens.APPS_ROLE_MANAGEMENT} component={RoleManagementScreen}/>
-                <Stack.Screen name={Screens.APPS_APPROVALS} component={ApprovalsScreen}/>
-                <Stack.Screen name={Screens.APPS_FINANCE} component={FinanceScreen}/>
-                <Stack.Screen name={Screens.APPS_HOT_PRODUCTS} component={HotProductsScreen}/>
-                <Stack.Screen name={Screens.APPS_INVENTORY} component={InventoryScreen}/>
-                <Stack.Screen name={Screens.APPS_SALES} component={SalesScreen}/>
-                <Stack.Screen name={Screens.APPS_WAREHOUSE_INOUT} component={WarehouseInoutScreen}/>
+                <Stack.Screen name={Screens.APPS_WEBVIEW} component={AppWebView} options={{headerShown: false}}/>
+                <Stack.Screen name={Screens.APPS_CLOUD_DRIVE} component={CloudDriveScreen} options={{title: '企业云盘'}}/>
+                <Stack.Screen name={Screens.APPS_CONVERSATIONS} component={ConversationsScreen} options={{title: '会话查询'}}/>
+                <Stack.Screen name={Screens.APPS_KNOWLEDGE_BASE} component={KnowledgeBaseScreen} options={{title: '知识库'}}/>
+                <Stack.Screen name={Screens.KB_DETAIL} component={KbDetailScreen} options={{title: '文档详情'}}/>
+                <Stack.Screen name={Screens.KB_ADD} component={KbAddScreen} options={{title: '新建文档'}}/>
+                <Stack.Screen name={Screens.KB_EDIT} component={KbEditScreen} options={{title: '编辑文档'}}/>
+                <Stack.Screen name={Screens.APPS_MES} component={MesScreen} options={{headerShown: false}}/>
+                <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen} options={{title: '记事本'}}/>
+                <Stack.Screen name={Screens.NOTE_DETAIL} component={NoteDetailScreen} options={{title: '笔记详情'}}/>
+                <Stack.Screen name={Screens.NOTE_ADD} component={NoteAddScreen} options={{title: '新建笔记'}}/>
+                <Stack.Screen name={Screens.APPS_SMART_NOTEBOOK} component={SmartNotebookScreen} options={{headerShown: false}}/>
+                <Stack.Screen name={Screens.SMART_NOTE_DETAIL} component={SmartNoteDetailScreen} options={{title: '笔记详情'}}/>
+                <Stack.Screen name={Screens.QUICK_NOTE_DETAIL} component={QuickNoteDetailScreen} options={{title: '快速笔记'}}/>
+                <Stack.Screen name={Screens.APPS_PRICE_LIST} component={PriceListScreen} options={{title: '价格表'}}/>
+                <Stack.Screen name={Screens.APPS_PROMOTION} component={PromotionScreen} options={{title: '推广'}}/>
+                <Stack.Screen name={Screens.APPS_ROLE_MANAGEMENT} component={RoleManagementScreen} options={{title: '角色管理'}}/>
+                <Stack.Screen name={Screens.APPS_APPROVALS} component={ApprovalsScreen} options={{title: '审批清单'}}/>
+                <Stack.Screen name={Screens.APPS_FINANCE} component={FinanceScreen} options={{title: '流水账'}}/>
+                <Stack.Screen name={Screens.APPS_HOT_PRODUCTS} component={HotProductsScreen} options={{title: '热销榜'}}/>
+                <Stack.Screen name={Screens.APPS_INVENTORY} component={InventoryScreen} options={{title: '库存分析'}}/>
+                <Stack.Screen name={Screens.APPS_SALES} component={SalesScreen} options={{title: '销售统计'}}/>
+                <Stack.Screen name={Screens.APPS_WAREHOUSE_INOUT} component={WarehouseInoutScreen} options={{title: '出入库'}}/>
             </Stack.Navigator>
         </AppsRnnHomeComponentIdContext.Provider>
     );

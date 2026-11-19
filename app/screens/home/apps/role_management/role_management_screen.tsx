@@ -638,12 +638,7 @@ const RoleManagementScreen = () => {
 
     if (loading && !perms) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'role_management.title', defaultMessage: '角色管理'})}
-                    </Text>
-                </View>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -652,17 +647,7 @@ const RoleManagementScreen = () => {
     }
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{padding: 4, marginRight: 8}}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'role_management.title', defaultMessage: '角色管理'})}
-                </Text>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* Tab bar */}
             <View style={style.tabBar}>
                 <TouchableOpacity

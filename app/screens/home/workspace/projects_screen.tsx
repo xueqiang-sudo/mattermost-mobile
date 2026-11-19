@@ -249,7 +249,7 @@ const ProjectsScreen = () => {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['top']}>
+            <SafeAreaView style={styles.container} edges={[]}>
                 <View style={styles.loading}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                 </View>
@@ -258,13 +258,7 @@ const ProjectsScreen = () => {
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']} testID='projects.screen'>
-            <View style={styles.header}>
-                <CompassIcon name='folder-outline' size={24} color={theme.centerChannelColor}/>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workspace.projects.title', defaultMessage: 'My Projects'})}
-                </Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={[]} testID='projects.screen'>
             <View style={styles.tabs}>
                 {tabs.map((tab) => (
                     <TouchableOpacity

@@ -102,13 +102,7 @@ const WorkspaceErpScreen = ({navigation}: Props) => {
     }, [navigation, intl]);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']} testID='workspace_erp.screen'>
-            <View style={styles.header}>
-                <CompassIcon name='chart-bar' size={24} color={theme.centerChannelColor}/>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workspace.erp.title', defaultMessage: 'ERP'})}
-                </Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={[]} testID='workspace_erp.screen'>
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
                     {ERP_MODULES.map((module) => {

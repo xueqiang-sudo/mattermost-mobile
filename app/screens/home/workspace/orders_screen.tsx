@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {ActivityIndicator, FlatList, Text, TouchableOpacity, View} from 'react-native';
@@ -24,14 +25,17 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: 8,
         paddingTop: 12,
         paddingBottom: 8,
+    },
+    backButton: {
+        padding: 8,
     },
     headerTitle: {
         color: theme.centerChannelColor,
         ...typography('Heading', 600, 'SemiBold'),
-        marginLeft: 12,
+        marginLeft: 4,
     },
     tabs: {
         flexDirection: 'row',
@@ -136,6 +140,7 @@ const OrdersScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const styles = getStyles(theme);
 
     const [orders, setOrders] = useState<DashboardOrder[]>([]);
@@ -226,13 +231,7 @@ const OrdersScreen = () => {
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']} testID='orders.screen'>
-            <View style={styles.header}>
-                <CompassIcon name='clipboard-text-outline' size={24} color={theme.centerChannelColor}/>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workspace.orders.title', defaultMessage: '我的订单'})}
-                </Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={[]} testID='orders.screen'>
             <View style={styles.tabs}>
                 {tabs.map((tab) => (
                     <TouchableOpacity

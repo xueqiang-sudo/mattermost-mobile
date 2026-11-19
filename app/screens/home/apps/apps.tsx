@@ -70,11 +70,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingTop: 8,
     },
     sectionHeader: {
-        ...typography('Body', 100, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        marginTop: 20,
-        marginBottom: 12,
+        ...typography('Body', 75, 'SemiBold'),
+        color: changeOpacity(theme.centerChannelColor, 0.48),
+        marginBottom: 8,
         marginLeft: 4,
+    },
+    sectionCard: {
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
+        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        marginBottom: 16,
     },
     sectionGrid: {
         flexDirection: 'row',
@@ -408,14 +414,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             <Freeze freeze={!isFocused}>
                 <SafeAreaView
                     edges={edges}
-                    style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                    style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                     testID='apps.screen'
                 >
-                    <View style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center', paddingTop: insets.top}]}>
-                        <Text style={styles.headerTitle}>
-                            {intl.formatMessage({id: 'apps.center.title', defaultMessage: '应用中心'})}
-                        </Text>
-                    </View>
                     <View style={styles.loadingContainer}>
                         <Loading color={theme.centerChannelColor} size='large'/>
                     </View>
@@ -428,21 +429,11 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         <Freeze freeze={!isFocused}>
             <SafeAreaView
                 edges={edges}
-                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                 testID='apps.screen'
             >
                 <Animated.View style={[styles.flex, animated]}>
                     <View style={styles.flex}>
-                        <View
-                            style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center', paddingTop: insets.top}]}
-                        >
-                            <Text
-                                style={styles.headerTitle}
-                                testID='apps.header.title'
-                            >
-                                {intl.formatMessage({id: 'apps.center.title', defaultMessage: '应用中心'})}
-                            </Text>
-                        </View>
                         <ScrollView
                             style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                             contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}
@@ -461,85 +452,27 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                                 </View>
                             ) : (
                                 <View style={styles.gridContainer}>
-                                    {/* 生产与制造 (MES) */}
-                                    {(() => {
-                                        const items = visibleApps.filter((a) => ['mes'].includes(a.key));
+                                    {[
+                                        {keys: ['mes', 'stock_in', 'stock_out'], labelId: 'apps.category.production', defaultLabel: '生产与仓储'},
+                                        {keys: ['hotproducts', 'sales', 'finance', 'inventory', 'approvals'], labelId: 'apps.category.erp', defaultLabel: '数据分析 (ERP)'},
+                                        {keys: ['cloud_drive', 'knowledge_base', 'smart_notebook'], labelId: 'apps.category.enterprise', defaultLabel: '企业资料'},
+                                        {keys: ['role_management', 'conversations', 'promotion', 'debug'], labelId: 'apps.category.management', defaultLabel: '管理与运营'},
+                                    ].map((section) => {
+                                        const items = visibleApps.filter((a) => section.keys.includes(a.key));
                                         if (items.length === 0) {return null;}
                                         return (
-                                            <View>
+                                            <View key={section.labelId}>
                                                 <Text style={styles.sectionHeader}>
-                                                    {intl.formatMessage({id: 'apps.category.mes', defaultMessage: '生产与制造 (MES)'})}
+                                                    {intl.formatMessage({id: section.labelId, defaultMessage: section.defaultLabel})}
                                                 </Text>
-                                                <View style={styles.sectionGrid}>
-                                                    {items.map((app) => renderAppCard(app))}
+                                                <View style={styles.sectionCard}>
+                                                    <View style={styles.sectionGrid}>
+                                                        {items.map((app) => renderAppCard(app))}
+                                                    </View>
                                                 </View>
                                             </View>
                                         );
-                                    })()}
-
-                                    {/* 仓储物流 (WMS) */}
-                                    {(() => {
-                                        const items = visibleApps.filter((a) => ['stock_in', 'stock_out'].includes(a.key));
-                                        if (items.length === 0) {return null;}
-                                        return (
-                                            <View>
-                                                <Text style={styles.sectionHeader}>
-                                                    {intl.formatMessage({id: 'apps.category.wms', defaultMessage: '仓储物流 (WMS)'})}
-                                                </Text>
-                                                <View style={styles.sectionGrid}>
-                                                    {items.map((app) => renderAppCard(app))}
-                                                </View>
-                                            </View>
-                                        );
-                                    })()}
-
-                                    {/* 数据分析 (ERP) */}
-                                    {(() => {
-                                        const items = visibleApps.filter((a) => ['hotproducts', 'sales', 'finance', 'inventory', 'approvals'].includes(a.key));
-                                        if (items.length === 0) {return null;}
-                                        return (
-                                            <View>
-                                                <Text style={styles.sectionHeader}>
-                                                    {intl.formatMessage({id: 'apps.category.erp', defaultMessage: '数据分析 (ERP)'})}
-                                                </Text>
-                                                <View style={styles.sectionGrid}>
-                                                    {items.map((app) => renderAppCard(app))}
-                                                </View>
-                                            </View>
-                                        );
-                                    })()}
-
-                                    {/* 企业资料 */}
-                                    {(() => {
-                                        const items = visibleApps.filter((a) => ['cloud_drive', 'knowledge_base', 'smart_notebook'].includes(a.key));
-                                        if (items.length === 0) {return null;}
-                                        return (
-                                            <View>
-                                                <Text style={styles.sectionHeader}>
-                                                    {intl.formatMessage({id: 'apps.category.enterprise', defaultMessage: '企业资料'})}
-                                                </Text>
-                                                <View style={styles.sectionGrid}>
-                                                    {items.map((app) => renderAppCard(app))}
-                                                </View>
-                                            </View>
-                                        );
-                                    })()}
-
-                                    {/* 管理与运营 */}
-                                    {(() => {
-                                        const items = visibleApps.filter((a) => ['conversations', 'promotion', 'role_management', 'debug'].includes(a.key));
-                                        if (items.length === 0) {return null;}
-                                        return (
-                                            <View>
-                                                <Text style={styles.sectionHeader}>
-                                                    {intl.formatMessage({id: 'apps.category.management', defaultMessage: '管理与运营'})}
-                                                </Text>
-                                                <View style={styles.sectionGrid}>
-                                                    {items.map((app) => renderAppCard(app))}
-                                                </View>
-                                            </View>
-                                        );
-                                    })()}
+                                    })}
                                 </View>
                             )}
                         </ScrollView>

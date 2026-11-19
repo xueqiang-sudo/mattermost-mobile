@@ -343,26 +343,7 @@ const NotebookScreen = () => {
 
     // ---- Main render ----
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity
-                    style={style.backBtn}
-                    onPress={() => navigation.goBack()}
-                >
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.notebook.title', defaultMessage: 'Notebook'})}
-                </Text>
-                <TouchableOpacity
-                    style={style.addBtn}
-                    onPress={onNavigateToAddNote}
-                >
-                    <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* Content */}
             {loading && notes.length === 0 ? (
                 <View style={style.loadingContainer}>

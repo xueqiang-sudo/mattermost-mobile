@@ -198,10 +198,9 @@ const MeScreen = ({currentUser}: Props) => {
                 style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
                 testID='me.screen'
             >
-                {/* 导航栏：延伸到状态栏区域，标题"我"居中显示，支持三语 */}
-                <View style={[styles.navBar, {paddingTop: insets.top, backgroundColor: theme.sidebarBg}]}>
-                    <Text style={styles.navTitle}>
-                        {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: 'Me'})}
+                <View style={{alignItems: 'center', paddingVertical: 10, backgroundColor: theme.sidebarBg}}>
+                    <Text style={{color: theme.sidebarText, fontSize: 17, fontWeight: '600'}}>
+                        {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: '我的'})}
                     </Text>
                 </View>
                 <ScrollView

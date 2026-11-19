@@ -490,16 +490,7 @@ const FinanceScreen = () => {
     // Loading state
     if (loading) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.finance', defaultMessage: '流水账'})}
-                    </Text>
-                    <View style={style.refreshBtn}/>
-                </View>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -510,18 +501,7 @@ const FinanceScreen = () => {
     // Error state
     if (error) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.finance', defaultMessage: '流水账'})}
-                    </Text>
-                    <TouchableOpacity style={style.refreshBtn} onPress={loadData}>
-                        <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                </View>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={style.emptyContainer}>
                     <CompassIcon name='alert-circle-outline' size={48} color={theme.errorTextColor}/>
                     <Text style={style.errorText}>{error}</Text>
@@ -537,20 +517,7 @@ const FinanceScreen = () => {
 
     // Main render
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.tab.finance', defaultMessage: '流水账'})}
-                </Text>
-                <TouchableOpacity style={style.refreshBtn} onPress={loadData}>
-                    <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* Filter bar */}
             <View style={style.filterBar}>
                 <TouchableOpacity style={style.filterBtn} onPress={() => toggleDropdown('year')}>

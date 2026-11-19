@@ -122,63 +122,7 @@ const NoteDetailScreen = () => {
     }, [noteId, serverUrl, teamId, scope, editContent, loadNoteDetail, intl]);
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            <View style={style.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={style.backButton}
-                >
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {noteTitle || intl.formatMessage({
-                        id: 'workbench.notebook.detail_title',
-                        defaultMessage: 'Note Detail',
-                    })}
-                </Text>
-                {isEditing ? (
-                    <View style={style.headerActions}>
-                        <TouchableOpacity
-                            onPress={handleCancelEdit}
-                            disabled={saving}
-                            style={style.headerActionButton}
-                        >
-                            <Text style={style.cancelButtonText}>
-                                {intl.formatMessage({
-                                    id: 'workbench.notebook.cancel',
-                                    defaultMessage: 'Cancel',
-                                })}
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={handleSaveEdit}
-                            disabled={saving || !editContent.trim()}
-                            style={style.headerActionButton}
-                        >
-                            <Text style={[
-                                style.saveButtonText,
-                                (saving || !editContent.trim()) && style.saveButtonTextDisabled,
-                            ]}>
-                                {saving ? intl.formatMessage({
-                                    id: 'workbench.notebook.saving',
-                                    defaultMessage: 'Saving...',
-                                }) : intl.formatMessage({
-                                    id: 'workbench.notebook.save',
-                                    defaultMessage: 'Save',
-                                })}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <TouchableOpacity
-                        onPress={handleStartEdit}
-                        disabled={loading || error !== null}
-                        style={style.headerActionButton}
-                    >
-                        <CompassIcon name='pencil-outline' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                )}
-            </View>
+        <SafeAreaView edges={[]} style={style.container}>
             <ScrollView
                 style={style.scrollView}
                 contentContainerStyle={style.scrollContent}

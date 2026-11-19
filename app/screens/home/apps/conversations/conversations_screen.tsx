@@ -1322,23 +1322,7 @@ const ConversationsScreen = () => {
     };
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            <View style={style.header}>
-                <TouchableOpacity
-                    style={style.backBtn}
-                    onPress={view === 'dashboard' ? backToSetup : () => navigation.goBack()}
-                >
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {view === 'setup'
-                        ? intl.formatMessage({id: 'workbench.conversations.title', defaultMessage: 'Conversations'})
-                        : selectedMember
-                            ? `${getMemberDisplayName(selectedMember)} — ${intl.formatMessage({id: 'workbench.conversations.dashboard', defaultMessage: 'Activity Dashboard'})}`
-                            : intl.formatMessage({id: 'workbench.conversations.title', defaultMessage: 'Conversations'})
-                    }
-                </Text>
-            </View>
+        <SafeAreaView edges={[]} style={style.container}>
 
             {/* Click outside to close dropdowns */}
             {(deptDropdownOpen || memberDropdownOpen) && (

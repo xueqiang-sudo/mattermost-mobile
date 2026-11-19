@@ -412,7 +412,7 @@ const PriceListScreen = () => {
     // Loading state
     if (loading && files.length === 0) {
         return (
-            <SafeAreaView edges={['top', 'left', 'right']} style={style.container}>
+            <SafeAreaView edges={['left', 'right']} style={style.container}>
                 <NavigationHeader
                     title={intl.formatMessage({id: 'workbench.price_list.title', defaultMessage: 'Price List'})}
                     onBackPress={handleBack}
@@ -425,7 +425,7 @@ const PriceListScreen = () => {
     }
 
     return (
-        <SafeAreaView edges={['top', 'left', 'right']} style={style.container}>
+        <SafeAreaView edges={['left', 'right']} style={style.container}>
             <NavigationHeader
                 title={intl.formatMessage({id: 'workbench.price_list.title', defaultMessage: 'Price List'})}
                 onBackPress={handleBack}

@@ -80,36 +80,7 @@ const NoteAddScreen = () => {
     }, [content, loading, teamId, scope, serverUrl, onNoteAdded, intl]);
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            <View style={style.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={style.backButton}
-                >
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {route.params.title || intl.formatMessage({
-                        id: 'workbench.notebook.add_title',
-                        defaultMessage: 'New Note',
-                    })}
-                </Text>
-                <TouchableOpacity
-                    onPress={handleSave}
-                    disabled={!content.trim() || loading}
-                    style={style.saveButton}
-                >
-                    <Text style={[
-                        style.saveButtonText,
-                        (!content.trim() || loading) && style.saveButtonTextDisabled,
-                    ]}>
-                        {intl.formatMessage({
-                            id: 'workbench.notebook.save',
-                            defaultMessage: 'Save',
-                        })}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView edges={[]} style={style.container}>
             <View style={style.inputContainer}>
                 <TextInput
                     style={style.textInput}

@@ -328,26 +328,7 @@ const KBAddScreen = ({teamId, onDocAdded}: Props) => {
     }, [loading, canSave, teamId, serverUrl, addType, title, content, url, file, onDocAdded, intl]);
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Custom Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {intl.formatMessage({id: 'workbench.kb.add_title', defaultMessage: 'Add Document'})}
-                </Text>
-                <TouchableOpacity
-                    style={style.headerButton}
-                    onPress={handleSave}
-                    disabled={!canSave() || loading}
-                >
-                    <Text style={[style.saveButtonText, !canSave() && style.saveButtonTextDisabled]}>
-                        {intl.formatMessage({id: 'workbench.kb.save', defaultMessage: 'Save'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* 类型选择 */}
             <View style={style.typeSelector}>
                 <TouchableOpacity

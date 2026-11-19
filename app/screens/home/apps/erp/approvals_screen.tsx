@@ -311,18 +311,10 @@ const ApprovalsScreen = () => {
     if (loading) {
         return (
             <SafeAreaView
-                edges={['top', 'bottom']}
+                edges={[]}
                 style={styles.container}
                 testID='approvals.screen'
             >
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
-                    </Text>
-                </View>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator
                         color={theme.centerChannelColor}
@@ -337,18 +329,10 @@ const ApprovalsScreen = () => {
     if (error) {
         return (
             <SafeAreaView
-                edges={['top', 'bottom']}
+                edges={[]}
                 style={styles.container}
                 testID='approvals.screen'
             >
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
-                    </Text>
-                </View>
                 <View style={styles.errorContainer}>
                     <CompassIcon
                         name='alert-circle-outline'
@@ -373,28 +357,10 @@ const ApprovalsScreen = () => {
     if (approvals.length === 0) {
         return (
             <SafeAreaView
-                edges={['top', 'bottom']}
+                edges={[]}
                 style={styles.container}
                 testID='approvals.screen'
             >
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
-                    </Text>
-                    <TouchableOpacity
-                        style={styles.refreshBtn}
-                        onPress={handleRefresh}
-                    >
-                        <CompassIcon
-                            name='refresh'
-                            size={24}
-                            color={theme.sidebarText}
-                        />
-                    </TouchableOpacity>
-                </View>
                 <ScrollView
                     contentContainerStyle={styles.emptyContainer}
                     refreshControl={
@@ -421,28 +387,10 @@ const ApprovalsScreen = () => {
     // Main list view
     return (
         <SafeAreaView
-            edges={['top', 'bottom']}
+            edges={[]}
             style={styles.container}
             testID='approvals.screen'
         >
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.tab.approvals', defaultMessage: '审批清单'})}
-                </Text>
-                <TouchableOpacity
-                    style={styles.refreshBtn}
-                    onPress={handleRefresh}
-                >
-                    <CompassIcon
-                        name='refresh'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
-            </View>
             <ScrollView
                 style={styles.content}
                 refreshControl={

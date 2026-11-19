@@ -323,7 +323,7 @@ const PromotionScreen = () => {
 
     if (!currentUserId) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -332,22 +332,7 @@ const PromotionScreen = () => {
     }
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity
-                    style={style.backBtn}
-                    onPress={drillStack.length > 0 ? handleBack : () => navigation.goBack()}
-                >
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {currentViewUser
-                        ? `${currentViewUser.userName} ${intl.formatMessage({id: 'promotion.invited_people', defaultMessage: "'s Invitations"})}`
-                        : intl.formatMessage({id: 'sidebar.tab.promotion', defaultMessage: 'Promotion'})}
-                </Text>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* Content */}
             <ScrollView style={style.content}>
                 {/* Stats (only show on root level) */}

@@ -660,20 +660,7 @@ const WarehouseInoutScreen = () => {
     const keyExtractor = useCallback((item: ScanRecord) => item.id, []);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{title}</Text>
-                <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
-                    <Text style={styles.scanBtnText}>
-                        {intl.formatMessage({id: 'warehouse_inout.new_scan', defaultMessage: '新扫描'})}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView style={styles.container} edges={[]}>
             {/* Date & Session dropdowns */}
             <View style={styles.filterArea}>
                 <View style={styles.filterRow}>

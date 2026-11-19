@@ -1595,24 +1595,7 @@ const KnowledgeBaseScreen = () => {
     // ---- Main render ----
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Custom Header (same as Cloud Drive) */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {intl.formatMessage({id: 'workbench.tab.knowledge_base', defaultMessage: '知识库'})}
-                </Text>
-                {kbWrite ? (
-                    <TouchableOpacity style={style.headerAction} onPress={openAddScreen}>
-                        <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={style.headerAction}/>
-                )}
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* Category chips */}
             {renderCategoryChips}
 

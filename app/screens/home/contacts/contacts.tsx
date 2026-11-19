@@ -205,16 +205,6 @@ const ContactsScreen = ({currentUser, currentTeam, isEnterpriseManager, rnnHomeC
             >
                 <Animated.View style={[styles.flex, animated]}>
                     <View style={styles.flex}>
-                        <View
-                            style={[styles.header, {position: 'relative', minHeight: 48, justifyContent: 'center', paddingTop: insets.top}]}
-                        >
-                            <Text
-                                style={styles.headerTitle}
-                                testID='contacts.header.title'
-                            >
-                                {intl.formatMessage({id: 'tab_bar.contacts.label', defaultMessage: 'Contacts'})}
-                            </Text>
-                        </View>
                         <ScrollView
                             style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
                             contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}

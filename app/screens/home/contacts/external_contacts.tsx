@@ -520,48 +520,13 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
 
     const keyExtractor = useCallback((item: MMEmployeeContactSimple) => item.contact.id, []);
 
-    const listHeader = (
-        <View style={styles.header}>
-            <TouchableOpacity
-                style={styles.headerBack}
-                onPress={() => navigation.goBack()}
-                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                testID='external_contacts.back'
-            >
-                <CompassIcon
-                    name='arrow-left'
-                    size={24}
-                    color={theme.sidebarText}
-                />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{titleMessage}</Text>
-            {contactEdit ? (
-                <TouchableOpacity
-                    style={styles.headerAdd}
-                    onPress={handleAdd}
-                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                    testID='external_contacts.add'
-                >
-                    <CompassIcon
-                        name='plus'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
-            ) : (
-                <View style={styles.headerAdd}/>
-            )}
-        </View>
-    );
-
     return (
         <Freeze freeze={!isFocused}>
             <SafeAreaView
                 edges={edges}
-                style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
+                style={[styles.flex, {backgroundColor: theme.centerChannelBg}]}
             >
                 <Animated.View style={[styles.flex, animated]}>
-                    {listHeader}
                     {loading && items.length === 0 ? (
                         <View style={styles.loadingContainer}>
                             <Loading

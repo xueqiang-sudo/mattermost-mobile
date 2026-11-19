@@ -550,15 +550,7 @@ const HotProductsScreen = () => {
     // Loading state
     if (loading) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.hot_products', defaultMessage: '热销榜'})}
-                    </Text>
-                </View>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -569,15 +561,7 @@ const HotProductsScreen = () => {
     // Error state
     if (error) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.hot_products', defaultMessage: '热销榜'})}
-                    </Text>
-                </View>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={style.loadingContainer}>
                     <Text style={style.errorText}>
                         {intl.formatMessage({id: 'boss_dashboard.load_error', defaultMessage: 'Failed to load data'})}
@@ -590,17 +574,7 @@ const HotProductsScreen = () => {
     }
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.backBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.tab.hot_products', defaultMessage: '热销榜'})}
-                </Text>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             <ScrollView style={style.content}>
                 {/* Time filters */}
                 <View style={style.filterRow}>

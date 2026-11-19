@@ -9,7 +9,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {addChannelToDefaultCategory} from '@actions/local/category';
 import {switchToChannelById} from '@actions/remote/channel';
-import Badge from '@components/badge';
 import CompassIcon from '@components/compass_icon';
 import {Navigation, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
@@ -38,11 +37,10 @@ type WorkspaceCard = {
 
 const CARDS: WorkspaceCard[] = [
     {key: 'erp', icon: 'chart-bar', labelId: 'workspace.card.erp', defaultLabel: 'ERP', screen: Screens.WORKSPACE_ERP_DESK},
-    {key: 'mes', icon: 'factory', labelId: 'workspace.card.mes', defaultLabel: '排产', screen: Screens.APPS_MES},
+    {key: 'mes', icon: 'calendar', labelId: 'workspace.card.mes', defaultLabel: '排产', screen: Screens.APPS_MES},
     {key: 'orders', icon: 'clipboard-text-outline', labelId: 'workspace.card.orders', defaultLabel: '我的订单', screen: Screens.WORKSPACE_ORDERS},
-    {key: 'projects', icon: 'folder-outline', labelId: 'workspace.card.projects', defaultLabel: '我的项目', screen: Screens.WORKSPACE_PROJECTS},
-    {key: 'approvals', icon: 'check-decagram-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
-    {key: 'todos', icon: 'format-list-checks', labelId: 'workspace.card.todos', defaultLabel: '待办', screen: Screens.WORKSPACE_TODOS},
+    {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
+    {key: 'todos', icon: 'clipboard-text-clock-outline', labelId: 'workspace.card.todos', defaultLabel: '待办', screen: Screens.WORKSPACE_TODOS},
     {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: '智能笔记'},
 ];
 
@@ -63,31 +61,37 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     scrollContent: {
         padding: 16,
     },
+    scrollArea: {
+        flex: 1,
+        backgroundColor: theme.centerChannelBg,
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 8,
+        paddingVertical: 2,
+        backgroundColor: theme.sidebarBg,
+        flexShrink: 0,
     },
     headerTitle: {
-        color: theme.centerChannelColor,
-        ...typography('Heading', 600, 'SemiBold'),
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.sidebarText,
+        textAlign: 'center',
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 10,
     },
     card: {
         width: '48%',
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 10,
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 100,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
@@ -98,23 +102,16 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 20,
     },
     cardIcon: {
-        marginBottom: 8,
-    },
-    cardBadge: {
-        position: 'absolute',
-        top: -4,
-        right: -10,
+        marginRight: 10,
     },
     cardLabel: {
         color: theme.centerChannelColor,
-        ...typography('Body', 200, 'SemiBold'),
-        textAlign: 'center',
+        ...typography('Body', 100, 'SemiBold'),
     },
     cardSubtitle: {
         color: changeOpacity(theme.centerChannelColor, 0.56),
         ...typography('Body', 75, 'Regular'),
-        textAlign: 'center',
-        marginTop: 4,
+        marginTop: 2,
     },
 
     // ---- Wide preview cards ----
@@ -646,27 +643,17 @@ const WorkspaceScreen = ({navigation}: Props) => {
         return (
             <TouchableOpacity
                 key={card.key}
-                style={[styles.card, card.wide && styles.cardWide]}
+                style={styles.card}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}
             >
-                <View>
-                    <CompassIcon name={card.icon} size={32} color={theme.buttonBg} style={styles.cardIcon}/>
-                    {showBadge && (
-                        <Badge
-                            value={approvalCount}
-                            visible={true}
-                            type={approvalCount > 9 ? 'Normal' : 'Small'}
-                            backgroundColor={theme.errorTextColor}
-                            borderColor={theme.centerChannelBg}
-                            color={theme.buttonColor}
-                            style={styles.cardBadge}
-                        />
-                    )}
-                </View>
-                <View>
-                    <Text style={styles.cardLabel}>{label}</Text>
+                <CompassIcon name={card.icon} size={22} color={theme.buttonBg} style={styles.cardIcon}/>
+                <View style={{flex: 1}}>
+                    <Text style={styles.cardLabel} numberOfLines={1}>
+                        {label}
+                        {showBadge ? ` (${approvalCount})` : ''}
+                    </Text>
                     {card.subtitle ? <Text style={styles.cardSubtitle}>{card.subtitle}</Text> : null}
                 </View>
             </TouchableOpacity>
@@ -674,18 +661,13 @@ const WorkspaceScreen = ({navigation}: Props) => {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']} testID='workspace.screen'>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workspace.title', defaultMessage: '工作台'})}
-                </Text>
-            </View>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']} testID='workspace.screen'>
+            <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
-                    {renderNewsCard()}
                     {renderHotCard()}
                     {renderMessagesCard()}
                     {CARDS.map(renderCard)}
+                    {renderNewsCard()}
                 </View>
             </ScrollView>
         </SafeAreaView>

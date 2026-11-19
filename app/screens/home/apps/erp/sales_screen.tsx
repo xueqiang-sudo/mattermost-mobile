@@ -456,16 +456,7 @@ const SalesScreen = () => {
     // Loading state
     if (loading && !data) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.headerBtn} onPress={handleBack}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.sales.title', defaultMessage: '销售统计'})}
-                    </Text>
-                    <View style={style.headerBtn}/>
-                </View>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -474,20 +465,7 @@ const SalesScreen = () => {
     }
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.headerBtn} onPress={handleBack}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.sales.title', defaultMessage: '销售统计'})}
-                </Text>
-                <TouchableOpacity style={style.headerBtn} onPress={loadData}>
-                    <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             {/* Filter bar */}
             <View style={style.filterBar}>
                 {/* Year selector */}

@@ -178,7 +178,11 @@ export function HomeScreen(props: HomeProps) {
                     }}
                 >
                     <Tab.Navigator
-                        screenOptions={{headerShown: false, freezeOnBlur: false, lazy: true}}
+                        screenOptions={{
+                            headerShown: false,
+                            freezeOnBlur: false,
+                            lazy: true,
+                        }}
                         backBehavior='none'
                         tabBar={(tabProps: BottomTabBarProps) => (
                             <TabBar

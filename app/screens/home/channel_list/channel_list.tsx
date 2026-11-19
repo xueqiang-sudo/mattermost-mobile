@@ -289,7 +289,11 @@ const ChannelListScreen = (props: ChannelProps) => {
             edges={edges}
             testID='channel_list.screen'
         >
-
+            <View style={{alignItems: 'center', paddingVertical: 10, backgroundColor: theme.sidebarBg}}>
+                <Text style={{color: theme.sidebarText, fontSize: 17, fontWeight: '600'}}>
+                    {intl.formatMessage({id: 'tab_bar.home.label', defaultMessage: '消息'})}
+                </Text>
+            </View>
             {props.isLicensed &&
                 <AnnouncementBanner/>
             }

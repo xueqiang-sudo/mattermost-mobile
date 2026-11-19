@@ -162,10 +162,15 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
     return (
         <ContactsRnnHomeComponentIdContext.Provider value={rnnHomeComponentId}>
             <Stack.Navigator
-                screenOptions={{headerShown: false}}
+                screenOptions={{
+                    headerStyle: {backgroundColor: '#1B2838'},
+                    headerTintColor: '#FFFFFF',
+                    headerTitleStyle: {fontWeight: '600', fontSize: 17},
+                    headerBackTitleVisible: false,
+                }}
                 initialRouteName={Screens.CONTACTS}
             >
-                <Stack.Screen name={Screens.CONTACTS}>
+                <Stack.Screen name={Screens.CONTACTS} options={{title: '通讯录'}}>
                     {() => (
                         <ContactsScreen
                             currentUser={currentUser}
@@ -175,13 +180,13 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                         />
                     )}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.CONTACTS_DEPARTMENT_DETAIL}>
+                <Stack.Screen name={Screens.CONTACTS_DEPARTMENT_DETAIL} options={{headerShown: false}}>
                     {() => <DepartmentDetailWrapper currentUserId={currentUser?.id}/>}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.CONTACTS_SEARCH}>
+                <Stack.Screen name={Screens.CONTACTS_SEARCH} options={{headerShown: false}}>
                     {() => <ContactsSearchWrapper currentUserId={currentUser?.id}/>}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.CONTACTS_EXTERNAL}>
+                <Stack.Screen name={Screens.CONTACTS_EXTERNAL} options={{title: '外部联系人'}}>
                     {() => (
                         <ExternalContactsScreen
                             currentUser={currentUser}
@@ -189,11 +194,11 @@ export function ContactsStack({currentUser, currentTeam, isEnterpriseManager, rn
                         />
                     )}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.CONTACTS_EXTERNAL_ADD} component={ContactsExternalAddScreen}/>
-                <Stack.Screen name={Screens.INTERNAL_MEMBER_ADD}>
+                <Stack.Screen name={Screens.CONTACTS_EXTERNAL_ADD} component={ContactsExternalAddScreen} options={{headerShown: false}}/>
+                <Stack.Screen name={Screens.INTERNAL_MEMBER_ADD} options={{headerShown: false}}>
                     {() => <InternalMemberAddWrapper/>}
                 </Stack.Screen>
-                <Stack.Screen name={Screens.DEPARTMENT_ADD_MEMBERS}>
+                <Stack.Screen name={Screens.DEPARTMENT_ADD_MEMBERS} options={{headerShown: false}}>
                     {() => <DepartmentAddMembersWrapper/>}
                 </Stack.Screen>
             </Stack.Navigator>

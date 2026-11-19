@@ -366,26 +366,7 @@ const KBDetailScreen = ({componentId, docId, docTitle, onDocUpdated}: Props) => 
     const isEditable = doc && (doc.category === 'text' || doc.category === 'url');
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Custom Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.headerBtn} onPress={() => popTopScreen()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {intl.formatMessage({id: 'workbench.kb.detail_title', defaultMessage: 'Document Detail'})}
-                </Text>
-                {isEditable ? (
-                    <TouchableOpacity style={style.headerBtn} onPress={handleSave} disabled={saving}>
-                        <Text style={[style.saveButtonText, saving && style.saveButtonTextDisabled]}>
-                            {intl.formatMessage({id: 'workbench.kb.save', defaultMessage: 'Save'})}
-                        </Text>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={style.headerBtn}/>
-                )}
-            </View>
-
+        <SafeAreaView edges={[]} style={style.container}>
             <ScrollView
                 style={style.scrollView}
                 contentContainerStyle={style.scrollContent}

@@ -387,7 +387,7 @@ const InventoryScreen = () => {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.container} edges={[]}>
                 <View style={styles.loading}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                 </View>
@@ -397,15 +397,7 @@ const InventoryScreen = () => {
 
     if (error) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                        <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>
-                        {intl.formatMessage({id: 'workbench.tab.inventory', defaultMessage: '库存分析'})}
-                    </Text>
-                </View>
+            <SafeAreaView style={styles.container} edges={[]}>
                 <View style={styles.error}>
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
@@ -630,16 +622,7 @@ const InventoryScreen = () => {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                    <CompassIcon name='arrow-left' size={24} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.tab.inventory', defaultMessage: '库存分析'})}
-                </Text>
-            </View>
-
+        <SafeAreaView style={styles.container} edges={[]}>
             <View style={styles.tabBar}>
                 {tabs.map((tab) => (
                     <TouchableOpacity

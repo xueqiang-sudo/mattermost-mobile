@@ -115,23 +115,7 @@ const AppWebView = ({route}: Props) => {
     const themeStyles = getStyleSheet(theme);
 
     return (
-        <SafeAreaView style={themeStyles.flex} testID='app_webview.screen'>
-            <View style={themeStyles.header}>
-                <TouchableOpacity
-                    style={themeStyles.backButton}
-                    onPress={handleBack}
-                    testID='app_webview.back_button'
-                >
-                    <CompassIcon
-                        name='arrow-left'
-                        size={24}
-                        color={theme.sidebarHeaderTextColor}
-                    />
-                </TouchableOpacity>
-                <Text style={themeStyles.headerTitle}>
-                    {title}
-                </Text>
-            </View>
+        <SafeAreaView style={themeStyles.flex} edges={[]} testID='app_webview.screen'>
             <View style={themeStyles.flex}>
                 <WebView
                     ref={webviewRef}

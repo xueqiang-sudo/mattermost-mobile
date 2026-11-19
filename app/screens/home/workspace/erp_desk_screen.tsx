@@ -12,6 +12,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {NetworkManager} from '@managers/network_manager';
 import DatabaseManager from '@database/manager';
+import {debugLog} from '@store/debug_log';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -129,17 +130,22 @@ const ErpDeskScreen = ({navigation}: Props) => {
                 const teamId = await getCurrentTeamId(database);
                 const client = NetworkManager.getClient(serverUrl);
                 const params = teamId ? `?team_id=${teamId}` : '';
-                const data = await client.doFetch(
-                    `/plugins/com.mattermost.frappe-sync/api/erp/credentials${params}`,
-                    {method: 'get'},
-                );
-                if (data.error) {
+                const url = `/plugins/com.mattermost.frappe-sync/api/erp/credentials${params}`;
+                debugLog('[ERP]', `Fetching credentials: ${url}, teamId: ${teamId}`);
+                const data = await client.doFetch(url, {method: 'get'});
+                debugLog('[ERP]', `Response: ${JSON.stringify(data)}`);
+                if (data?.error) {
+                    debugLog('[ERP]', `Server error: ${data.error}`);
                     setError(data.error === 'no_token' ? 'no_token' : data.error);
                 } else {
                     setCredentials(data);
                 }
-            } catch {
-                setError(intl.formatMessage({id: 'erp.desk.fetch_error', defaultMessage: 'Failed to get ERP credentials'}));
+            } catch (e: any) {
+                const errMsg = e?.message || String(e);
+                const errDetails = e?.details ? JSON.stringify(e.details) : '';
+                const errStatus = e?.status_code || e?.status || '';
+                debugLog('[ERP]', `Fetch error: ${errMsg} | status: ${errStatus} | details: ${errDetails}`);
+                setError(errMsg);
             } finally {
                 setLoading(false);
             }

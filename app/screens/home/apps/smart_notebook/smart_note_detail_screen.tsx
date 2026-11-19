@@ -175,18 +175,7 @@ const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
     // ---- Render ----
     if (loading) {
         return (
-            <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-                <View style={style.header}>
-                    <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {isNew
-                            ? intl.formatMessage({id: 'smart_notebook.new', defaultMessage: '新建笔记'})
-                            : postTitle || intl.formatMessage({id: 'smart_notebook.detail', defaultMessage: '笔记详情'})}
-                    </Text>
-                    <View style={style.headerBtn}/>
-                </View>
+            <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]} edges={[]}>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                 </View>
@@ -195,32 +184,7 @@ const SmartNoteDetailScreen = ({postId, channelId, postTitle}: Props) => {
     }
 
     return (
-        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {isNew
-                        ? intl.formatMessage({id: 'smart_notebook.new', defaultMessage: '新建笔记'})
-                        : postTitle || intl.formatMessage({id: 'smart_notebook.detail', defaultMessage: '笔记详情'})}
-                </Text>
-                <TouchableOpacity
-                    onPress={handleSave}
-                    style={style.headerBtn}
-                    disabled={saving || !content.trim()}
-                >
-                    {saving ? (
-                        <ActivityIndicator size='small' color={theme.buttonColor}/>
-                    ) : (
-                        <Text style={[style.saveBtn, (!content.trim()) && style.saveBtnDisabled]}>
-                            {intl.formatMessage({id: 'smart_notebook.save', defaultMessage: '保存'})}
-                        </Text>
-                    )}
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]} edges={[]}>
             {/* Post time */}
             {!isNew && post && (
                 <View style={style.timeContainer}>

@@ -113,32 +113,7 @@ const QuickNoteDetailScreen = ({postId, channelId, title: initialTitle, content:
     }, [dirty, intl]);
 
     return (
-        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity onPress={goBack} style={style.headerBtn}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle} numberOfLines={1}>
-                    {isNew
-                        ? intl.formatMessage({id: 'quick_note.new', defaultMessage: '新建随手记'})
-                        : intl.formatMessage({id: 'quick_note.edit', defaultMessage: '编辑随手记'})}
-                </Text>
-                <TouchableOpacity
-                    onPress={handleSave}
-                    style={style.headerBtn}
-                    disabled={saving || !title.trim()}
-                >
-                    {saving ? (
-                        <ActivityIndicator size='small' color={theme.buttonColor}/>
-                    ) : (
-                        <Text style={[style.saveBtn, (!title.trim()) && style.saveBtnDisabled]}>
-                            {intl.formatMessage({id: 'quick_note.save', defaultMessage: '保存'})}
-                        </Text>
-                    )}
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]} edges={[]}>
             {/* Form */}
             <KeyboardAvoidingView
                 style={style.formContainer}

@@ -1310,7 +1310,7 @@ const CloudDriveScreen = () => {
     // ── Loading state ──
     if (!teamId) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
+            <SafeAreaView edges={[]} style={style.container}>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                 </View>
@@ -1320,19 +1320,7 @@ const CloudDriveScreen = () => {
 
     // ── Main render ──
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.headerBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>
-                    {intl.formatMessage({id: 'workbench.drive.title', defaultMessage: 'Cloud Drive'})}
-                </Text>
-                <TouchableOpacity style={style.headerBtn} onPress={loadFiles}>
-                    <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView edges={[]} style={style.container}>
 
             {/* Breadcrumb */}
             {renderBreadcrumbs()}

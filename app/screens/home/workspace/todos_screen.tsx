@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -34,14 +35,17 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: 8,
         paddingTop: 12,
         paddingBottom: 8,
+    },
+    backButton: {
+        padding: 8,
     },
     headerTitle: {
         color: theme.centerChannelColor,
         ...typography('Heading', 600, 'SemiBold'),
-        marginLeft: 12,
+        marginLeft: 4,
     },
     card: {
         marginHorizontal: 16,
@@ -154,6 +158,7 @@ const TodosScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const styles = getStyles(theme);
 
     const [todos, setTodos] = useState<UserTodo[]>([]);
@@ -299,7 +304,7 @@ const TodosScreen = () => {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['top']}>
+            <SafeAreaView style={styles.container} edges={[]}>
                 <View style={styles.loading}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                 </View>
@@ -308,13 +313,7 @@ const TodosScreen = () => {
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']} testID='todos.screen'>
-            <View style={styles.header}>
-                <CompassIcon name='format-list-checks' size={24} color={theme.centerChannelColor}/>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'workspace.todos.title', defaultMessage: 'To-Do'})}
-                </Text>
-            </View>
+        <SafeAreaView style={styles.container} edges={[]} testID='todos.screen'>
             {todos.length === 0 ? (
                 <View style={styles.empty}>
                     <CompassIcon name='check-circle-outline' size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
