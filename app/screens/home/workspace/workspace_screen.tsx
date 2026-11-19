@@ -13,6 +13,7 @@ import Badge from '@components/badge';
 import CompassIcon from '@components/compass_icon';
 import {Navigation, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
+import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import {NetworkManager} from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
@@ -290,10 +291,10 @@ function formatTimeAgo(ts: number): string {
 
 type Props = {
     navigation: StackNavigationProp<any>;
-    theme: Theme;
 };
 
-const WorkspaceScreen = ({navigation, theme}: Props) => {
+const WorkspaceScreen = ({navigation}: Props) => {
+    const theme = useTheme();
     const intl = useIntl();
     const styles = getStyles(theme);
     const serverUrl = useServerUrl();
