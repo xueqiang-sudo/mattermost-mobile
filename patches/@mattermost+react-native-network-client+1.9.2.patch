@@ -1,0 +1,44 @@
+diff --git a/node_modules/@mattermost/react-native-network-client/ios/SessionManager.swift b/node_modules/@mattermost/react-native-network-client/ios/SessionManager.swift
+index fab0476..66ac1c2 100644
+--- a/node_modules/@mattermost/react-native-network-client/ios/SessionManager.swift
++++ b/node_modules/@mattermost/react-native-network-client/ios/SessionManager.swift
+@@ -29,7 +29,7 @@ public class SessionManager: NSObject {
+                     } else {
+                         certificates[certDomain] = [certificate]
+                     }
+-                    os_log("Mattermost: loaded certificate %{public}@ for domain %{public}@",
++                    os_log("Dedalix: loaded certificate %{public}@ for domain %{public}@",
+                            log: .default,
+                            type: .info,
+                            cert.lastPathComponent, certDomain
+@@ -52,7 +52,7 @@ public class SessionManager: NSObject {
+             return ServerTrustManager(allHostsMustBeEvaluated: true, evaluators: evaluators)
+         } catch {
+             os_log(
+-                "Mattermost: Error loading pinned certificates -- %{public}@",
++                "Dedalix: Error loading pinned certificates -- %{public}@",
+                 log: .default,
+                 type: .error,
+                 String(describing: error)
+diff --git a/node_modules/@mattermost/react-native-network-client/ios/WebSocket/WebSocketEngine.swift b/node_modules/@mattermost/react-native-network-client/ios/WebSocket/WebSocketEngine.swift
+index 6491442..da1d389 100644
+--- a/node_modules/@mattermost/react-native-network-client/ios/WebSocket/WebSocketEngine.swift
++++ b/node_modules/@mattermost/react-native-network-client/ios/WebSocket/WebSocketEngine.swift
+@@ -58,7 +58,7 @@ class WebSocketEngine: SessionDelegate, Engine {
+                 completion?()
+             })
+         default:
+-            os_log("Mattermost: WebSocket write operation opcode %@ is not supported",
++            os_log("Dedalix: WebSocket write operation opcode %@ is not supported",
+                    log: .default,
+                    type: .info,
+                    opcode.rawValue
+@@ -77,7 +77,7 @@ class WebSocketEngine: SessionDelegate, Engine {
+                 case .data(let data):
+                     self?.broadcast(event: .binary(data))
+                 @unknown default:
+-                    os_log("Mattermost: WebSocket read operation is not of type string or data",
++                    os_log("Dedalix: WebSocket read operation is not of type string or data",
+                            log: .default,
+                            type: .info
+                     )
