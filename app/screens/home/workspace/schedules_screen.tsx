@@ -321,7 +321,7 @@ const SchedulesScreen = () => {
                                 </View>
                                 <View style={styles.cardFooter}>
                                     <Text style={styles.cardMeta}>
-                                        {intl.formatMessage({id: 'schedules.next_run', defaultMessage: '下次'}): {formatTime(schedule.next_run)}
+                                        {`${intl.formatMessage({id: 'schedules.next_run', defaultMessage: '下次'})}: ${formatTime(schedule.next_run)}`}
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.deleteButton}
