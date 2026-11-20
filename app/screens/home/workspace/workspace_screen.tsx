@@ -513,22 +513,15 @@ const WorkspaceScreen = ({navigation}: Props) => {
     const handleAIAssistant = useCallback(async () => {
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const client = NetworkManager.getClient(serverUrl);
             const teamId = await getCurrentTeamId(database);
             if (!teamId) {
                 return;
             }
 
-            // Query bot users in the current team from local database
-            const members = await database.get('TeamMembership').query(
-                Q.where('team_id', teamId),
-            ).fetch();
-            const memberIds = members.map((m: any) => m.userId);
-
-            const bots = await database.get('User').query(
-                Q.where('id', Q.oneOf(memberIds)),
-                Q.where('is_bot', true),
-                Q.where('delete_at', 0),
-            ).fetch();
+            // Query bot users in the current team via server API
+            const users = await client.doFetch(`/users?in_team=${teamId}&per_page=200`, {method: 'get'});
+            const bots = (users || []).filter((u: any) => u.is_bot && !u.delete_at);
 
             if (bots.length === 0) {
                 Alert.alert(
