@@ -1,0 +1,107 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+import React, {useCallback} from 'react';
+import {useIntl} from 'react-intl';
+import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+
+import CompassIcon from '@components/compass_icon';
+import {Screens} from '@constants';
+import {useTheme} from '@context/theme';
+import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {typography} from '@utils/typography';
+
+import type {StackNavigationProp} from '@react-navigation/stack';
+
+type Module = {
+    key: string;
+    icon: string;
+    label: string;
+    screen: string;
+};
+
+const MODULES: Module[] = [
+    {key: 'customers', icon: 'account-multiple-outline', label: '客户管理', screen: Screens.ERP_CUSTOMERS},
+    {key: 'suppliers', icon: 'truck-delivery-outline', label: '供应商管理', screen: Screens.ERP_SUPPLIERS},
+    {key: 'sales_orders', icon: 'cart-outline', label: '销售订单', screen: Screens.ERP_SALES_ORDERS},
+    {key: 'purchase_orders', icon: 'clipboard-text-outline', label: '采购订单', screen: Screens.ERP_PURCHASE_ORDERS},
+    {key: 'work_orders', icon: 'cog-outline', label: '生产管理', screen: Screens.ERP_WORK_ORDERS},
+    {key: 'projects', icon: 'folder-outline', label: '项目管理', screen: Screens.ERP_PROJECTS},
+    {key: 'stock', icon: 'package-variant-closed', label: '库存查询', screen: Screens.ERP_STOCK},
+];
+
+const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
+    container: {
+        flex: 1,
+        backgroundColor: theme.centerChannelBg,
+    },
+    scrollContent: {
+        padding: 16,
+    },
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    card: {
+        width: '48%',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 12,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 110,
+        borderWidth: 1,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    cardIcon: {
+        marginBottom: 10,
+    },
+    cardLabel: {
+        color: theme.centerChannelColor,
+        ...typography('Body', 200, 'SemiBold'),
+        textAlign: 'center',
+    },
+}));
+
+type Props = {
+    navigation: StackNavigationProp<any>;
+};
+
+const ErpModulesScreen = ({navigation}: Props) => {
+    const intl = useIntl();
+    const theme = useTheme();
+    const styles = getStyles(theme);
+
+    const handleModulePress = useCallback((module: Module) => {
+        navigation.navigate(module.screen);
+    }, [navigation]);
+
+    return (
+        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.grid}>
+                    {MODULES.map((module) => (
+                        <TouchableOpacity
+                            key={module.key}
+                            style={styles.card}
+                            onPress={() => handleModulePress(module)}
+                            activeOpacity={0.7}
+                        >
+                            <CompassIcon
+                                name={module.icon}
+                                size={36}
+                                color={theme.buttonBg}
+                                style={styles.cardIcon}
+                            />
+                            <Text style={styles.cardLabel}>{module.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
+};
+
+export default ErpModulesScreen;

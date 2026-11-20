@@ -10,11 +10,17 @@ import {getChatListBackdropColor} from '@utils/theme';
 
 import CompanyNewsScreen from './company_news_screen';
 import ErpDeskScreen from './erp_desk_screen';
+import ErpModulesScreen from './erp_modules_screen';
 import SchedulesScreen from './schedules_screen';
 import OrdersScreen from './orders_screen';
 import ProjectsScreen from './projects_screen';
 import TodosScreen from './todos_screen';
 import WorkspaceScreen from './workspace_screen';
+import {
+    CustomersScreen, SuppliersScreen, SalesOrdersScreen,
+    PurchaseOrdersScreen, WorkOrdersScreen, ProjectsScreen as ErpProjectsScreen,
+    StockScreen,
+} from './erp_screens';
 import AppWebView from '../apps/app_webview';
 import ApprovalsScreen from '../apps/erp/approvals_screen';
 import FinanceScreen from '../apps/erp/finance_screen';
@@ -108,6 +114,46 @@ const WorkspaceStack = () => {
                 name={Screens.APPS_WAREHOUSE_INOUT}
                 component={WarehouseInoutScreen}
                 options={{title: '出入库'}}
+            />
+            <Stack.Screen
+                name={Screens.WORKSPACE_ERP_MODULES}
+                component={ErpModulesScreen}
+                options={{title: 'ERP 模块'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_CUSTOMERS}
+                component={CustomersScreen}
+                options={{title: '客户管理'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_SUPPLIERS}
+                component={SuppliersScreen}
+                options={{title: '供应商管理'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_SALES_ORDERS}
+                component={SalesOrdersScreen}
+                options={{title: '销售订单'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_PURCHASE_ORDERS}
+                component={PurchaseOrdersScreen}
+                options={{title: '采购订单'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_WORK_ORDERS}
+                component={WorkOrdersScreen}
+                options={{title: '生产管理'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_PROJECTS}
+                component={ErpProjectsScreen}
+                options={{title: '项目管理'}}
+            />
+            <Stack.Screen
+                name={Screens.ERP_STOCK}
+                component={StockScreen}
+                options={{title: '库存查询'}}
             />
         </Stack.Navigator>
     );

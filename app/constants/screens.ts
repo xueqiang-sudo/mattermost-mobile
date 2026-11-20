@@ -125,7 +125,23 @@ export const WORKSPACE_PROJECTS = 'WorkspaceProjects';
 export const WORKSPACE_TODOS = 'WorkspaceTodos';
 export const WORKSPACE_NEWS = 'WorkspaceNews';
 export const WORKSPACE_SCHEDULES = 'WorkspaceSchedules';
-export const WORKSPACE_ERP = 'WorkspaceERP';
+export const WORKSPACE_ERP_MODULES = 'WorkspaceErpModules';
+export const ERP_CUSTOMERS = 'ErpCustomers';
+export const ERP_SUPPLIERS = 'ErpSuppliers';
+export const ERP_SALES_ORDERS = 'ErpSalesOrders';
+export const ERP_PURCHASE_ORDERS = 'ErpPurchaseOrders';
+export const ERP_WORK_ORDERS = 'ErpWorkOrders';
+export const ERP_PROJECTS = 'ErpProjects';
+export const ERP_STOCK = 'ErpStock';
+export const ERP_CUSTOMER_DETAIL = 'ErpCustomerDetail';
+export const ERP_CUSTOMER_FORM = 'ErpCustomerForm';
+export const ERP_SUPPLIER_DETAIL = 'ErpSupplierDetail';
+export const ERP_SUPPLIER_FORM = 'ErpSupplierForm';
+export const ERP_SALES_ORDER_DETAIL = 'ErpSalesOrderDetail';
+export const ERP_PURCHASE_ORDER_DETAIL = 'ErpPurchaseOrderDetail';
+export const ERP_WORK_ORDER_DETAIL = 'ErpWorkOrderDetail';
+export const ERP_PROJECT_DETAIL = 'ErpProjectDetail';
+export const ERP_ITEM_STOCK = 'ErpItemStock';
 export const WORKSPACE_ERP_DESK = 'WorkspaceErpDesk';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
@@ -307,6 +323,23 @@ export default {
     WORKSPACE_TODOS,
     WORKSPACE_NEWS,
     WORKSPACE_SCHEDULES,
+    WORKSPACE_ERP_MODULES,
+    ERP_CUSTOMERS,
+    ERP_SUPPLIERS,
+    ERP_SALES_ORDERS,
+    ERP_PURCHASE_ORDERS,
+    ERP_WORK_ORDERS,
+    ERP_PROJECTS,
+    ERP_STOCK,
+    ERP_CUSTOMER_DETAIL,
+    ERP_CUSTOMER_FORM,
+    ERP_SUPPLIER_DETAIL,
+    ERP_SUPPLIER_FORM,
+    ERP_SALES_ORDER_DETAIL,
+    ERP_PURCHASE_ORDER_DETAIL,
+    ERP_WORK_ORDER_DETAIL,
+    ERP_PROJECT_DETAIL,
+    ERP_ITEM_STOCK,
     WORKSPACE_ERP,
     WORKSPACE_ERP_DESK,
     INTEGRATION_SELECTOR,

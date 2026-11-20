@@ -36,7 +36,7 @@ type WorkspaceCard = {
 };
 
 const CARDS: WorkspaceCard[] = [
-    {key: 'erp', icon: 'chart-bar', labelId: 'workspace.card.erp', defaultLabel: 'ERP', screen: Screens.WORKSPACE_ERP_DESK},
+    {key: 'erp', icon: 'chart-bar', labelId: 'workspace.card.erp', defaultLabel: 'ERP', screen: Screens.WORKSPACE_ERP_MODULES},
     {key: 'mes', icon: 'calendar-outline', labelId: 'workspace.card.mes', defaultLabel: '排产', screen: Screens.APPS_MES},
     {key: 'orders', icon: 'file-text-outline', labelId: 'workspace.card.orders', defaultLabel: '我的订单', screen: Screens.WORKSPACE_ORDERS},
     {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
