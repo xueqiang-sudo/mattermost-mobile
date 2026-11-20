@@ -30,6 +30,11 @@ const MODULES: Module[] = [
     {key: 'work_orders', icon: 'cog-outline', labelId: 'erp.module.work_orders', defaultLabel: 'Manufacturing', screen: Screens.ERP_WORK_ORDERS},
     {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS},
     {key: 'stock', icon: 'package-variant-closed', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK},
+    {key: 'warehouse_inout', icon: 'warehouse', labelId: 'erp.module.warehouse_inout', defaultLabel: 'Stock In/Out', screen: Screens.APPS_WAREHOUSE_INOUT},
+    {key: 'hot_products', icon: 'fire', labelId: 'erp.module.hot_products', defaultLabel: 'Hot Products', screen: Screens.APPS_HOT_PRODUCTS},
+    {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: 'Finance', screen: Screens.APPS_FINANCE},
+    {key: 'sales', icon: 'chart-line', labelId: 'erp.module.sales', defaultLabel: 'Sales Statistics', screen: Screens.APPS_SALES},
+    {key: 'inventory', icon: 'products', labelId: 'erp.module.inventory', defaultLabel: 'Inventory', screen: Screens.APPS_INVENTORY},
 ];
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({

@@ -453,10 +453,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                             ) : (
                                 <View style={styles.gridContainer}>
                                     {[
-                                        {keys: ['mes', 'stock_in', 'stock_out'], labelId: 'apps.category.production', defaultLabel: '生产与仓储'},
-                                        {keys: ['hotproducts', 'sales', 'finance', 'inventory', 'approvals'], labelId: 'apps.category.erp', defaultLabel: '数据分析 (ERP)'},
-                                        {keys: ['cloud_drive', 'knowledge_base', 'smart_notebook'], labelId: 'apps.category.enterprise', defaultLabel: '企业资料'},
-                                        {keys: ['role_management', 'conversations', 'promotion', 'debug'], labelId: 'apps.category.management', defaultLabel: '管理与运营'},
+                                        {keys: ['mes', 'stock_in', 'stock_out'], labelId: 'apps.category.production', defaultLabel: 'Production & Warehouse'},
+                                        {keys: ['cloud_drive', 'knowledge_base', 'smart_notebook', 'notebook'], labelId: 'apps.category.enterprise', defaultLabel: 'Enterprise Resources'},
+                                        {keys: ['role_management', 'conversations', 'promotion', 'debug'], labelId: 'apps.category.management', defaultLabel: 'Management'},
                                     ].map((section) => {
                                         const items = visibleApps.filter((a) => section.keys.includes(a.key));
                                         if (items.length === 0) {return null;}

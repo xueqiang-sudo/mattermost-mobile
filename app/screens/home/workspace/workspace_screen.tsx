@@ -41,8 +41,6 @@ type WorkspaceCard = {
 
 const CARDS: WorkspaceCard[] = [
     {key: 'erp', icon: 'chart-bar', labelId: 'workspace.card.erp', defaultLabel: 'ERP', screen: Screens.WORKSPACE_ERP_MODULES},
-    {key: 'mes', icon: 'calendar-outline', labelId: 'workspace.card.mes', defaultLabel: 'Scheduling', screen: Screens.APPS_MES},
-    {key: 'orders', icon: 'file-text-outline', labelId: 'workspace.card.orders', defaultLabel: 'My Orders', screen: Screens.WORKSPACE_ORDERS},
     {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: 'Approvals', screen: Screens.APPS_APPROVALS},
     {key: 'todos', icon: 'format-list-bulleted', labelId: 'workspace.card.todos', defaultLabel: 'Todos', screen: Screens.WORKSPACE_TODOS},
     {key: 'schedules', icon: 'calendar-outline', labelId: 'workspace.card.schedules', defaultLabel: 'Schedules', screen: Screens.WORKSPACE_SCHEDULES},

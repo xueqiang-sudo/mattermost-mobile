@@ -142,7 +142,6 @@ export const ERP_PURCHASE_ORDER_DETAIL = 'ErpPurchaseOrderDetail';
 export const ERP_WORK_ORDER_DETAIL = 'ErpWorkOrderDetail';
 export const ERP_PROJECT_DETAIL = 'ErpProjectDetail';
 export const ERP_ITEM_STOCK = 'ErpItemStock';
-export const WORKSPACE_ERP_DESK = 'WorkspaceErpDesk';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -341,7 +340,6 @@ export default {
     ERP_PROJECT_DETAIL,
     ERP_ITEM_STOCK,
     WORKSPACE_ERP,
-    WORKSPACE_ERP_DESK,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,
