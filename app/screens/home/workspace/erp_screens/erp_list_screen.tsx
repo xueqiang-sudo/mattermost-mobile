@@ -212,13 +212,20 @@ const ErpListScreen = ({
     const [activeTab, setActiveTab] = useState(0);
     const [search, setSearch] = useState('');
 
+    const [erpAccessDenied, setErpAccessDenied] = useState(false);
+
     const loadData = useCallback(async (tabIndex = activeTab, reset = true) => {
+        setErpAccessDenied(false);
         try {
             const filters = tabs?.[tabIndex]?.filters || [];
             const result = await fetchFn(serverUrl, filters.length > 0 ? filters : 0, 0);
             setData(Array.isArray(result) ? result : []);
         } catch (e: any) {
-            Alert.alert('Error', e?.message || String(e));
+            if (e?.message === 'ERP_ACCESS_DENIED') {
+                setErpAccessDenied(true);
+            } else {
+                Alert.alert('Error', e?.message || String(e));
+            }
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -305,6 +312,19 @@ const ErpListScreen = ({
             <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
                 <View style={styles.loading}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (erpAccessDenied) {
+        return (
+            <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+                <View style={styles.empty}>
+                    <CompassIcon name='alert-circle-outline' size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
+                    <Text style={styles.emptyText}>
+                        {intl.formatMessage({id: 'erp.access_denied', defaultMessage: 'No ERP access. Please contact your administrator to link your phone number with ERP credentials.'})}
+                    </Text>
                 </View>
             </SafeAreaView>
         );

@@ -8,6 +8,8 @@ import {ScrollView, Text, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {fetchEmployeeContacts} from '@actions/remote/employee_contact_new';
+import {syncEmployeeContacts} from '@actions/remote/contact_sync';
+import {queryLocalEmployeeContacts, employeeContactToUI} from '@queries/servers/contact_queries';
 import ContactAvatar from '@components/contact_avatar';
 import Loading from '@components/loading';
 import {useServerUrl} from '@context/server';
@@ -114,14 +116,33 @@ const ContactsEmployeeList = ({componentId, closeButtonId, type, title}: Props) 
                 setLoading(false);
                 return;
             }
-            const res = await fetchEmployeeContacts(serverUrl, userId, type, {granularity: 2});
+
+            // 先同步（版本检查 → 按需拉取）
+            await syncEmployeeContacts(serverUrl, userId, type, database);
+
             if (!mounted.current) {
                 return;
             }
-            if (res.error) {
-                setServiceError(true);
-            } else {
-                setEmployees((res.data ?? []).map((row) => row.contact as SimpleUserProfile));
+
+            // 从本地 DB 读取
+            try {
+                const localContacts = await queryLocalEmployeeContacts(database, userId, type);
+                if (!mounted.current) {
+                    return;
+                }
+                const contacts = localContacts.map((ec) => employeeContactToUI(ec).contact);
+                setEmployees(contacts);
+            } catch {
+                // 降级：直连服务器
+                const res = await fetchEmployeeContacts(serverUrl, userId, type, {granularity: 2});
+                if (!mounted.current) {
+                    return;
+                }
+                if (res.error) {
+                    setServiceError(true);
+                } else {
+                    setEmployees((res.data ?? []).map((row) => row.contact as SimpleUserProfile));
+                }
             }
             setLoading(false);
         };

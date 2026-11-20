@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 /* eslint-disable max-lines */
 
+import {useDatabase} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
@@ -11,13 +12,14 @@ import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 import {
     createSubDepartment,
     deleteContactDepartmentForce,
-    ensureTeamDefaultDepartment,
     fetchContactDepartment,
-    fetchContactDirectoryContent,
     fetchDepartmentDetail,
     fetchEmployeeCountOfDepartment,
     updateContactDepartment,
 } from '@actions/remote/contact_new';
+import {syncContactDirectory} from '@actions/remote/contact_sync';
+import {queryLocalDepartments, queryLocalDepartmentMembers, queryLocalAllMembers, memberToUserProfile} from '@queries/servers/contact_queries';
+import type ContactDepartmentModel from '@database/models/server/contact_department';
 import {fetchTeamById, getTeamMembersByIds} from '@actions/remote/team';
 import AdaptiveTitleText from '@components/adaptive_title_text';
 import CompassIcon from '@components/compass_icon';
@@ -339,6 +341,7 @@ const ContactsDepartmentDetail = ({
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
+    const database = useDatabase();
     const mounted = useRef(false);
     const breadcrumbScrollRef = useRef<ScrollView>(null);
     const styles = getStyleSheet(theme);
@@ -1104,22 +1107,53 @@ const ContactsDepartmentDetail = ({
         }
 
         try {
-            if (departmentId == null) {
-                // Ensure the default department exists before loading (matches webapp)
-                await ensureTeamDefaultDepartment(serverUrl, companyId);
+            // 先触发同步（版本检查 → 按需拉取 → 写本地 DB）
+            await syncContactDirectory(serverUrl, companyId, database);
 
-                const res = await fetchContactDirectoryContent(serverUrl, companyId, undefined);
+            if (!mounted.current) {
+                return;
+            }
+
+            // 从本地 DB 读取数据
+            if (departmentId == null) {
+                // 根目录：子部门 + 根级成员
+                const localDepts = await queryLocalDepartments(database, companyId);
+                const rootMembers = await queryLocalDepartmentMembers(database, companyId, -1);
+                const allMembers = await queryLocalAllMembers(database, companyId);
+
                 if (!mounted.current) {
                     return;
                 }
-                if (!res.error && res.data) {
-                    setSubDepartments(res.data.departments);
-                    setEmployees(res.data.employees);
-                    setMemberCount(res.data.memberCount ?? 0);
+
+                // 去重根级成员（排除已在子部门中的成员）
+                const deptMemberUserIds = new Set<string>();
+                for (const dept of localDepts) {
+                    const deptMembers = await queryLocalDepartmentMembers(database, companyId, dept.deptId);
+                    for (const m of deptMembers) {
+                        deptMemberUserIds.add(m.userId);
+                    }
                 }
+                const rootEmployees = rootMembers
+                    .filter((m) => !deptMemberUserIds.has(m.userId))
+                    .map(memberToUserProfile);
+
+                setSubDepartments(localDepts.map((d) => ({
+                    id: d.deptId,
+                    team_id: d.teamId,
+                    name: d.name,
+                    description: d.description,
+                    parent_id: d.parentId,
+                    create_at: d.createAt,
+                    update_at: d.updateAt,
+                    delete_at: d.deleteAt,
+                })));
+                setEmployees(rootEmployees);
+                setMemberCount(allMembers.length > 0 ? allMembers.length : rootEmployees.length);
             } else {
-                const [detailRes, countRes] = await Promise.all([
-                    fetchDepartmentDetail(serverUrl, companyId, departmentId),
+                // 子部门：子部门 + 该部门成员
+                const [childDepts, deptMembers, countRes] = await Promise.all([
+                    queryLocalDepartments(database, companyId, departmentId),
+                    queryLocalDepartmentMembers(database, companyId, departmentId),
                     fetchEmployeeCountOfDepartment(serverUrl, companyId, departmentId),
                 ]);
 
@@ -1127,12 +1161,21 @@ const ContactsDepartmentDetail = ({
                     return;
                 }
 
-                if (!detailRes.error && detailRes.data) {
-                    setSubDepartments(detailRes.data.subDepartments);
-                    setEmployees(detailRes.data.employees);
-                }
+                setSubDepartments(childDepts.map((d) => ({
+                    id: d.deptId,
+                    team_id: d.teamId,
+                    name: d.name,
+                    description: d.description,
+                    parent_id: d.parentId,
+                    create_at: d.createAt,
+                    update_at: d.updateAt,
+                    delete_at: d.deleteAt,
+                })));
+                setEmployees(deptMembers.map(memberToUserProfile));
                 if (!countRes.error && countRes.data !== undefined) {
                     setMemberCount(countRes.data);
+                } else {
+                    setMemberCount(deptMembers.length);
                 }
             }
         } catch (error) {
@@ -1142,7 +1185,7 @@ const ContactsDepartmentDetail = ({
                 setLoading(false);
             }
         }
-    }, [companyId, departmentId, serverUrl]);
+    }, [companyId, database, departmentId, serverUrl]);
 
     useEffect(() => {
         mounted.current = true;

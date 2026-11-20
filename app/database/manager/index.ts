@@ -18,6 +18,7 @@ import {CategoryModel, CategoryChannelModel, ChannelModel, ChannelBookmarkModel,
     PostModel, PostsInChannelModel, PostsInThreadModel, PreferenceModel, ReactionModel, RoleModel,
     ScheduledPostModel, SystemModel, TeamModel, TeamChannelHistoryModel, TeamMembershipModel, TeamSearchHistoryModel,
     ThreadModel, ThreadParticipantModel, ThreadInTeamModel, TeamThreadsSyncModel, UserModel, ConfigModel,
+    ContactDepartmentModel, ContactDepartmentMemberModel, EmployeeContactModel, ContactSyncVersionModel,
 } from '@database/models/server';
 import AppDataOperator from '@database/operator/app_data_operator';
 import ServerDataOperator from '@database/operator/server_data_operator';
@@ -52,6 +53,7 @@ class DatabaseManagerSingleton {
             ScheduledPostModel, SystemModel, TeamModel, TeamChannelHistoryModel, TeamMembershipModel, TeamSearchHistoryModel,
             ThreadModel, ThreadParticipantModel, ThreadInTeamModel, TeamThreadsSyncModel, UserModel,
             PlaybookRunModel, PlaybookChecklistModel, PlaybookChecklistItemModel, PlaybookRunAttributeModel, PlaybookRunAttributeValueModel,
+            ContactDepartmentModel, ContactDepartmentMemberModel, EmployeeContactModel, ContactSyncVersionModel,
         ];
 
         this.databaseDirectory = Platform.OS === 'ios' ? getIOSAppGroupDetails().appGroupDatabase : `${documentDirectory}/databases/`;

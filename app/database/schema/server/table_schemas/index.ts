@@ -38,3 +38,7 @@ export {default as ThreadInTeamSchema} from './thread_in_team';
 export {default as TeamThreadsSyncSchema} from './team_threads_sync';
 export {default as UserSchema} from './user';
 export {default as ConfigSchema} from './config';
+export {default as ContactDepartmentSchema} from './contact_department';
+export {default as ContactDepartmentMemberSchema} from './contact_department_member';
+export {default as EmployeeContactSchema} from './employee_contact';
+export {default as ContactSyncVersionSchema} from './contact_sync_version';

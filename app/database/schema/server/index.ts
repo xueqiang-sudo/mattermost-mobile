@@ -43,10 +43,14 @@ import {
     ThreadParticipantSchema,
     TeamThreadsSyncSchema,
     UserSchema,
+    ContactDepartmentSchema,
+    ContactDepartmentMemberSchema,
+    EmployeeContactSchema,
+    ContactSyncVersionSchema,
 } from './table_schemas';
 
 export const serverSchema: AppSchema = appSchema({
-    version: 19,
+    version: 20,
     tables: [
         CategorySchema,
         CategoryChannelSchema,
@@ -90,5 +94,9 @@ export const serverSchema: AppSchema = appSchema({
         ThreadInTeamSchema,
         ThreadParticipantSchema,
         UserSchema,
+        ContactDepartmentSchema,
+        ContactDepartmentMemberSchema,
+        EmployeeContactSchema,
+        ContactSyncVersionSchema,
     ],
 });

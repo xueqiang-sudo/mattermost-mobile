@@ -38,3 +38,7 @@ export {default as ThreadInTeamModel} from './thread_in_team';
 export {default as ThreadParticipantModel} from './thread_participant';
 export {default as TeamThreadsSyncModel} from './team_threads_sync';
 export {default as UserModel} from './user';
+export {default as ContactDepartmentModel} from './contact_department';
+export {default as ContactDepartmentMemberModel} from './contact_department_member';
+export {default as EmployeeContactModel} from './employee_contact';
+export {default as ContactSyncVersionModel} from './contact_sync_version';

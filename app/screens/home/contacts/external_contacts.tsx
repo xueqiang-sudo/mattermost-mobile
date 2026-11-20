@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useIsFocused, useNavigation} from '@react-navigation/native';
+import {useDatabase} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
@@ -22,6 +23,8 @@ import {
     fetchEmployeeContacts,
     removeEmployeeContact,
 } from '@actions/remote/employee_contact_new';
+import {syncEmployeeContacts} from '@actions/remote/contact_sync';
+import {queryLocalEmployeeContacts, employeeContactToUI} from '@queries/servers/contact_queries';
 import {getDashboardAccess} from '@screens/home/apps/api';
 import {MMEmployeeContactTypes, type MMEmployeeContactSimple} from '@client/rest/team_department';
 import CompassIcon from '@components/compass_icon';
@@ -262,6 +265,7 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const isFocused = useIsFocused();
+    const database = useDatabase();
     const navigation = useNavigation<StackNavigationProp<ContactsStackParamList>>();
     const styles = getStyleSheet(theme);
 
@@ -287,6 +291,12 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
         });
     }, [serverUrl, teamId]);
 
+    const readLocalContacts = useCallback(async () => {
+        if (!ownerId) return [];
+        const localContacts = await queryLocalEmployeeContacts(database, ownerId, kind);
+        return localContacts.map(employeeContactToUI) as MMEmployeeContactSimple[];
+    }, [database, kind, ownerId]);
+
     const loadData = useCallback(async (opts?: {silent?: boolean}) => {
         if (!ownerId || !serverUrl) {
             setItems([]);
@@ -298,20 +308,29 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
             setLoading(true);
         }
         try {
-            const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
-            if (!result.error && result.data) {
-                setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
-            } else {
+            // 先同步（版本检查 → 按需拉取）
+            await syncEmployeeContacts(serverUrl, ownerId, kind, database);
+            // 从本地 DB 读取
+            const localItems = await readLocalContacts();
+            setItems(localItems.filter((item) => item && item.contact));
+        } catch {
+            // 降级：尝试直连服务器
+            try {
+                const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
+                if (!result.error && result.data) {
+                    setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
+                } else {
+                    setItems([]);
+                }
+            } catch {
                 setItems([]);
             }
-        } catch {
-            setItems([]);
         } finally {
             if (!silent) {
                 setLoading(false);
             }
         }
-    }, [kind, ownerId, serverUrl]);
+    }, [database, kind, ownerId, readLocalContacts, serverUrl]);
 
     const onRefresh = useCallback(async () => {
         if (!ownerId || !serverUrl) {
@@ -319,14 +338,13 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
         }
         setRefreshing(true);
         try {
-            const result = await fetchEmployeeContacts(serverUrl, ownerId, kind, {granularity: 2});
-            if (!result.error && result.data) {
-                setItems((result.data as MMEmployeeContactSimple[]).filter((item) => item && item.contact));
-            }
+            await syncEmployeeContacts(serverUrl, ownerId, kind, database);
+            const localItems = await readLocalContacts();
+            setItems(localItems.filter((item) => item && item.contact));
         } finally {
             setRefreshing(false);
         }
-    }, [kind, ownerId, serverUrl]);
+    }, [database, kind, ownerId, readLocalContacts, serverUrl]);
 
     useEffect(() => {
         if (isFocused) {

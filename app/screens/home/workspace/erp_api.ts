@@ -21,7 +21,15 @@ async function erpFetch(serverUrl: string, path: string, options: RequestInit = 
     const teamId = await getTeamId(serverUrl);
     const separator = path.includes('?') ? '&' : '?';
     const url = `${PROXY_BASE}${path}${separator}team_id=${teamId}`;
-    return client.doFetch(url, options);
+    try {
+        return await client.doFetch(url, options);
+    } catch (error: any) {
+        const status = error?.status_code || error?.statusCode || error?.response?.status;
+        if (status === 401 || status === 403) {
+            throw new Error('ERP_ACCESS_DENIED');
+        }
+        throw error;
+    }
 }
 
 // ─── Generic CRUD ───

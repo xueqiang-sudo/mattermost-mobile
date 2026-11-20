@@ -518,7 +518,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
             }
 
             // Query bot users in the current team via server API
-            const users = await client.doFetch(`/users?in_team=${teamId}&per_page=200`, {method: 'get'});
+            const users = await client.getProfilesInTeam(teamId, 0, 200);
             const bots = (users || []).filter((u: any) => u.is_bot && !u.delete_at);
 
             if (bots.length === 0) {
@@ -537,7 +537,10 @@ const WorkspaceScreen = ({navigation}: Props) => {
                         switchToChannelById(serverUrl, result.data!.id);
                     }, 300);
                 } else {
-                    Alert.alert('Error', `Failed to create bot channel: ${result.error || 'unknown error'}`);
+                    Alert.alert(
+                        intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Error'}),
+                        intl.formatMessage({id: 'ai_assistant.create_channel_failed', defaultMessage: 'Failed to create bot channel. Please try again.'}),
+                    );
                 }
             };
 
@@ -576,7 +579,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
         } catch (error) {
             Alert.alert(
                 intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
-                intl.formatMessage({id: 'ai_assistant.error_detail', defaultMessage: 'Please try again later.'}) + `\n\n${error}`,
+                intl.formatMessage({id: 'ai_assistant.error_detail', defaultMessage: 'Please try again later.'}),
             );
         }
     }, [serverUrl, intl, theme]);
@@ -614,15 +617,17 @@ const WorkspaceScreen = ({navigation}: Props) => {
 
     // ---- Render: News card ----
     const renderNewsCard = () => (
-        <TouchableOpacity style={styles.wideCard} onPress={handleNewsPress} activeOpacity={0.7} testID='workspace.card.news'>
+        <TouchableOpacity style={styles.wideCard} onPress={newsText ? handleNewsPress : undefined} activeOpacity={newsText ? 0.7 : 1} testID='workspace.card.news'>
             <View style={styles.wideCardHeader}>
                 <CompassIcon name='bullhorn-outline' size={20} color={theme.buttonBg}/>
                 <Text style={styles.wideCardTitle}>
                     {intl.formatMessage({id: 'workspace.card.news', defaultMessage: 'Company News'})}
                 </Text>
-                <Text style={styles.wideCardMore}>
-                    {intl.formatMessage({id: 'workspace.news.view_more', defaultMessage: 'Read more ›'})}
-                </Text>
+                {newsText ? (
+                    <Text style={styles.wideCardMore}>
+                        {intl.formatMessage({id: 'workspace.news.view_more', defaultMessage: 'Read more ›'})}
+                    </Text>
+                ) : null}
             </View>
             {newsText ? (
                 <>
@@ -743,9 +748,9 @@ const WorkspaceScreen = ({navigation}: Props) => {
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']} testID='workspace.screen'>
             <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
+                    {CARDS.map(renderCard)}
                     {renderHotCard()}
                     {renderMessagesCard()}
-                    {CARDS.map(renderCard)}
                     {renderNewsCard()}
                 </View>
             </ScrollView>

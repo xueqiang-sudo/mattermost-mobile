@@ -47,6 +47,10 @@ export const MM_TABLES = {
         THREAD_PARTICIPANT: 'ThreadParticipant',
         TEAM_THREADS_SYNC: 'TeamThreadsSync',
         USER: 'User',
+        CONTACT_DEPARTMENT: 'ContactDepartment',
+        CONTACT_DEPARTMENT_MEMBER: 'ContactDepartmentMember',
+        EMPLOYEE_CONTACT: 'EmployeeContact',
+        CONTACT_SYNC_VERSION: 'ContactSyncVersion',
     },
 };
 
