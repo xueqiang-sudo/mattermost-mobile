@@ -513,12 +513,24 @@ const WorkspaceScreen = ({navigation}: Props) => {
     const handleAIAssistant = useCallback(async () => {
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-            const channelId = await getCurrentChannelId(database);
+
+            // Get a channel in the current team to use for getChannelBots API
+            // (getChannelBots needs a channelId to look up team.BotId)
+            let channelId = await getCurrentChannelId(database);
+            if (!channelId) {
+                // Fallback: find any channel in the current team
+                const teamId = await getCurrentTeamId(database);
+                const channel = await database.get('Channel').query(
+                    Q.where('team_id', teamId),
+                    Q.take(1),
+                ).fetch();
+                channelId = channel[0]?.id || '';
+            }
 
             if (!channelId) {
                 Alert.alert(
                     intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
-                    intl.formatMessage({id: 'ai_assistant.no_channel', defaultMessage: '请先进入一个聊天频道。'}),
+                    intl.formatMessage({id: 'ai_assistant.no_channel', defaultMessage: '当前团队没有可用的频道。'}),
                 );
                 return;
             }
