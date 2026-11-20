@@ -21,6 +21,15 @@ import {
     PurchaseOrdersScreen, WorkOrdersScreen, ProjectsScreen as ErpProjectsScreen,
     StockScreen,
 } from './erp_screens';
+import {
+    CustomerDetailScreen, CustomerFormScreen,
+    SupplierDetailScreen, SupplierFormScreen,
+    SalesOrderDetailScreen, SalesOrderFormScreen,
+    PurchaseOrderDetailScreen,
+    WorkOrderDetailScreen, WorkOrderFormScreen,
+    ProjectDetailScreen,
+    ItemStockScreen,
+} from './erp_screens/detail_and_form_screens';
 import AppWebView from '../apps/app_webview';
 import ApprovalsScreen from '../apps/erp/approvals_screen';
 import FinanceScreen from '../apps/erp/finance_screen';
@@ -155,6 +164,17 @@ const WorkspaceStack = () => {
                 component={StockScreen}
                 options={{title: '库存查询'}}
             />
+            <Stack.Screen name={Screens.ERP_CUSTOMER_DETAIL} component={CustomerDetailScreen} options={{title: '客户详情'}}/>
+            <Stack.Screen name={Screens.ERP_CUSTOMER_FORM} component={CustomerFormScreen} options={{title: '编辑客户'}}/>
+            <Stack.Screen name={Screens.ERP_SUPPLIER_DETAIL} component={SupplierDetailScreen} options={{title: '供应商详情'}}/>
+            <Stack.Screen name={Screens.ERP_SUPPLIER_FORM} component={SupplierFormScreen} options={{title: '编辑供应商'}}/>
+            <Stack.Screen name={Screens.ERP_SALES_ORDER_DETAIL} component={SalesOrderDetailScreen} options={{title: '订单详情'}}/>
+            <Stack.Screen name={Screens.ERP_SALES_ORDER_DETAIL + 'Form'} component={SalesOrderFormScreen} options={{title: '编辑订单'}}/>
+            <Stack.Screen name={Screens.ERP_PURCHASE_ORDER_DETAIL} component={PurchaseOrderDetailScreen} options={{title: '采购单详情'}}/>
+            <Stack.Screen name={Screens.ERP_WORK_ORDER_DETAIL} component={WorkOrderDetailScreen} options={{title: '工单详情'}}/>
+            <Stack.Screen name={Screens.ERP_WORK_ORDER_DETAIL + 'Form'} component={WorkOrderFormScreen} options={{title: '编辑工单'}}/>
+            <Stack.Screen name={Screens.ERP_PROJECT_DETAIL} component={ProjectDetailScreen} options={{title: '项目详情'}}/>
+            <Stack.Screen name={Screens.ERP_ITEM_STOCK} component={ItemStockScreen} options={{title: '库存明细'}}/>
         </Stack.Navigator>
     );
 };

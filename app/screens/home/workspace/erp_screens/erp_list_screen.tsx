@@ -256,7 +256,7 @@ const ErpListScreen = ({
             <TouchableOpacity
                 style={styles.card}
                 activeOpacity={0.7}
-                onPress={() => onItemPress?.(item, {})}
+                onPress={() => onItemPress?.(item, navigation)}
                 onLongPress={canDelete && onDelete ? () => {
                     Alert.alert(
                         intl.formatMessage({id: 'erp.delete_confirm_title', defaultMessage: 'Delete'}),
@@ -352,7 +352,7 @@ const ErpListScreen = ({
                 }
             />
             {canCreate && onCreate && (
-                <TouchableOpacity style={styles.fab} onPress={() => onCreate({})} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.fab} onPress={() => onCreate(navigation)} activeOpacity={0.8}>
                     <CompassIcon name='plus' size={28} color={theme.buttonColor}/>
                 </TouchableOpacity>
             )}

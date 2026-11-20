@@ -10,6 +10,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {addChannelToDefaultCategory} from '@actions/local/category';
 import {makeBotGroupChannel, switchToChannelById} from '@actions/remote/channel';
 import CompassIcon from '@components/compass_icon';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {Navigation, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -17,6 +18,8 @@ import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {bottomSheet} from '@screens/navigation';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -42,7 +45,7 @@ const CARDS: WorkspaceCard[] = [
     {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
     {key: 'todos', icon: 'format-list-bulleted', labelId: 'workspace.card.todos', defaultLabel: '待办', screen: Screens.WORKSPACE_TODOS},
     {key: 'schedules', icon: 'calendar-outline', labelId: 'workspace.card.schedules', defaultLabel: '日程安排', screen: Screens.WORKSPACE_SCHEDULES},
-    {key: 'ai_assistant', icon: 'robot-happy-outline', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI助手'},
+    {key: 'ai_assistant', icon: 'robot-happy', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI助手'},
     {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: '智能笔记'},
 ];
 
@@ -515,11 +518,12 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 return;
             }
 
-            // Check if current team has a bot configured (team.bot_id)
-            const team = await client.doFetch(`/teams/${teamId}`, {method: 'get'});
-            const botId = team?.bot_id;
+            // Query bot users in the current team
+            // Mattermost API: GET /api/v4/users?in_team={teamId} returns users with is_bot field
+            const users = await client.doFetch(`/users?in_team=${teamId}&per_page=200`, {method: 'get'});
+            const bots = (users || []).filter((u: any) => u.is_bot && u.delete_at === 0);
 
-            if (!botId) {
+            if (bots.length === 0) {
                 Alert.alert(
                     intl.formatMessage({id: 'ai_assistant.no_bots', defaultMessage: 'No AI assistants'}),
                     intl.formatMessage({id: 'ai_assistant.no_bots_detail', defaultMessage: '当前团队未配置 AI 助手，请联系管理员。'}),
@@ -527,23 +531,60 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 return;
             }
 
-            // Create bot GM channel and navigate to it
-            const result = await makeBotGroupChannel(serverUrl, botId, teamId);
-            if (result.data) {
-                DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
-                setTimeout(() => {
-                    switchToChannelById(serverUrl, result.data!.id);
-                }, 300);
-            } else {
-                Alert.alert('Error', `Failed to create bot channel: ${result.error || 'unknown error'}`);
+            // If only one bot, directly create GM
+            if (bots.length === 1) {
+                const result = await makeBotGroupChannel(serverUrl, bots[0].id, teamId);
+                if (result.data) {
+                    DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
+                    setTimeout(() => {
+                        switchToChannelById(serverUrl, result.data!.id);
+                    }, 300);
+                } else {
+                    Alert.alert('Error', `Failed to create bot channel: ${result.error || 'unknown error'}`);
+                }
+                return;
             }
+
+            // Multiple bots: show bottom sheet for selection
+            const CLOSE_BUTTON_ID = 'close-bot-selection';
+            const snapPoint = bottomSheetSnapPoint(bots.length, ITEM_HEIGHT);
+
+            const renderContent = () => (
+                <View>
+                    {bots.map((bot: any) => (
+                        <SlideUpPanelItem
+                            key={bot.id}
+                            leftIcon='robot-happy'
+                            onPress={async () => {
+                                const result = await makeBotGroupChannel(serverUrl, bot.id, teamId);
+                                if (result.data) {
+                                    DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
+                                    setTimeout(() => {
+                                        switchToChannelById(serverUrl, result.data!.id);
+                                    }, 300);
+                                }
+                            }}
+                            text={bot.nickname || bot.username}
+                            testID={`bot_selection.${bot.id}`}
+                        />
+                    ))}
+                </View>
+            );
+
+            bottomSheet({
+                closeButtonId: CLOSE_BUTTON_ID,
+                title: intl.formatMessage({id: 'ai_assistant.select_bot', defaultMessage: 'Select AI Assistant'}),
+                snapPoints: [1, snapPoint],
+                renderContent,
+                theme,
+            });
         } catch (error) {
             Alert.alert(
                 intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
                 String(error),
             );
         }
-    }, [serverUrl, intl]);
+    }, [serverUrl, intl, theme]);
 
     const handleCardPress = useCallback((card: WorkspaceCard) => {
         if (card.key === 'notebook') {
