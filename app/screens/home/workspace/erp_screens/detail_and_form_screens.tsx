@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
+import {useIntl} from 'react-intl';
 
 import {
     fetchCustomerDetail, fetchCustomerOrders,
@@ -19,7 +20,6 @@ import {
 
 import ErpDetailScreen from './erp_detail_screen';
 import ErpFormScreen from './erp_form_screen';
-import ErpListScreen from './erp_list_screen';
 
 const formatDate = (val: any) => {
     if (!val) {return '-';}
@@ -36,252 +36,283 @@ const formatMoney = (val: any, item?: any) => {
 
 // ─── Customer Detail ───
 
-export const CustomerDetailScreen = (props: any) => (
-    <ErpDetailScreen
-        {...props}
-        fetchDetailFn={fetchCustomerDetail}
-        fields={[
-            {key: 'customer_name', label: '客户名称'},
-            {key: 'customer_type', label: '类型'},
-            {key: 'customer_group', label: '分组'},
-            {key: 'territory', label: '区域'},
-            {key: 'customer_primary_contact', label: '联系人'},
-            {key: 'customer_primary_address', label: '地址'},
-            {key: 'industry', label: '行业'},
-            {key: 'modified', label: '更新时间', format: formatDate},
-        ]}
-        subLists={[{
-            title: '历史订单',
-            fetchFn: fetchCustomerOrders,
-            fields: [
-                {key: 'name', label: '订单号'},
-                {key: 'grand_total', label: '金额', format: formatMoney},
-                {key: 'transaction_date', label: '日期', format: formatDate},
-                {key: 'status', label: '状态'},
-                {key: 'delivery_status', label: '发货'},
-            ],
-        }]}
-        canEdit={true}
-        editScreen='ErpCustomerForm'
-        canDelete={true}
-        deleteFn={deleteCustomer}
-    />
-);
+export const CustomerDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            fetchDetailFn={fetchCustomerDetail}
+            fields={[
+                {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer_name', defaultMessage: 'Customer Name'})},
+                {key: 'customer_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'})},
+                {key: 'customer_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
+                {key: 'territory', label: intl.formatMessage({id: 'erp.field.territory', defaultMessage: 'Territory'})},
+                {key: 'customer_primary_contact', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
+                {key: 'customer_primary_address', label: intl.formatMessage({id: 'erp.field.address', defaultMessage: 'Address'})},
+                {key: 'industry', label: intl.formatMessage({id: 'erp.field.industry', defaultMessage: 'Industry'})},
+                {key: 'modified', label: intl.formatMessage({id: 'erp.field.updated', defaultMessage: 'Updated'}), format: formatDate},
+            ]}
+            subLists={[{
+                title: intl.formatMessage({id: 'erp.sublist.order_history', defaultMessage: 'Order History'}),
+                fetchFn: fetchCustomerOrders,
+                fields: [
+                    {key: 'name', label: intl.formatMessage({id: 'erp.field.order_no', defaultMessage: 'Order No.'})},
+                    {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
+                    {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                    {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                    {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery', defaultMessage: 'Delivery'})},
+                ],
+            }]}
+            canEdit={true}
+            editScreen='ErpCustomerForm'
+            canDelete={true}
+            deleteFn={deleteCustomer}
+        />
+    );
+};
 
 // ─── Customer Form ───
 
-export const CustomerFormScreen = (props: any) => (
-    <ErpFormScreen
-        {...props}
-        title='客户'
-        fields={[
-            {key: 'customer_name', label: '客户名称', required: true, placeholder: '输入客户名称'},
-            {key: 'customer_type', label: '类型', type: 'select', required: true, defaultValue: 'Company', options: [
-                {label: '公司', value: 'Company'},
-                {label: '个人', value: 'Individual'},
-                {label: '合伙', value: 'Partnership'},
-            ]},
-            {key: 'customer_group', label: '分组', placeholder: '如：Commercial, Individual, Non Profit'},
-            {key: 'territory', label: '区域', placeholder: '如：China, All Territories'},
-        ]}
-        createFn={createCustomer}
-        updateFn={updateCustomer}
-    />
-);
+export const CustomerFormScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpFormScreen
+            {...props}
+            title={intl.formatMessage({id: 'erp.form.customer', defaultMessage: 'Customer'})}
+            fields={[
+                {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer_name', defaultMessage: 'Customer Name'}), required: true, placeholder: intl.formatMessage({id: 'erp.placeholder.customer_name', defaultMessage: 'Enter customer name'})},
+                {key: 'customer_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'}), type: 'select', required: true, defaultValue: 'Company', options: [
+                    {label: intl.formatMessage({id: 'erp.type.company', defaultMessage: 'Company'}), value: 'Company'},
+                    {label: intl.formatMessage({id: 'erp.type.individual', defaultMessage: 'Individual'}), value: 'Individual'},
+                    {label: intl.formatMessage({id: 'erp.type.partnership', defaultMessage: 'Partnership'}), value: 'Partnership'},
+                ]},
+                {key: 'customer_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'}), placeholder: intl.formatMessage({id: 'erp.placeholder.group', defaultMessage: 'e.g. Commercial, Individual'})},
+                {key: 'territory', label: intl.formatMessage({id: 'erp.field.territory', defaultMessage: 'Territory'}), placeholder: intl.formatMessage({id: 'erp.placeholder.territory', defaultMessage: 'e.g. China, All Territories'})},
+            ]}
+            createFn={createCustomer}
+            updateFn={updateCustomer}
+        />
+    );
+};
 
 // ─── Supplier Detail ───
 
-export const SupplierDetailScreen = (props: any) => (
-    <ErpDetailScreen
-        {...props}
-        fetchDetailFn={fetchSupplierDetail}
-        fields={[
-            {key: 'supplier_name', label: '供应商名称'},
-            {key: 'supplier_type', label: '类型'},
-            {key: 'supplier_group', label: '分组'},
-            {key: 'supplier_primary_contact', label: '联系人'},
-            {key: 'modified', label: '更新时间', format: formatDate},
-        ]}
-        subLists={[{
-            title: '采购订单',
-            fetchFn: fetchSupplierOrders,
-            fields: [
-                {key: 'name', label: '订单号'},
-                {key: 'grand_total', label: '金额', format: formatMoney},
-                {key: 'transaction_date', label: '日期', format: formatDate},
-                {key: 'status', label: '状态'},
-            ],
-        }]}
-        canEdit={true}
-        editScreen='ErpSupplierForm'
-        canDelete={true}
-        deleteFn={deleteSupplier}
-    />
-);
+export const SupplierDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            fetchDetailFn={fetchSupplierDetail}
+            fields={[
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier_name', defaultMessage: 'Supplier Name'})},
+                {key: 'supplier_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'})},
+                {key: 'supplier_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
+                {key: 'supplier_primary_contact', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
+                {key: 'modified', label: intl.formatMessage({id: 'erp.field.updated', defaultMessage: 'Updated'}), format: formatDate},
+            ]}
+            subLists={[{
+                title: intl.formatMessage({id: 'erp.sublist.purchase_orders', defaultMessage: 'Purchase Orders'}),
+                fetchFn: fetchSupplierOrders,
+                fields: [
+                    {key: 'name', label: intl.formatMessage({id: 'erp.field.order_no', defaultMessage: 'Order No.'})},
+                    {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
+                    {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                    {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                ],
+            }]}
+            canEdit={true}
+            editScreen='ErpSupplierForm'
+            canDelete={true}
+            deleteFn={deleteSupplier}
+        />
+    );
+};
 
 // ─── Supplier Form ───
 
-export const SupplierFormScreen = (props: any) => (
-    <ErpFormScreen
-        {...props}
-        title='供应商'
-        fields={[
-            {key: 'supplier_name', label: '供应商名称', required: true, placeholder: '输入供应商名称'},
-            {key: 'supplier_type', label: '类型', type: 'select', required: true, defaultValue: 'Company', options: [
-                {label: '公司', value: 'Company'},
-                {label: '个人', value: 'Individual'},
-                {label: '合伙', value: 'Partnership'},
-            ]},
-            {key: 'supplier_group', label: '分组', placeholder: '如：Raw Material, Services'},
-        ]}
-        createFn={createSupplier}
-        updateFn={updateSupplier}
-    />
-);
+export const SupplierFormScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpFormScreen
+            {...props}
+            title={intl.formatMessage({id: 'erp.form.supplier', defaultMessage: 'Supplier'})}
+            fields={[
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier_name', defaultMessage: 'Supplier Name'}), required: true, placeholder: intl.formatMessage({id: 'erp.placeholder.supplier_name', defaultMessage: 'Enter supplier name'})},
+                {key: 'supplier_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'}), type: 'select', required: true, defaultValue: 'Company', options: [
+                    {label: intl.formatMessage({id: 'erp.type.company', defaultMessage: 'Company'}), value: 'Company'},
+                    {label: intl.formatMessage({id: 'erp.type.individual', defaultMessage: 'Individual'}), value: 'Individual'},
+                    {label: intl.formatMessage({id: 'erp.type.partnership', defaultMessage: 'Partnership'}), value: 'Partnership'},
+                ]},
+                {key: 'supplier_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'}), placeholder: intl.formatMessage({id: 'erp.placeholder.group', defaultMessage: 'e.g. Raw Material, Services'})},
+            ]}
+            createFn={createSupplier}
+            updateFn={updateSupplier}
+        />
+    );
+};
 
 // ─── Sales Order Detail ───
 
-export const SalesOrderDetailScreen = (props: any) => (
-    <ErpDetailScreen
-        {...props}
-        fetchDetailFn={fetchSalesOrderDetail}
-        fields={[
-            {key: 'customer_name', label: '客户'},
-            {key: 'transaction_date', label: '下单日期', format: formatDate},
-            {key: 'delivery_date', label: '交货日期', format: formatDate},
-            {key: 'grand_total', label: '总金额', format: formatMoney},
-            {key: 'status', label: '状态'},
-            {key: 'delivery_status', label: '发货状态'},
-            {key: 'billing_status', label: '开票状态'},
-            {key: 'contact_person', label: '联系人'},
-            {key: 'contact_mobile', label: '电话'},
-            {key: 'customer_address', label: '地址'},
-        ]}
-        canEdit={true}
-        editScreen='ErpSalesOrderDetailForm'
-        canDelete={true}
-        deleteFn={deleteSalesOrder}
-    />
-);
+export const SalesOrderDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            fetchDetailFn={fetchSalesOrderDetail}
+            fields={[
+                {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer', defaultMessage: 'Customer'})},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.order_date', defaultMessage: 'Order Date'}), format: formatDate},
+                {key: 'delivery_date', label: intl.formatMessage({id: 'erp.field.delivery_date', defaultMessage: 'Delivery Date'}), format: formatDate},
+                {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.total', defaultMessage: 'Total'}), format: formatMoney},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery_status', defaultMessage: 'Delivery Status'})},
+                {key: 'billing_status', label: intl.formatMessage({id: 'erp.field.billing_status', defaultMessage: 'Billing Status'})},
+                {key: 'contact_person', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
+                {key: 'contact_mobile', label: intl.formatMessage({id: 'erp.field.phone', defaultMessage: 'Phone'})},
+                {key: 'customer_address', label: intl.formatMessage({id: 'erp.field.address', defaultMessage: 'Address'})},
+            ]}
+            canEdit={true}
+            editScreen='ErpSalesOrderDetailForm'
+            canDelete={true}
+            deleteFn={deleteSalesOrder}
+        />
+    );
+};
 
 // ─── Sales Order Form ───
 
-export const SalesOrderFormScreen = (props: any) => (
-    <ErpFormScreen
-        {...props}
-        title='销售订单'
-        fields={[
-            {key: 'customer', label: '客户', required: true, placeholder: '输入客户名称'},
-            {key: 'transaction_date', label: '下单日期', required: true, placeholder: 'YYYY-MM-DD'},
-            {key: 'delivery_date', label: '交货日期', placeholder: 'YYYY-MM-DD'},
-            {key: 'order_type', label: '类型', type: 'select', defaultValue: 'Sales', options: [
-                {label: '销售', value: 'Sales'},
-                {label: '维护', value: 'Maintenance'},
-            ]},
-        ]}
-        createFn={createSalesOrder}
-        updateFn={updateSalesOrder}
-    />
-);
+export const SalesOrderFormScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpFormScreen
+            {...props}
+            title={intl.formatMessage({id: 'erp.form.sales_order', defaultMessage: 'Sales Order'})}
+            fields={[
+                {key: 'customer', label: intl.formatMessage({id: 'erp.field.customer', defaultMessage: 'Customer'}), required: true, placeholder: intl.formatMessage({id: 'erp.placeholder.customer_name', defaultMessage: 'Enter customer name'})},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.order_date', defaultMessage: 'Order Date'}), required: true, placeholder: 'YYYY-MM-DD'},
+                {key: 'delivery_date', label: intl.formatMessage({id: 'erp.field.delivery_date', defaultMessage: 'Delivery Date'}), placeholder: 'YYYY-MM-DD'},
+                {key: 'order_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'}), type: 'select', defaultValue: 'Sales', options: [
+                    {label: intl.formatMessage({id: 'erp.type.sales', defaultMessage: 'Sales'}), value: 'Sales'},
+                    {label: intl.formatMessage({id: 'erp.type.maintenance', defaultMessage: 'Maintenance'}), value: 'Maintenance'},
+                ]},
+            ]}
+            createFn={createSalesOrder}
+            updateFn={updateSalesOrder}
+        />
+    );
+};
 
 // ─── Purchase Order Detail ───
 
-export const PurchaseOrderDetailScreen = (props: any) => (
-    <ErpDetailScreen
-        {...props}
-        fetchDetailFn={fetchPurchaseOrderDetail}
-        fields={[
-            {key: 'supplier_name', label: '供应商'},
-            {key: 'transaction_date', label: '下单日期', format: formatDate},
-            {key: 'schedule_date', label: '计划到货', format: formatDate},
-            {key: 'grand_total', label: '总金额', format: formatMoney},
-            {key: 'status', label: '状态'},
-            {key: 'contact_person', label: '联系人'},
-            {key: 'contact_mobile', label: '电话'},
-        ]}
-    />
-);
+export const PurchaseOrderDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            fetchDetailFn={fetchPurchaseOrderDetail}
+            fields={[
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier', defaultMessage: 'Supplier'})},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.order_date', defaultMessage: 'Order Date'}), format: formatDate},
+                {key: 'schedule_date', label: intl.formatMessage({id: 'erp.field.schedule_date', defaultMessage: 'Expected Arrival'}), format: formatDate},
+                {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.total', defaultMessage: 'Total'}), format: formatMoney},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'contact_person', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
+                {key: 'contact_mobile', label: intl.formatMessage({id: 'erp.field.phone', defaultMessage: 'Phone'})},
+            ]}
+        />
+    );
+};
 
 // ─── Work Order Detail ───
 
-export const WorkOrderDetailScreen = (props: any) => (
-    <ErpDetailScreen
-        {...props}
-        fetchDetailFn={fetchWorkOrderDetail}
-        fields={[
-            {key: 'production_item', label: '产品'},
-            {key: 'bom_no', label: 'BOM'},
-            {key: 'qty', label: '计划数量'},
-            {key: 'produced_qty', label: '已完成'},
-            {key: 'status', label: '状态'},
-            {key: 'planned_start_date', label: '计划开始', format: formatDate},
-            {key: 'planned_end_date', label: '计划结束', format: formatDate},
-            {key: 'actual_start_date', label: '实际开始', format: formatDate},
-            {key: 'actual_end_date', label: '实际结束', format: formatDate},
-            {key: 'sales_order', label: '销售订单'},
-            {key: 'wip_warehouse', label: '在制品仓'},
-            {key: 'fg_warehouse', label: '成品仓'},
-        ]}
-        canEdit={true}
-        editScreen='ErpWorkOrderDetailForm'
-    />
-);
+export const WorkOrderDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            fetchDetailFn={fetchWorkOrderDetail}
+            fields={[
+                {key: 'production_item', label: intl.formatMessage({id: 'erp.field.product', defaultMessage: 'Product'})},
+                {key: 'bom_no', label: intl.formatMessage({id: 'erp.field.bom', defaultMessage: 'BOM'})},
+                {key: 'qty', label: intl.formatMessage({id: 'erp.field.planned_qty', defaultMessage: 'Planned Qty'})},
+                {key: 'produced_qty', label: intl.formatMessage({id: 'erp.field.produced_qty', defaultMessage: 'Produced Qty'})},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'planned_start_date', label: intl.formatMessage({id: 'erp.field.planned_start', defaultMessage: 'Planned Start'}), format: formatDate},
+                {key: 'planned_end_date', label: intl.formatMessage({id: 'erp.field.planned_end', defaultMessage: 'Planned End'}), format: formatDate},
+                {key: 'actual_start_date', label: intl.formatMessage({id: 'erp.field.actual_start', defaultMessage: 'Actual Start'}), format: formatDate},
+                {key: 'actual_end_date', label: intl.formatMessage({id: 'erp.field.actual_end', defaultMessage: 'Actual End'}), format: formatDate},
+                {key: 'sales_order', label: intl.formatMessage({id: 'erp.field.sales_order', defaultMessage: 'Sales Order'})},
+                {key: 'wip_warehouse', label: intl.formatMessage({id: 'erp.field.wip_warehouse', defaultMessage: 'WIP Warehouse'})},
+                {key: 'fg_warehouse', label: intl.formatMessage({id: 'erp.field.fg_warehouse', defaultMessage: 'Finished Goods Warehouse'})},
+            ]}
+            canEdit={true}
+            editScreen='ErpWorkOrderDetailForm'
+        />
+    );
+};
 
 // ─── Work Order Form ───
 
-export const WorkOrderFormScreen = (props: any) => (
-    <ErpFormScreen
-        {...props}
-        title='生产工单'
-        fields={[
-            {key: 'production_item', label: '产品', required: true, placeholder: '输入物品编码'},
-            {key: 'bom_no', label: 'BOM 编号', required: true, placeholder: '输入 BOM 编号'},
-            {key: 'qty', label: '数量', type: 'number', required: true, placeholder: '输入生产数量'},
-            {key: 'planned_start_date', label: '计划开始', required: true, placeholder: 'YYYY-MM-DD HH:MM'},
-            {key: 'wip_warehouse', label: '在制品仓', placeholder: '仓库名称'},
-            {key: 'fg_warehouse', label: '成品仓', placeholder: '仓库名称'},
-        ]}
-        createFn={createWorkOrder}
-        updateFn={updateWorkOrder}
-    />
-);
+export const WorkOrderFormScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpFormScreen
+            {...props}
+            title={intl.formatMessage({id: 'erp.form.work_order', defaultMessage: 'Work Order'})}
+            fields={[
+                {key: 'production_item', label: intl.formatMessage({id: 'erp.field.product', defaultMessage: 'Product'}), required: true, placeholder: intl.formatMessage({id: 'erp.placeholder.item_code', defaultMessage: 'Enter item code'})},
+                {key: 'bom_no', label: intl.formatMessage({id: 'erp.field.bom', defaultMessage: 'BOM'}), required: true, placeholder: intl.formatMessage({id: 'erp.placeholder.bom_no', defaultMessage: 'Enter BOM number'})},
+                {key: 'qty', label: intl.formatMessage({id: 'erp.field.quantity', defaultMessage: 'Quantity'}), type: 'number', required: true, placeholder: intl.formatMessage({id: 'erp.placeholder.qty', defaultMessage: 'Enter quantity'})},
+                {key: 'planned_start_date', label: intl.formatMessage({id: 'erp.field.planned_start', defaultMessage: 'Planned Start'}), required: true, placeholder: 'YYYY-MM-DD HH:MM'},
+                {key: 'wip_warehouse', label: intl.formatMessage({id: 'erp.field.wip_warehouse', defaultMessage: 'WIP Warehouse'}), placeholder: intl.formatMessage({id: 'erp.placeholder.warehouse', defaultMessage: 'Warehouse name'})},
+                {key: 'fg_warehouse', label: intl.formatMessage({id: 'erp.field.fg_warehouse', defaultMessage: 'Finished Goods Warehouse'}), placeholder: intl.formatMessage({id: 'erp.placeholder.warehouse', defaultMessage: 'Warehouse name'})},
+            ]}
+            createFn={createWorkOrder}
+            updateFn={updateWorkOrder}
+        />
+    );
+};
 
 // ─── Project Detail ───
 
-export const ProjectDetailScreen = (props: any) => (
-    <ErpDetailScreen
-        {...props}
-        fetchDetailFn={fetchProjectDetail}
-        fields={[
-            {key: 'project_name', label: '项目名称'},
-            {key: 'status', label: '状态'},
-            {key: 'percent_complete', label: '进度', format: (val: any) => val != null ? `${val}%` : '-'},
-            {key: 'priority', label: '优先级'},
-            {key: 'expected_start_date', label: '计划开始', format: formatDate},
-            {key: 'expected_end_date', label: '计划结束', format: formatDate},
-            {key: 'actual_start_date', label: '实际开始', format: formatDate},
-            {key: 'actual_end_date', label: '实际结束', format: formatDate},
-            {key: 'customer', label: '客户'},
-            {key: 'department', label: '部门'},
-            {key: 'estimated_costing', label: '预算'},
-        ]}
-        subLists={[{
-            title: '任务列表',
-            fetchFn: fetchProjectTasks,
-            fields: [
-                {key: 'subject', label: '任务'},
-                {key: 'status', label: '状态'},
-                {key: 'progress', label: '进度', format: (val: any) => val != null ? `${val}%` : '-'},
-                {key: 'priority', label: '优先级'},
-                {key: 'exp_end_date', label: '截止', format: formatDate},
-            ],
-        }]}
-    />
-);
+export const ProjectDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            fetchDetailFn={fetchProjectDetail}
+            fields={[
+                {key: 'project_name', label: intl.formatMessage({id: 'erp.field.project_name', defaultMessage: 'Project Name'})},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'percent_complete', label: intl.formatMessage({id: 'erp.field.progress', defaultMessage: 'Progress'}), format: (val: any) => val != null ? `${val}%` : '-'},
+                {key: 'priority', label: intl.formatMessage({id: 'erp.field.priority', defaultMessage: 'Priority'})},
+                {key: 'expected_start_date', label: intl.formatMessage({id: 'erp.field.planned_start', defaultMessage: 'Planned Start'}), format: formatDate},
+                {key: 'expected_end_date', label: intl.formatMessage({id: 'erp.field.planned_end', defaultMessage: 'Planned End'}), format: formatDate},
+                {key: 'actual_start_date', label: intl.formatMessage({id: 'erp.field.actual_start', defaultMessage: 'Actual Start'}), format: formatDate},
+                {key: 'actual_end_date', label: intl.formatMessage({id: 'erp.field.actual_end', defaultMessage: 'Actual End'}), format: formatDate},
+                {key: 'customer', label: intl.formatMessage({id: 'erp.field.customer', defaultMessage: 'Customer'})},
+                {key: 'department', label: intl.formatMessage({id: 'erp.field.department', defaultMessage: 'Department'})},
+                {key: 'estimated_costing', label: intl.formatMessage({id: 'erp.field.budget', defaultMessage: 'Budget'})},
+            ]}
+            subLists={[{
+                title: intl.formatMessage({id: 'erp.sublist.tasks', defaultMessage: 'Tasks'}),
+                fetchFn: fetchProjectTasks,
+                fields: [
+                    {key: 'subject', label: intl.formatMessage({id: 'erp.field.task', defaultMessage: 'Task'})},
+                    {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                    {key: 'progress', label: intl.formatMessage({id: 'erp.field.progress', defaultMessage: 'Progress'}), format: (val: any) => val != null ? `${val}%` : '-'},
+                    {key: 'priority', label: intl.formatMessage({id: 'erp.field.priority', defaultMessage: 'Priority'})},
+                    {key: 'exp_end_date', label: intl.formatMessage({id: 'erp.field.deadline', defaultMessage: 'Deadline'}), format: formatDate},
+                ],
+            }]}
+        />
+    );
+};
 
 // ─── Item Stock Detail ───
 
 export const ItemStockScreen = (props: any) => {
+    const intl = useIntl();
     const {itemCode, itemName} = props.route.params;
 
     const fetchItemStock = async (serverUrl: string, _name: string) => {
@@ -292,23 +323,23 @@ export const ItemStockScreen = (props: any) => {
         <ErpDetailScreen
             {...props}
             route={{params: {name: itemCode}}}
-            fetchDetailFn={async (serverUrl: string) => ({
+            fetchDetailFn={async () => ({
                 name: itemCode,
                 item_name: itemName,
                 item_code: itemCode,
             })}
             fields={[
-                {key: 'item_name', label: '物品名称'},
-                {key: 'item_code', label: '物品编码'},
+                {key: 'item_name', label: intl.formatMessage({id: 'erp.field.item_name', defaultMessage: 'Item Name'})},
+                {key: 'item_code', label: intl.formatMessage({id: 'erp.field.item_code', defaultMessage: 'Item Code'})},
             ]}
             subLists={[{
-                title: '各仓库库存',
+                title: intl.formatMessage({id: 'erp.sublist.warehouse_stock', defaultMessage: 'Stock by Warehouse'}),
                 fetchFn: fetchItemStock,
                 fields: [
-                    {key: 'warehouse', label: '仓库'},
-                    {key: 'actual_qty', label: '实际库存', format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
-                    {key: 'reserved_qty', label: '预留', format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
-                    {key: 'projected_qty', label: '预计', format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
+                    {key: 'warehouse', label: intl.formatMessage({id: 'erp.field.warehouse', defaultMessage: 'Warehouse'})},
+                    {key: 'actual_qty', label: intl.formatMessage({id: 'erp.field.actual_qty', defaultMessage: 'Actual Qty'}), format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
+                    {key: 'reserved_qty', label: intl.formatMessage({id: 'erp.field.reserved_qty', defaultMessage: 'Reserved'}), format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
+                    {key: 'projected_qty', label: intl.formatMessage({id: 'erp.field.projected_qty', defaultMessage: 'Projected'}), format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
                 ],
             }]}
         />

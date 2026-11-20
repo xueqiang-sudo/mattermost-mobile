@@ -41,13 +41,13 @@ type WorkspaceCard = {
 
 const CARDS: WorkspaceCard[] = [
     {key: 'erp', icon: 'chart-bar', labelId: 'workspace.card.erp', defaultLabel: 'ERP', screen: Screens.WORKSPACE_ERP_MODULES},
-    {key: 'mes', icon: 'calendar-outline', labelId: 'workspace.card.mes', defaultLabel: '排产', screen: Screens.APPS_MES},
-    {key: 'orders', icon: 'file-text-outline', labelId: 'workspace.card.orders', defaultLabel: '我的订单', screen: Screens.WORKSPACE_ORDERS},
-    {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
-    {key: 'todos', icon: 'format-list-bulleted', labelId: 'workspace.card.todos', defaultLabel: '待办', screen: Screens.WORKSPACE_TODOS},
-    {key: 'schedules', icon: 'calendar-outline', labelId: 'workspace.card.schedules', defaultLabel: '日程安排', screen: Screens.WORKSPACE_SCHEDULES},
-    {key: 'ai_assistant', icon: 'robot-happy', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI助手'},
-    {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: '智能笔记'},
+    {key: 'mes', icon: 'calendar-outline', labelId: 'workspace.card.mes', defaultLabel: 'Scheduling', screen: Screens.APPS_MES},
+    {key: 'orders', icon: 'file-text-outline', labelId: 'workspace.card.orders', defaultLabel: 'My Orders', screen: Screens.WORKSPACE_ORDERS},
+    {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: 'Approvals', screen: Screens.APPS_APPROVALS},
+    {key: 'todos', icon: 'format-list-bulleted', labelId: 'workspace.card.todos', defaultLabel: 'Todos', screen: Screens.WORKSPACE_TODOS},
+    {key: 'schedules', icon: 'calendar-outline', labelId: 'workspace.card.schedules', defaultLabel: 'Schedules', screen: Screens.WORKSPACE_SCHEDULES},
+    {key: 'ai_assistant', icon: 'robot-happy', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI Assistant'},
+    {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: 'Smart Notebook'},
 ];
 
 type RecentMessage = {
@@ -270,24 +270,24 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
 
 const RANK_COLORS = ['#E8A735', '#9CA3AF', '#CD7F32'];
 
-function formatMoney(value: number): string {
+function formatMoney(value: number, intl: ReturnType<typeof useIntl>): string {
     const abs = Math.abs(value || 0);
     if (abs >= 10000) {
-        return `¥${(abs / 10000).toFixed(1)}万`;
+        return intl.formatMessage({id: 'workspace.money.wan', defaultMessage: '¥{value}w'}, {value: (abs / 10000).toFixed(1)});
     }
     return `¥${abs.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
 }
 
-function formatTimeAgo(ts: number): string {
+function formatTimeAgo(ts: number, intl: ReturnType<typeof useIntl>): string {
     const now = Date.now();
     const diff = now - ts;
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) {return '刚刚';}
-    if (mins < 60) {return `${mins}分钟前`;}
+    if (mins < 1) {return intl.formatMessage({id: 'workspace.time.just_now', defaultMessage: 'Just now'});}
+    if (mins < 60) {return intl.formatMessage({id: 'workspace.time.mins_ago', defaultMessage: '{mins}m ago'}, {mins});}
     const hours = Math.floor(mins / 60);
-    if (hours < 24) {return `${hours}小时前`;}
+    if (hours < 24) {return intl.formatMessage({id: 'workspace.time.hours_ago', defaultMessage: '{hours}h ago'}, {hours});}
     const days = Math.floor(hours / 24);
-    if (days < 7) {return `${days}天前`;}
+    if (days < 7) {return intl.formatMessage({id: 'workspace.time.days_ago', defaultMessage: '{days}d ago'}, {days});}
     const d = new Date(ts);
     return `${d.getMonth() + 1}/${d.getDate()}`;
 }
@@ -450,11 +450,11 @@ const WorkspaceScreen = ({navigation}: Props) => {
         try {
             const displayName = intl.formatMessage({
                 id: 'apps.smart_notebook.display_name',
-                defaultMessage: '智能笔记本',
+                defaultMessage: 'Smart Notebook',
             });
             const welcomeMessage = intl.formatMessage({
                 id: 'apps.smart_notebook.welcome',
-                defaultMessage: '欢迎使用智能笔记本！在这里记录你的想法和笔记。',
+                defaultMessage: 'Welcome to Smart Notebook! Record your ideas and notes here.',
             });
             const channel = await getOrCreateSmartNotebookChannel(serverUrl, displayName, welcomeMessage);
             if (channel?.id) {
@@ -526,7 +526,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
             if (bots.length === 0) {
                 Alert.alert(
                     intl.formatMessage({id: 'ai_assistant.no_bots', defaultMessage: 'No AI assistants'}),
-                    intl.formatMessage({id: 'ai_assistant.no_bots_detail', defaultMessage: '当前团队未配置 AI 助手，请联系管理员。'}),
+                    intl.formatMessage({id: 'ai_assistant.no_bots_detail', defaultMessage: 'No AI assistants configured for this team. Please contact your administrator.'}),
                 );
                 return;
             }
@@ -620,10 +620,10 @@ const WorkspaceScreen = ({navigation}: Props) => {
             <View style={styles.wideCardHeader}>
                 <CompassIcon name='bullhorn-outline' size={20} color={theme.buttonBg}/>
                 <Text style={styles.wideCardTitle}>
-                    {intl.formatMessage({id: 'workspace.card.news', defaultMessage: '公司动态'})}
+                    {intl.formatMessage({id: 'workspace.card.news', defaultMessage: 'Company News'})}
                 </Text>
                 <Text style={styles.wideCardMore}>
-                    {intl.formatMessage({id: 'workspace.news.view_more', defaultMessage: '全文 ›'})}
+                    {intl.formatMessage({id: 'workspace.news.view_more', defaultMessage: 'Read more ›'})}
                 </Text>
             </View>
             {newsText ? (
@@ -633,7 +633,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 </>
             ) : (
                 <Text style={styles.newsEmpty}>
-                    {intl.formatMessage({id: 'workspace.news.empty_short', defaultMessage: '暂无公告'})}
+                    {intl.formatMessage({id: 'workspace.news.empty_short', defaultMessage: 'No announcements'})}
                 </Text>
             )}
         </TouchableOpacity>
@@ -645,15 +645,15 @@ const WorkspaceScreen = ({navigation}: Props) => {
             <View style={styles.wideCardHeader}>
                 <CompassIcon name='fire' size={20} color={theme.buttonBg}/>
                 <Text style={styles.wideCardTitle}>
-                    {intl.formatMessage({id: 'workspace.card.hot_products', defaultMessage: '热销品'})}
+                    {intl.formatMessage({id: 'workspace.card.hot_products', defaultMessage: 'Hot Products'})}
                 </Text>
                 <Text style={styles.wideCardMore}>
-                    {intl.formatMessage({id: 'workspace.hot.view_more', defaultMessage: '更多 ›'})}
+                    {intl.formatMessage({id: 'workspace.hot.view_more', defaultMessage: 'More ›'})}
                 </Text>
             </View>
             {hotProducts.length === 0 ? (
                 <Text style={styles.hotEmpty}>
-                    {intl.formatMessage({id: 'workspace.hot.empty', defaultMessage: '暂无热销数据'})}
+                    {intl.formatMessage({id: 'workspace.hot.empty', defaultMessage: 'No hot product data'})}
                 </Text>
             ) : (
                 visibleHot.map((p, i) => {
@@ -666,7 +666,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
                             </View>
                             <Text style={styles.hotName} numberOfLines={1}>{p.item_name}</Text>
                             <Text style={styles.hotQty}>{p.total_qty}{p.uom || ''}</Text>
-                            <Text style={styles.hotAmount}>{formatMoney(p.total_amount)}</Text>
+                            <Text style={styles.hotAmount}>{formatMoney(p.total_amount, intl)}</Text>
                         </View>
                     );
                 })
@@ -680,12 +680,12 @@ const WorkspaceScreen = ({navigation}: Props) => {
             <View style={styles.wideCardHeader}>
                 <CompassIcon name='message-text-outline' size={20} color={theme.buttonBg}/>
                 <Text style={styles.wideCardTitle}>
-                    {intl.formatMessage({id: 'workspace.card.messages', defaultMessage: '消息'})}
+                    {intl.formatMessage({id: 'workspace.card.messages', defaultMessage: 'Messages'})}
                 </Text>
             </View>
             {recentMessages.length === 0 ? (
                 <Text style={styles.msgEmpty}>
-                    {intl.formatMessage({id: 'workspace.messages.empty', defaultMessage: '暂无新消息'})}
+                    {intl.formatMessage({id: 'workspace.messages.empty', defaultMessage: 'No new messages'})}
                 </Text>
             ) : (
                 <ScrollView style={styles.msgScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
@@ -704,7 +704,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
                                 <View style={styles.msgContent}>
                                     <View style={styles.msgTop}>
                                         <Text style={styles.msgChannel} numberOfLines={1}>{msg.channelName}</Text>
-                                        <Text style={styles.msgTime}>{formatTimeAgo(msg.createAt)}</Text>
+                                        <Text style={styles.msgTime}>{formatTimeAgo(msg.createAt, intl)}</Text>
                                     </View>
                                     <Text style={styles.msgSender}>{msg.senderName}</Text>
                                     <Text style={styles.msgText} numberOfLines={2}>{msg.message}</Text>

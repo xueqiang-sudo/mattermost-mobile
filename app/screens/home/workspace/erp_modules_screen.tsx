@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -17,18 +17,19 @@ import type {StackNavigationProp} from '@react-navigation/stack';
 type Module = {
     key: string;
     icon: string;
-    label: string;
+    labelId: string;
+    defaultLabel: string;
     screen: string;
 };
 
 const MODULES: Module[] = [
-    {key: 'customers', icon: 'account-multiple-outline', label: '客户管理', screen: Screens.ERP_CUSTOMERS},
-    {key: 'suppliers', icon: 'truck-delivery-outline', label: '供应商管理', screen: Screens.ERP_SUPPLIERS},
-    {key: 'sales_orders', icon: 'cart-outline', label: '销售订单', screen: Screens.ERP_SALES_ORDERS},
-    {key: 'purchase_orders', icon: 'clipboard-text-outline', label: '采购订单', screen: Screens.ERP_PURCHASE_ORDERS},
-    {key: 'work_orders', icon: 'cog-outline', label: '生产管理', screen: Screens.ERP_WORK_ORDERS},
-    {key: 'projects', icon: 'folder-outline', label: '项目管理', screen: Screens.ERP_PROJECTS},
-    {key: 'stock', icon: 'package-variant-closed', label: '库存查询', screen: Screens.ERP_STOCK},
+    {key: 'customers', icon: 'account-multiple-outline', labelId: 'erp.module.customers', defaultLabel: 'Customers', screen: Screens.ERP_CUSTOMERS},
+    {key: 'suppliers', icon: 'truck-delivery-outline', labelId: 'erp.module.suppliers', defaultLabel: 'Suppliers', screen: Screens.ERP_SUPPLIERS},
+    {key: 'sales_orders', icon: 'cart-outline', labelId: 'erp.module.sales_orders', defaultLabel: 'Sales Orders', screen: Screens.ERP_SALES_ORDERS},
+    {key: 'purchase_orders', icon: 'clipboard-text-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS},
+    {key: 'work_orders', icon: 'cog-outline', labelId: 'erp.module.work_orders', defaultLabel: 'Manufacturing', screen: Screens.ERP_WORK_ORDERS},
+    {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS},
+    {key: 'stock', icon: 'package-variant-closed', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK},
 ];
 
 const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -74,6 +75,11 @@ const ErpModulesScreen = ({navigation}: Props) => {
     const theme = useTheme();
     const styles = getStyles(theme);
 
+    const modules = useMemo(() => MODULES.map((m) => ({
+        ...m,
+        label: intl.formatMessage({id: m.labelId, defaultMessage: m.defaultLabel}),
+    })), [intl]);
+
     const handleModulePress = useCallback((module: Module) => {
         navigation.navigate(module.screen);
     }, [navigation]);
@@ -82,7 +88,7 @@ const ErpModulesScreen = ({navigation}: Props) => {
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
             <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
-                    {MODULES.map((module) => (
+                    {modules.map((module) => (
                         <TouchableOpacity
                             key={module.key}
                             style={styles.card}
