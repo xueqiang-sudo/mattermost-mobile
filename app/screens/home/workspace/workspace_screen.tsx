@@ -8,16 +8,17 @@ import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacit
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {addChannelToDefaultCategory} from '@actions/local/category';
-import {makeBotGroupChannel, switchToChannelById} from '@actions/remote/channel';
+import {switchToChannelById} from '@actions/remote/channel';
 import CompassIcon from '@components/compass_icon';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import {Navigation, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
-import {getCurrentTeamId} from '@queries/servers/system';
+import {getCurrentChannelId, getCurrentTeamId} from '@queries/servers/system';
 import {bottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -512,16 +513,18 @@ const WorkspaceScreen = ({navigation}: Props) => {
     const handleAIAssistant = useCallback(async () => {
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-            const client = NetworkManager.getClient(serverUrl);
-            const teamId = await getCurrentTeamId(database);
-            if (!teamId) {
+            const channelId = await getCurrentChannelId(database);
+
+            if (!channelId) {
+                Alert.alert(
+                    intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
+                    intl.formatMessage({id: 'ai_assistant.no_channel', defaultMessage: '请先进入一个聊天频道。'}),
+                );
                 return;
             }
 
-            // Query bot users in the current team
-            // Mattermost API: GET /api/v4/users?in_team={teamId} returns users with is_bot field
-            const users = await client.doFetch(`/users?in_team=${teamId}&per_page=200`, {method: 'get'});
-            const bots = (users || []).filter((u: any) => u.is_bot && u.delete_at === 0);
+            // Same API as chat window AI assistant: GET /channels/{channelId}/bots
+            const bots = await getChannelBots(serverUrl, channelId);
 
             if (bots.length === 0) {
                 Alert.alert(
@@ -531,9 +534,8 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 return;
             }
 
-            // If only one bot, directly create GM
-            if (bots.length === 1) {
-                const result = await makeBotGroupChannel(serverUrl, bots[0].id, teamId);
+            const openBotChat = async (bot: {botId: string; label: string; teamId: string}) => {
+                const result = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
                 if (result.data) {
                     DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
                     setTimeout(() => {
@@ -542,6 +544,10 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 } else {
                     Alert.alert('Error', `Failed to create bot channel: ${result.error || 'unknown error'}`);
                 }
+            };
+
+            if (bots.length === 1) {
+                await openBotChat(bots[0]);
                 return;
             }
 
@@ -551,21 +557,15 @@ const WorkspaceScreen = ({navigation}: Props) => {
 
             const renderContent = () => (
                 <View>
-                    {bots.map((bot: any) => (
+                    {bots.map((bot) => (
                         <SlideUpPanelItem
-                            key={bot.id}
+                            key={bot.botId}
                             leftIcon='robot-happy'
                             onPress={async () => {
-                                const result = await makeBotGroupChannel(serverUrl, bot.id, teamId);
-                                if (result.data) {
-                                    DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
-                                    setTimeout(() => {
-                                        switchToChannelById(serverUrl, result.data!.id);
-                                    }, 300);
-                                }
+                                await openBotChat(bot);
                             }}
-                            text={bot.nickname || bot.username}
-                            testID={`bot_selection.${bot.id}`}
+                            text={bot.label}
+                            testID={`bot_selection.${bot.botId}`}
                         />
                     ))}
                 </View>
@@ -581,7 +581,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
         } catch (error) {
             Alert.alert(
                 intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
-                String(error),
+                intl.formatMessage({id: 'ai_assistant.error_detail', defaultMessage: 'Please try again later.'}) + `\n\n${error}`,
             );
         }
     }, [serverUrl, intl, theme]);
