@@ -11,14 +11,14 @@ import {addChannelToDefaultCategory} from '@actions/local/category';
 import {switchToChannelById} from '@actions/remote/channel';
 import CompassIcon from '@components/compass_icon';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
-import {getChannelBots, openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
+import {openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
 import {Navigation, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
-import {getCurrentChannelId, getCurrentTeamId} from '@queries/servers/system';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {bottomSheet} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -513,30 +513,22 @@ const WorkspaceScreen = ({navigation}: Props) => {
     const handleAIAssistant = useCallback(async () => {
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
-            // Get a channel in the current team to use for getChannelBots API
-            // (getChannelBots needs a channelId to look up team.BotId)
-            let channelId = await getCurrentChannelId(database);
-            if (!channelId) {
-                // Fallback: find any channel in the current team
-                const teamId = await getCurrentTeamId(database);
-                const channel = await database.get('Channel').query(
-                    Q.where('team_id', teamId),
-                    Q.take(1),
-                ).fetch();
-                channelId = channel[0]?.id || '';
-            }
-
-            if (!channelId) {
-                Alert.alert(
-                    intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
-                    intl.formatMessage({id: 'ai_assistant.no_channel', defaultMessage: '当前团队没有可用的频道。'}),
-                );
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
                 return;
             }
 
-            // Same API as chat window AI assistant: GET /channels/{channelId}/bots
-            const bots = await getChannelBots(serverUrl, channelId);
+            // Query bot users in the current team from local database
+            const members = await database.get('TeamMembership').query(
+                Q.where('team_id', teamId),
+            ).fetch();
+            const memberIds = members.map((m: any) => m.userId);
+
+            const bots = await database.get('User').query(
+                Q.where('id', Q.oneOf(memberIds)),
+                Q.where('is_bot', true),
+                Q.where('delete_at', 0),
+            ).fetch();
 
             if (bots.length === 0) {
                 Alert.alert(
@@ -546,8 +538,8 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 return;
             }
 
-            const openBotChat = async (bot: {botId: string; label: string; teamId: string}) => {
-                const result = await openDirectChannelWithBot(serverUrl, bot.botId, bot.teamId);
+            const openBotChat = async (botUserId: string) => {
+                const result = await openDirectChannelWithBot(serverUrl, botUserId, teamId);
                 if (result.data) {
                     DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
                     setTimeout(() => {
@@ -559,7 +551,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
             };
 
             if (bots.length === 1) {
-                await openBotChat(bots[0]);
+                await openBotChat(bots[0].id);
                 return;
             }
 
@@ -569,15 +561,15 @@ const WorkspaceScreen = ({navigation}: Props) => {
 
             const renderContent = () => (
                 <View>
-                    {bots.map((bot) => (
+                    {bots.map((bot: any) => (
                         <SlideUpPanelItem
-                            key={bot.botId}
+                            key={bot.id}
                             leftIcon='robot-happy'
                             onPress={async () => {
-                                await openBotChat(bot);
+                                await openBotChat(bot.id);
                             }}
-                            text={bot.label}
-                            testID={`bot_selection.${bot.botId}`}
+                            text={bot.nickname || bot.username}
+                            testID={`bot_selection.${bot.id}`}
                         />
                     ))}
                 </View>
