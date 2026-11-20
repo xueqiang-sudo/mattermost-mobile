@@ -4,17 +4,17 @@
 import {Q} from '@nozbe/watermelondb';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {addChannelToDefaultCategory} from '@actions/local/category';
-import {switchToChannelById} from '@actions/remote/channel';
+import {makeBotGroupChannel, switchToChannelById} from '@actions/remote/channel';
 import CompassIcon from '@components/compass_icon';
 import {Navigation, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
-import {NetworkManager} from '@managers/network_manager';
+import NetworkManager from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -41,6 +41,8 @@ const CARDS: WorkspaceCard[] = [
     {key: 'orders', icon: 'file-text-outline', labelId: 'workspace.card.orders', defaultLabel: '我的订单', screen: Screens.WORKSPACE_ORDERS},
     {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: '审批', screen: Screens.APPS_APPROVALS},
     {key: 'todos', icon: 'format-list-bulleted', labelId: 'workspace.card.todos', defaultLabel: '待办', screen: Screens.WORKSPACE_TODOS},
+    {key: 'schedules', icon: 'calendar-outline', labelId: 'workspace.card.schedules', defaultLabel: '日程安排', screen: Screens.WORKSPACE_SCHEDULES},
+    {key: 'ai_assistant', icon: 'robot-happy-outline', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI助手'},
     {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: '智能笔记'},
 ];
 
@@ -504,13 +506,54 @@ const WorkspaceScreen = ({navigation}: Props) => {
         } catch { /* silently handle */ }
     }, [serverUrl, intl]);
 
+    const handleAIAssistant = useCallback(async () => {
+        try {
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const client = NetworkManager.getClient(serverUrl);
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
+                return;
+            }
+
+            // Check if current team has a bot configured (team.bot_id)
+            const team = await client.doFetch(`/teams/${teamId}`, {method: 'get'});
+            const botId = team?.bot_id;
+
+            if (!botId) {
+                Alert.alert(
+                    intl.formatMessage({id: 'ai_assistant.no_bots', defaultMessage: 'No AI assistants'}),
+                    intl.formatMessage({id: 'ai_assistant.no_bots_detail', defaultMessage: '当前团队未配置 AI 助手，请联系管理员。'}),
+                );
+                return;
+            }
+
+            // Create bot GM channel and navigate to it
+            const result = await makeBotGroupChannel(serverUrl, botId, teamId);
+            if (result.data) {
+                DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
+                setTimeout(() => {
+                    switchToChannelById(serverUrl, result.data!.id);
+                }, 300);
+            } else {
+                Alert.alert('Error', `Failed to create bot channel: ${result.error || 'unknown error'}`);
+            }
+        } catch (error) {
+            Alert.alert(
+                intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
+                String(error),
+            );
+        }
+    }, [serverUrl, intl]);
+
     const handleCardPress = useCallback((card: WorkspaceCard) => {
         if (card.key === 'notebook') {
             handleSmartNotebook();
+        } else if (card.key === 'ai_assistant') {
+            handleAIAssistant();
         } else if (card.screen) {
             navigation.navigate(card.screen);
         }
-    }, [navigation, handleSmartNotebook]);
+    }, [navigation, handleSmartNotebook, handleAIAssistant]);
 
     const handleNewsPress = useCallback(() => {
         navigation.navigate(Screens.WORKSPACE_NEWS);

@@ -7,7 +7,7 @@ import {Freeze} from 'react-freeze';
 import {Alert} from 'react-native';
 import {useIntl} from 'react-intl';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
-import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {logout} from '@actions/remote/session';
 import QrcodeSvg from '@assets/images/svgs/qrcode.svg';
@@ -19,7 +19,8 @@ import {useTheme} from '@context/theme';
 import {usePreventDoubleTap} from '@hooks/utils';
 import {alertServerLogout} from '@utils/server';
 import {goToScreen} from '@screens/navigation';
-import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {changeOpacity, getChatListBackdropColor, makeStyleSheetFromTheme} from '@utils/theme';
+import {useDefaultHeaderHeight} from '@hooks/header';
 import {typography} from '@utils/typography';
 import {formatFullName} from '@utils/display_name';
 import {useUserLocale} from '@context/user_locale';
@@ -112,6 +113,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 const MeScreen = ({currentUser}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
+    const insets = useSafeAreaInsets();
+    const headerHeight = useDefaultHeaderHeight();
     const serverUrl = useServerUrl();
     const serverDisplayName = useServerDisplayName();
     const locale = useUserLocale();
@@ -194,9 +197,14 @@ const MeScreen = ({currentUser}: Props) => {
         <Freeze freeze={!isFocused}>
             <SafeAreaView
                 edges={edges}
-                style={styles.flex}
+                style={[styles.flex, {backgroundColor: getChatListBackdropColor(theme)}]}
                 testID='me.screen'
             >
+                <View style={{height: headerHeight, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8, backgroundColor: getChatListBackdropColor(theme)}}>
+                    <Text style={{color: theme.centerChannelColor, fontSize: 17, fontWeight: '600'}}>
+                        {intl.formatMessage({id: 'tab_bar.me.label', defaultMessage: '我的'})}
+                    </Text>
+                </View>
                 <ScrollView
                     style={styles.flex}
                     contentContainerStyle={styles.scrollContent}

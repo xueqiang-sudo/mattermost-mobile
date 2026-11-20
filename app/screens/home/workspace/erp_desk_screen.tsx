@@ -138,6 +138,19 @@ const ErpDeskScreen = ({navigation}: Props) => {
                     debugLog('[ERP]', `Server error: ${data.error}`);
                     setError(data.error === 'no_token' ? 'no_token' : data.error);
                 } else {
+                    // Pre-authenticate: call ERP login API to establish session cookie
+                    // WebView's sharedCookiesEnabled will then use this cookie for all requests
+                    const erpBase = 'https://erp.optibot.cn:8443';
+                    if (data.api_key && data.api_secret) {
+                        try {
+                            const loginResp = await fetch(`${erpBase}/api/method/frappe.auth.get_logged_user`, {
+                                headers: {Authorization: `token ${data.api_key}:${data.api_secret}`},
+                            });
+                            debugLog('[ERP]', `Pre-auth status: ${loginResp.status}`);
+                        } catch (authErr: any) {
+                            debugLog('[ERP]', `Pre-auth failed: ${authErr?.message || authErr}`);
+                        }
+                    }
                     setCredentials(data);
                 }
             } catch (e: any) {
@@ -183,15 +196,13 @@ const ErpDeskScreen = ({navigation}: Props) => {
         setWebviewError('Load failed');
     }, []);
 
-    // Build ERP URL
-    const erpUrl = credentials?.erp_url || 'https://erp.optibot.cn:8443';
-    const deskUrl = erpUrl.replace(/\/$/, '') + '/desk';
+    // Always use HTTPS ERP address (backend config may still have old HTTP URL)
+    // Aligned with webapp: erp_desk_tab.tsx line 244
+    const erpUrl = 'https://erp.optibot.cn:8443';
+    const deskUrl = erpUrl + '/desk';
 
-    // Build auth headers for Frappe/ERPNext token auth
-    const authHeaders: Record<string, string> = {};
-    if (credentials?.api_key && credentials?.api_secret) {
-        authHeaders.Authorization = `token ${credentials.api_key}:${credentials.api_secret}`;
-    }
+    // Auth is handled via pre-auth cookie (sharedCookiesEnabled)
+    // No need to pass headers to WebView source
 
     // Loading state
     if (loading) {
@@ -285,7 +296,7 @@ const ErpDeskScreen = ({navigation}: Props) => {
                 <WebView
                     key={`erp-webview-${reloadKey}`}
                     ref={webviewRef}
-                    source={{uri: deskUrl, headers: authHeaders}}
+                    source={{uri: deskUrl}}
                     style={styles.webview}
                     onLoadStart={() => setWebviewLoading(true)}
                     onLoadEnd={handleLoadEnd}

@@ -10,6 +10,7 @@ import {getChatListBackdropColor} from '@utils/theme';
 
 import CompanyNewsScreen from './company_news_screen';
 import ErpDeskScreen from './erp_desk_screen';
+import SchedulesScreen from './schedules_screen';
 import OrdersScreen from './orders_screen';
 import ProjectsScreen from './projects_screen';
 import TodosScreen from './todos_screen';
@@ -67,6 +68,11 @@ const WorkspaceStack = () => {
                 name={Screens.WORKSPACE_NEWS}
                 component={CompanyNewsScreen}
                 options={{title: '公司动态'}}
+            />
+            <Stack.Screen
+                name={Screens.WORKSPACE_SCHEDULES}
+                component={SchedulesScreen}
+                options={{title: '日程安排'}}
             />
             <Stack.Screen
                 name={Screens.APPS_WEBVIEW}

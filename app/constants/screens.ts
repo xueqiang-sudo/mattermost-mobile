@@ -124,6 +124,7 @@ export const WORKSPACE_ORDERS = 'WorkspaceOrders';
 export const WORKSPACE_PROJECTS = 'WorkspaceProjects';
 export const WORKSPACE_TODOS = 'WorkspaceTodos';
 export const WORKSPACE_NEWS = 'WorkspaceNews';
+export const WORKSPACE_SCHEDULES = 'WorkspaceSchedules';
 export const WORKSPACE_ERP = 'WorkspaceERP';
 export const WORKSPACE_ERP_DESK = 'WorkspaceErpDesk';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
@@ -305,6 +306,7 @@ export default {
     WORKSPACE_PROJECTS,
     WORKSPACE_TODOS,
     WORKSPACE_NEWS,
+    WORKSPACE_SCHEDULES,
     WORKSPACE_ERP,
     WORKSPACE_ERP_DESK,
     INTEGRATION_SELECTOR,

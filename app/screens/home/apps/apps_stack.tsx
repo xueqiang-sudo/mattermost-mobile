@@ -78,7 +78,7 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.KB_DETAIL} component={KbDetailScreen} options={{title: '文档详情'}}/>
                 <Stack.Screen name={Screens.KB_ADD} component={KbAddScreen} options={{title: '新建文档'}}/>
                 <Stack.Screen name={Screens.KB_EDIT} component={KbEditScreen} options={{title: '编辑文档'}}/>
-                <Stack.Screen name={Screens.APPS_MES} component={MesScreen} options={{headerShown: false}}/>
+                <Stack.Screen name={Screens.APPS_MES} component={MesScreen} options={{title: '排产'}}/>
                 <Stack.Screen name={Screens.APPS_NOTEBOOK} component={NotebookScreen} options={{title: '记事本'}}/>
                 <Stack.Screen name={Screens.NOTE_DETAIL} component={NoteDetailScreen} options={{title: '笔记详情'}}/>
                 <Stack.Screen name={Screens.NOTE_ADD} component={NoteAddScreen} options={{title: '新建笔记'}}/>

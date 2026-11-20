@@ -951,6 +951,20 @@ const MesScreen = () => {
         loadData();
     }, [loadData]);
 
+    // Update native header: refresh button + dynamic title for form overlay
+    useEffect(() => {
+        navigation.setOptions({
+            title: showForm
+                ? (editingPlanId >= 0 ? '编辑计划' : '新增计划')
+                : '排产',
+            headerRight: () => (
+                <TouchableOpacity onPress={showForm ? undefined : loadData} style={{paddingRight: 12}}>
+                    {showForm ? null : <CompassIcon name='refresh' size={22} color={theme.centerChannelColor}/>}
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, showForm, editingPlanId, loadData, theme.centerChannelColor]);
+
     // Filtered data
     const filteredPlans = useMemo(() => {
         if (!filterDate) return plans;
@@ -1215,10 +1229,7 @@ const MesScreen = () => {
 
     if (loading) {
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <Text style={style.headerTitle}>{intl.formatMessage({id: 'mes.title', defaultMessage: 'MES'})}</Text>
-                </View>
+            <SafeAreaView edges={['bottom']} style={style.container}>
                 <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                     <ActivityIndicator size='large' color={theme.centerChannelColor}/>
                 </View>
@@ -1241,16 +1252,7 @@ const MesScreen = () => {
             : {line_id: '', positions: '', current_product: '', spec: '150/36', start_time: getNowLocalStr(), planned_end_time: getNowLocalStr(), schedule: '', remarks: ''};
 
         return (
-            <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-                <View style={style.header}>
-                    <TouchableOpacity style={style.refreshBtn} onPress={() => { setShowForm(false); setEditingPlanId(-1); }}>
-                        <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                    <Text style={style.headerTitle}>
-                        {editingPlanId >= 0 ? intl.formatMessage({id: 'mes.edit_plan', defaultMessage: '编辑计划'}) : intl.formatMessage({id: 'mes.add_plan', defaultMessage: '新增计划'})}
-                    </Text>
-                    <View style={style.refreshBtn}/>
-                </View>
+            <SafeAreaView edges={['bottom']} style={style.container}>
                 <PlanForm
                     initial={initialForm}
                     lines={lines}
@@ -1266,18 +1268,7 @@ const MesScreen = () => {
     // ---- Main render ----
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={style.container}>
-            {/* Header */}
-            <View style={style.header}>
-                <TouchableOpacity style={style.refreshBtn} onPress={() => navigation.goBack()}>
-                    <CompassIcon name='arrow-left' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-                <Text style={style.headerTitle}>{intl.formatMessage({id: 'mes.title', defaultMessage: 'MES'})}</Text>
-                <TouchableOpacity style={style.refreshBtn} onPress={loadData}>
-                    <CompassIcon name='refresh' size={20} color={theme.sidebarText}/>
-                </TouchableOpacity>
-            </View>
-
+        <SafeAreaView edges={['bottom']} style={style.container}>
             {/* Tab bar */}
             <View style={style.tabBar}>
                 {mesPerms.canViewPlan && (
