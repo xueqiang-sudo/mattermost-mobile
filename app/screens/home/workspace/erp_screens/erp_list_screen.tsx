@@ -191,6 +191,8 @@ function getStatusColor(status: string, theme: Theme): string {
 }
 
 const ErpListScreen = ({
+    navigation,
+    title,
     fetchFn,
     fields,
     tabs,

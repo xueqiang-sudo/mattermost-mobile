@@ -37,6 +37,7 @@ type SubListConfig = {
 type ErpDetailScreenProps = {
     navigation: StackNavigationProp<any>;
     route: {params: {name: string}};
+    title?: string;
     fetchDetailFn: (serverUrl: string, name: string) => Promise<any>;
     fields: DetailField[];
     subLists?: SubListConfig[];
@@ -194,6 +195,7 @@ const STATUS_COLORS: Record<string, string> = {
 const ErpDetailScreen = ({
     navigation,
     route,
+    title,
     fetchDetailFn,
     fields,
     subLists,
