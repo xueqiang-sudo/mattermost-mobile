@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -207,6 +207,10 @@ const ApprovalsScreen = () => {
     const intl = useIntl();
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'workspace.approvals.title', defaultMessage: 'Approvals'})});
+    }, [navigation, intl]);
 
     const [approvals, setApprovals] = useState<Approval[]>([]);
     const [loading, setLoading] = useState(true);

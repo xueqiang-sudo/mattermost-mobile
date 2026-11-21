@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -161,6 +161,10 @@ const TodosScreen = () => {
     const navigation = useNavigation();
     const styles = getStyles(theme);
 
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'workspace.todos.title', defaultMessage: 'To-Do'})});
+    }, [navigation, intl]);
+
     const [todos, setTodos] = useState<UserTodo[]>([]);
     const [loading, setLoading] = useState(true);
     const [teamId, setTeamId] = useState('');
@@ -226,7 +230,7 @@ const TodosScreen = () => {
             } else {
                 Alert.alert(
                     intl.formatMessage({id: 'workspace.todos.error', defaultMessage: 'Error'}),
-                    result.error || 'Update failed',
+                    result.error || intl.formatMessage({id: 'workspace.todos.update_failed', defaultMessage: 'Update failed'}),
                 );
             }
         } catch (e: any) {
@@ -261,7 +265,7 @@ const TodosScreen = () => {
                             } else {
                                 Alert.alert(
                                     intl.formatMessage({id: 'workspace.todos.error', defaultMessage: 'Error'}),
-                                    result.error || 'Delete failed',
+                                    result.error || intl.formatMessage({id: 'workspace.todos.delete_failed', defaultMessage: 'Delete failed'}),
                                 );
                             }
                         } catch (e: any) {

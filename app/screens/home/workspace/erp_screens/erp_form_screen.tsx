@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useLayoutEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     Alert,
@@ -128,6 +128,10 @@ const ErpFormScreen = ({
         return initial;
     });
     const [submitting, setSubmitting] = useState(false);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title});
+    }, [navigation, title]);
 
     const handleChange = useCallback((key: string, value: string) => {
         setForm((prev) => ({...prev, [key]: value}));

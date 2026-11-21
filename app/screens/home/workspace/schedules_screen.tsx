@@ -1,7 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import {useNavigation} from '@react-navigation/native';
+import React, {useCallback, useEffect, useLayoutEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -150,7 +151,12 @@ const SchedulesScreen = () => {
     const intl = useIntl();
     const theme = useTheme();
     const serverUrl = useServerUrl();
+    const navigation = useNavigation();
     const styles = getStyles(theme);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'workspace.schedules.title', defaultMessage: 'Schedules'})});
+    }, [navigation, intl]);
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [loading, setLoading] = useState(true);
@@ -208,7 +214,10 @@ const SchedulesScreen = () => {
                             );
                             setSchedules((prev) => prev.filter((s) => s.id !== schedule.id));
                         } catch (e: any) {
-                            Alert.alert('Error', e?.message || String(e));
+                            Alert.alert(
+                                intl.formatMessage({id: 'schedules.error', defaultMessage: 'Error'}),
+                                e?.message || String(e),
+                            );
                         }
                     },
                 },

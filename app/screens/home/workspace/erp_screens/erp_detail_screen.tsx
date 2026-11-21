@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -213,6 +213,10 @@ const ErpDetailScreen = ({
     const [subData, setSubData] = useState<Record<string, any[]>>({});
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title});
+    }, [navigation, title]);
 
     const loadData = useCallback(async () => {
         try {

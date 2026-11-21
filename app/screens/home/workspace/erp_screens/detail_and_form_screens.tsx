@@ -41,6 +41,7 @@ export const CustomerDetailScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.customer', defaultMessage: 'Customer Detail'})}
             fetchDetailFn={fetchCustomerDetail}
             fields={[
                 {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer_name', defaultMessage: 'Customer Name'})},
@@ -102,6 +103,7 @@ export const SupplierDetailScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.supplier', defaultMessage: 'Supplier Detail'})}
             fetchDetailFn={fetchSupplierDetail}
             fields={[
                 {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier_name', defaultMessage: 'Supplier Name'})},
@@ -158,6 +160,7 @@ export const SalesOrderDetailScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.sales_order', defaultMessage: 'Order Detail'})}
             fetchDetailFn={fetchSalesOrderDetail}
             fields={[
                 {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer', defaultMessage: 'Customer'})},
@@ -209,6 +212,7 @@ export const PurchaseOrderDetailScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.purchase_order', defaultMessage: 'PO Detail'})}
             fetchDetailFn={fetchPurchaseOrderDetail}
             fields={[
                 {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier', defaultMessage: 'Supplier'})},
@@ -230,6 +234,7 @@ export const WorkOrderDetailScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.work_order', defaultMessage: 'Work Order Detail'})}
             fetchDetailFn={fetchWorkOrderDetail}
             fields={[
                 {key: 'production_item', label: intl.formatMessage({id: 'erp.field.product', defaultMessage: 'Product'})},
@@ -280,6 +285,7 @@ export const ProjectDetailScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.project', defaultMessage: 'Project Detail'})}
             fetchDetailFn={fetchProjectDetail}
             fields={[
                 {key: 'project_name', label: intl.formatMessage({id: 'erp.field.project_name', defaultMessage: 'Project Name'})},
@@ -322,6 +328,7 @@ export const ItemStockScreen = (props: any) => {
     return (
         <ErpDetailScreen
             {...props}
+            title={intl.formatMessage({id: 'erp.detail.stock', defaultMessage: 'Stock Detail'})}
             route={{params: {name: itemCode}}}
             fetchDetailFn={async () => ({
                 name: itemCode,
