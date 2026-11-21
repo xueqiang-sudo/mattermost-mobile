@@ -35,13 +35,9 @@ async function erpFetch(serverUrl: string, path: string, options: RequestInit = 
 // ─── Generic CRUD ───
 
 export async function erpList(serverUrl: string, doctype: string, fields: string[], filters: any[][] = [], limit = 50, offset = 0): Promise<any[]> {
-    const params = new URLSearchParams();
-    params.set('fields', JSON.stringify(fields));
-    params.set('filters', JSON.stringify(filters));
-    params.set('limit_start', String(offset));
-    params.set('limit_page_length', String(limit));
-    params.set('order_by', 'modified desc');
-    const path = `/api/resource/${doctype}?${params.toString()}`;
+    const fieldsJson = JSON.stringify(fields);
+    const filtersJson = JSON.stringify(filters);
+    const path = `/api/resource/${doctype}?fields=${fieldsJson}&filters=${filtersJson}&limit_start=${offset}&limit_page_length=${limit}&order_by=modified desc`;
     const data = await erpFetch(serverUrl, path, {method: 'get'});
     return data?.data || [];
 }
@@ -78,10 +74,8 @@ export async function erpDelete(serverUrl: string, doctype: string, name: string
 }
 
 export async function erpCount(serverUrl: string, doctype: string, filters: any[][] = []): Promise<number> {
-    const params = new URLSearchParams();
-    params.set('fields', JSON.stringify(['count(*) as count']));
-    params.set('filters', JSON.stringify(filters));
-    const path = `/api/resource/${doctype}?${params.toString()}`;
+    const filtersJson = JSON.stringify(filters);
+    const path = `/api/resource/${doctype}?fields=["count(*) as count"]&filters=${filtersJson}`;
     const data = await erpFetch(serverUrl, path, {method: 'get'});
     return data?.data?.[0]?.count || 0;
 }
