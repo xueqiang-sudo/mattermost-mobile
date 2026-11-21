@@ -94,17 +94,17 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         flex: 1,
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 16,
         justifyContent: 'space-between',
         alignContent: 'flex-start',
     },
     card: {
-        width: '31%',
-        aspectRatio: 1,
+        width: '48%',
+        aspectRatio: 0.85,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 8,
+        paddingVertical: 20,
+        paddingHorizontal: 12,
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
@@ -125,7 +125,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     cardLabel: {
         color: theme.centerChannelColor,
-        ...typography('Body', 75, 'SemiBold'),
+        ...typography('Body', 200, 'SemiBold'),
         textAlign: 'center',
     },
     cardSubtitle: {
@@ -532,7 +532,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}
             >
-                <CompassIcon name={card.icon} size={32} color={theme.buttonBg} style={styles.cardIcon}/>
+                <CompassIcon name={card.icon} size={40} color={theme.buttonBg} style={styles.cardIcon}/>
                 <Text style={styles.cardLabel} numberOfLines={2}>
                     {label}
                     {showBadge ? ` (${approvalCount})` : ''}

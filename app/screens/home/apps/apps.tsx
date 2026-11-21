@@ -6,7 +6,7 @@ import {type StackNavigationProp} from '@react-navigation/stack';
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Dimensions, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -66,31 +66,29 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingBottom: 32,
     },
     gridContainer: {
+        flex: 1,
         paddingHorizontal: 16,
         paddingTop: 8,
     },
-    sectionHeader: {
-        ...typography('Body', 75, 'SemiBold'),
-        color: changeOpacity(theme.centerChannelColor, 0.48),
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    sectionCard: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.03),
-        borderRadius: 12,
-        paddingVertical: 8,
-        paddingHorizontal: 4,
-        marginBottom: 16,
-    },
     sectionGrid: {
+        flex: 1,
         flexDirection: 'row',
         flexWrap: 'wrap',
+        gap: 16,
+        justifyContent: 'space-between',
+        alignContent: 'flex-start',
     },
     appCard: {
-        width: (Dimensions.get('window').width - 48) / 3,
+        width: '48%',
+        aspectRatio: 0.85,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+        borderRadius: 12,
+        paddingVertical: 20,
+        paddingHorizontal: 12,
         alignItems: 'center',
-        paddingVertical: 16,
-        marginBottom: 8,
+        justifyContent: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     appIconContainer: {
         width: 56,
@@ -98,10 +96,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 8,
+        marginBottom: 12,
     },
     appLabel: {
-        ...typography('Body', 75),
+        ...typography('Body', 200, 'SemiBold'),
         color: theme.centerChannelColor,
         textAlign: 'center',
     },
