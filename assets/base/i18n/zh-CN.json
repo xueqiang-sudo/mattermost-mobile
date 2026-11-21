@@ -3131,5 +3131,20 @@
   "invite.success": "成功",
   "invite.user_added": "用户已添加到企业。",
   "invite.add_failed": "添加用户失败",
-  "invite.add_failed_message": "请重试。"
+  "invite.add_failed_message": "请重试。",
+  "apps.my_suppliers": "我的供应商",
+  "apps.my_suppliers.title": "您的供应商 ({count})",
+  "apps.my_suppliers.contact": "联系人：{name}",
+  "apps.my_suppliers.orders": "个订单",
+  "apps.my_suppliers.projects": "个项目",
+  "apps.my_suppliers.empty": "暂无供应商",
+  "supplier_detail.tab_orders": "订单",
+  "supplier_detail.tab_projects": "项目",
+  "supplier_detail.amount": "金额",
+  "supplier_detail.status": "状态",
+  "supplier_detail.date": "日期",
+  "supplier_detail.progress": "进度",
+  "supplier_detail.end_date": "截止日期",
+  "supplier_detail.empty_orders": "暂无订单",
+  "supplier_detail.empty_projects": "暂无项目"
 }

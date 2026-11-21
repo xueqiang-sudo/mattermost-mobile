@@ -59,6 +59,7 @@ export const APPS: AppDef[] = [
     {key: 'schedules', labelId: 'workspace.card.schedules', defaultLabel: '日程安排', iconName: 'calendar-outline', erpOnly: false, noPermission: true},
     {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询', iconName: 'forum-outline', erpOnly: false, noPermission: false},
     {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '邀请统计', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},
+    {key: 'my_suppliers', labelId: 'apps.my_suppliers', defaultLabel: '我的供应商', iconName: 'truck-delivery-outline', erpOnly: false, noPermission: true},
     // ERP-only apps
     {key: 'stock_out', labelId: 'warehouse_inout.outbound', defaultLabel: '出库', iconName: 'export-variant', erpOnly: true, noPermission: false},
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: '生产管理', iconName: 'monitor', erpOnly: true, noPermission: false},
@@ -1103,4 +1104,67 @@ export async function fetchUserTodos(serverUrl: string, teamId?: string): Promis
     }
 
     return todos;
+}
+
+// ─── My Suppliers API ───
+
+export type SupplierInfo = {
+    team_id: string;
+    team_name: string;
+    contact_name: string;
+    contact_position: string;
+    order_count: number;
+    project_count: number;
+};
+
+export async function checkErpSuppliers(serverUrl: string): Promise<boolean> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const result = await client.doFetch(
+            '/plugins/com.mattermost.frappe-sync/api/my-suppliers/check',
+            {method: 'GET'},
+        );
+        return result?.has_suppliers || false;
+    } catch {
+        return false;
+    }
+}
+
+export async function fetchMySuppliers(serverUrl: string): Promise<SupplierInfo[]> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const result = await client.doFetch(
+            '/plugins/com.mattermost.frappe-sync/api/my-suppliers',
+            {method: 'GET'},
+        );
+        return Object.values(result?.suppliers || {});
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchSupplierOrders(serverUrl: string, teamId: string): Promise<any[]> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const result = await client.doFetch(
+            `/plugins/com.mattermost.frappe-sync/api/my-suppliers/${teamId}/orders`,
+            {method: 'GET'},
+        );
+        return result?.data || [];
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchSupplierProjects(serverUrl: string, teamId: string): Promise<any[]> {
+    try {
+        const client = NetworkManager.getClient(serverUrl);
+        const result = await client.doFetch(
+            `/plugins/com.mattermost.frappe-sync/api/my-suppliers/${teamId}/projects`,
+            {method: 'GET'},
+        );
+        return result?.data || [];
+    } catch {
+        return [];
+    }
 }

@@ -30,7 +30,7 @@ import {typography} from '@utils/typography';
 import {isSystemAdmin} from '@utils/user';
 
 import {type AppsStackParamList} from './apps_stack_param_list';
-import {APPS, getDashboardAccess, type AppDef, type DashboardAccess} from './api';
+import {APPS, checkErpSuppliers, getDashboardAccess, type AppDef, type DashboardAccess} from './api';
 import {getOrCreateSmartNotebookChannel} from './smart_notebook/smart_notebook_api';
 
 import type TeamModel from '@typings/database/models/servers/team';
@@ -156,6 +156,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const [dashboardAccess, setDashboardAccess] = useState<DashboardAccess | null>(null);
     const [loading, setLoading] = useState(true);
     const [homeReappearTick, setHomeReappearTick] = useState(0);
+    const [hasErpSuppliers, setHasErpSuppliers] = useState(false);
 
     const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
     const isErpTeam = useMemo(() => Boolean(dashboardAccess?.erp_address), [dashboardAccess]);
@@ -194,6 +195,20 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         loadDashboardAccess();
     }, [loadDashboardAccess, homeReappearTick]);
 
+    // Check if user has ERP suppliers (external contacts in ERP teams)
+    useEffect(() => {
+        const checkSuppliers = async () => {
+            if (!serverUrl) {return;}
+            try {
+                const hasSuppliers = await checkErpSuppliers(serverUrl);
+                setHasErpSuppliers(hasSuppliers);
+            } catch {
+                setHasErpSuppliers(false);
+            }
+        };
+        checkSuppliers();
+    }, [serverUrl]);
+
     const visibleApps = useMemo(() => {
         if (!dashboardAccess) {
             return [];
@@ -226,6 +241,10 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             if (app.key === 'role_management') {
                 return isTeamAdmin || isSysAdmin;
             }
+            // My Suppliers: only show if user has ERP external contacts
+            if (app.key === 'my_suppliers') {
+                return hasErpSuppliers;
+            }
             // Apps with noPermission are always visible
             if (app.noPermission) {
                 return true;
@@ -233,7 +252,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             // All other apps require explicit permission in tabs list
             return allowedTabs.has(app.key);
         });
-    }, [dashboardAccess, isErpTeam, conversationsEnabled, teamMes, isTeamAdmin, isSysAdmin]);
+    }, [dashboardAccess, isErpTeam, conversationsEnabled, teamMes, isTeamAdmin, isSysAdmin, hasErpSuppliers]);
 
     const handleAppPress = useCallback((app: AppDef) => {
         switch (app.key) {
@@ -367,6 +386,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 break;
             case 'promotion':
                 navigation.navigate(Screens.APPS_PROMOTION);
+                break;
+            case 'my_suppliers':
+                navigation.navigate(Screens.MY_SUPPLIERS);
                 break;
             case 'debug':
                 resetToDebug();

@@ -3063,5 +3063,20 @@
   "invite.success": "Success",
   "invite.user_added": "User has been added to the enterprise.",
   "invite.add_failed": "Failed to add user",
-  "invite.add_failed_message": "Please try again."
+  "invite.add_failed_message": "Please try again.",
+  "apps.my_suppliers": "My Suppliers",
+  "apps.my_suppliers.title": "Your Suppliers ({count})",
+  "apps.my_suppliers.contact": "Contact: {name}",
+  "apps.my_suppliers.orders": "orders",
+  "apps.my_suppliers.projects": "projects",
+  "apps.my_suppliers.empty": "No suppliers",
+  "supplier_detail.tab_orders": "Orders",
+  "supplier_detail.tab_projects": "Projects",
+  "supplier_detail.amount": "Amount",
+  "supplier_detail.status": "Status",
+  "supplier_detail.date": "Date",
+  "supplier_detail.progress": "Progress",
+  "supplier_detail.end_date": "End Date",
+  "supplier_detail.empty_orders": "No orders",
+  "supplier_detail.empty_projects": "No projects"
 }

@@ -17,7 +17,7 @@ const Workspace = ({isFocused, theme}: Props) => {
     return (
         <View testID='workspace-container'>
             <CompassIcon
-                name='view-grid-plus-outline'
+                name='monitor'
                 size={BOTTOM_TAB_ICON_SIZE}
                 color={isFocused ? theme.buttonBg : changeOpacity(theme.centerChannelColor, WECHAT_HOME_SECONDARY_TEXT_OPACITY)}
                 testID='workspace-icon'

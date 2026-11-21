@@ -1,8 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Q} from '@nozbe/watermelondb';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -24,7 +23,7 @@ import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
-import {fetchApprovals, fetchHotProducts, type HotProduct} from '../apps/api';
+import {fetchApprovals} from '../apps/api';
 import {getOrCreateSmartNotebookChannel} from '../apps/smart_notebook/smart_notebook_api';
 
 import type {StackNavigationProp} from '@react-navigation/stack';
@@ -340,41 +339,6 @@ const WorkspaceScreen = ({navigation}: Props) => {
         checkErpTeam();
     }, [serverUrl]);
 
-    // ---- Fetch news ----
-    useEffect(() => {
-        const loadNews = async () => {
-            try {
-                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const publicChannels = await database.get('Channel').query(Q.where('type', 'O')).fetch();
-                if (publicChannels.length === 0) {return;}
-                const ids = publicChannels.map((ch: any) => ch.id);
-                const infos = await database.get('ChannelInfo').query(
-                    Q.where('id', Q.oneOf(ids)),
-                    Q.where('header', Q.notEq('')),
-                ).fetch();
-                if (infos.length > 0) {
-                    const ch = publicChannels.find((c: any) => c.id === infos[0].id) as any;
-                    setNewsChannel(ch?.displayName || '');
-                    setNewsText(infos[0].header || '');
-                }
-            } catch { /* ignore */ }
-        };
-        loadNews();
-    }, [serverUrl]);
-
-    // ---- Fetch hot products ----
-    useEffect(() => {
-        const loadHot = async () => {
-            try {
-                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const teamId = await getCurrentTeamId(database);
-                const data = await fetchHotProducts(serverUrl, teamId);
-                setHotProducts(data.products.slice(0, 5));
-            } catch { /* ignore */ }
-        };
-        loadHot();
-    }, [serverUrl]);
-
     // ---- Fetch pending approval count ----
     useEffect(() => {
         const loadApprovals = async () => {
@@ -387,90 +351,6 @@ const WorkspaceScreen = ({navigation}: Props) => {
         };
         loadApprovals();
     }, [serverUrl]);
-
-    // ---- Fetch unread messages ----
-    useEffect(() => {
-        const loadMessages = async () => {
-            try {
-                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-
-                // Get unread channels with their lastViewedAt
-                const myChannels = await database.get('MyChannel').query(
-                    Q.where('is_unread', true),
-                ).fetch();
-                if (myChannels.length === 0) {
-                    setRecentMessages([]);
-                    return;
-                }
-
-                // Build a map of channelId -> lastViewedAt
-                const lastViewedMap = new Map<string, number>();
-                const channelIds: string[] = [];
-                for (const mc of myChannels) {
-                    const mcAny = mc as any;
-                    lastViewedMap.set(mcAny.id, mcAny.lastViewedAt || 0);
-                    channelIds.push(mcAny.id);
-                }
-
-                // Get latest posts from unread channels (system posts excluded)
-                const posts = await database.get('Post').query(
-                    Q.where('channel_id', Q.oneOf(channelIds)),
-                    Q.where('type', ''),
-                    Q.where('delete_at', 0),
-                    Q.sortBy('create_at', Q.desc),
-                    Q.take(30),
-                ).fetch();
-
-                // Filter: only posts newer than lastViewedAt for their channel
-                const unreadPosts = posts.filter((p: any) => {
-                    const lastViewed = lastViewedMap.get(p.channelId) || 0;
-                    return p.createAt > lastViewed;
-                }).slice(0, 8);
-
-                if (unreadPosts.length === 0) {
-                    setRecentMessages([]);
-                    return;
-                }
-
-                // Get channel names
-                const uniqueChannelIds = [...new Set(unreadPosts.map((p: any) => p.channelId))];
-                const channels = await database.get('Channel').query(
-                    Q.where('id', Q.oneOf(uniqueChannelIds)),
-                ).fetch();
-                const channelMap = new Map(channels.map((ch: any) => [ch.id, ch.displayName || ch.name]));
-
-                // Get sender names
-                const userIds = [...new Set(unreadPosts.map((p: any) => p.userId))];
-                const users = await database.get('User').query(
-                    Q.where('id', Q.oneOf(userIds)),
-                ).fetch();
-                const userMap = new Map(users.map((u: any) => [u.id, u.nickname || u.username || u.firstName || '']));
-
-                const messages: RecentMessage[] = unreadPosts.map((p: any) => ({
-                    postId: p.id,
-                    channelId: p.channelId,
-                    channelName: channelMap.get(p.channelId) || '',
-                    senderName: userMap.get(p.userId) || '',
-                    message: p.message || '',
-                    createAt: p.createAt,
-                }));
-
-                setRecentMessages(messages);
-            } catch { /* ignore */ }
-        };
-        loadMessages();
-    }, [serverUrl]);
-
-    // ---- Auto-scroll hot products ----
-    useEffect(() => {
-        if (hotProducts.length <= 3) {return;}
-        scrollTimer.current = setInterval(() => {
-            setScrollIndex((prev) => (prev + 1) % hotProducts.length);
-        }, 3000);
-        return () => {
-            if (scrollTimer.current) {clearInterval(scrollTimer.current);}
-        };
-    }, [hotProducts.length]);
 
     // ---- Handlers ----
     const handleSmartNotebook = useCallback(async () => {

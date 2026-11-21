@@ -32,6 +32,8 @@ import QuickNoteDetailScreen from './smart_notebook/quick_note_detail_screen';
 import PriceListScreen from './price_list/price_list_screen';
 import PromotionScreen from './promotion/promotion_screen';
 import RoleManagementScreen from './role_management/role_management_screen';
+import MySuppliersScreen from './my_suppliers_screen';
+import SupplierDetailScreen from './supplier_detail_screen';
 import {type AppsStackParamList} from './apps_stack_param_list';
 
 import type TeamModel from '@typings/database/models/servers/team';
@@ -94,6 +96,8 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.APPS_INVENTORY} component={InventoryScreen} options={{title: '库存分析'}}/>
                 <Stack.Screen name={Screens.APPS_SALES} component={SalesScreen} options={{title: '销售统计'}}/>
                 <Stack.Screen name={Screens.APPS_WAREHOUSE_INOUT} component={WarehouseInoutScreen} options={{title: '出入库'}}/>
+                <Stack.Screen name={Screens.MY_SUPPLIERS} component={MySuppliersScreen} options={{title: '我的供应商'}}/>
+                <Stack.Screen name={'SupplierDetail' as any} component={SupplierDetailScreen} options={{title: '供应商详情' as any}}/>
             </Stack.Navigator>
         </AppsRnnHomeComponentIdContext.Provider>
     );

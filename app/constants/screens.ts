@@ -118,6 +118,7 @@ export const APPS_FINANCE = 'AppsFinance';
 export const APPS_SALES = 'AppsSales';
 export const APPS_INVENTORY = 'AppsInventory';
 export const APPS_WAREHOUSE_INOUT = 'AppsWarehouseInout';
+export const MY_SUPPLIERS = 'MySuppliers';
 export const WORKSPACE_ORDERS = 'WorkspaceOrders';
 export const WORKSPACE_PROJECTS = 'WorkspaceProjects';
 export const WORKSPACE_TODOS = 'WorkspaceTodos';
@@ -313,6 +314,7 @@ export default {
     APPS_SALES,
     APPS_INVENTORY,
     APPS_WAREHOUSE_INOUT,
+    MY_SUPPLIERS,
     WORKSPACE_ORDERS,
     WORKSPACE_PROJECTS,
     WORKSPACE_TODOS,

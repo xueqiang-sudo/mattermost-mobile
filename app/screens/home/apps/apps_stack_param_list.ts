@@ -63,4 +63,9 @@ export type AppsStackParamList = {
     [Screens.APPS_INVENTORY]: undefined;
     [Screens.APPS_SALES]: undefined;
     [Screens.APPS_WAREHOUSE_INOUT]: {scanResult?: string} | undefined;
+    [Screens.MY_SUPPLIERS]: undefined;
+    SupplierDetail: {
+        teamId: string;
+        teamName: string;
+    };
 };
