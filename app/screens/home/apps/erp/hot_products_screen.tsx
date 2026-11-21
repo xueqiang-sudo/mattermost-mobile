@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -36,15 +36,17 @@ const NOW = new Date();
 
 // ---- Helpers ----
 
-function formatMoney(value: number): string {
+function formatMoney(value: number, intl?: ReturnType<typeof useIntl>): string {
     const num = Number(value || 0);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
+    const yi = intl?.formatMessage({id: 'number.yi', defaultMessage: '亿'}) || '亿';
+    const wan = intl?.formatMessage({id: 'number.wan', defaultMessage: '万'}) || '万';
 
     if (absNum >= 100000000) {
-        return `${sign}¥${(absNum / 100000000).toFixed(2)}亿`;
+        return `${sign}¥${(absNum / 100000000).toFixed(2)}${yi}`;
     } else if (absNum >= 10000) {
-        return `${sign}¥${(absNum / 10000).toFixed(2)}万`;
+        return `${sign}¥${(absNum / 10000).toFixed(2)}${wan}`;
     } else if (absNum >= 1000) {
         return `${sign}¥${absNum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     } else {
@@ -52,15 +54,17 @@ function formatMoney(value: number): string {
     }
 }
 
-function formatQty(value: number): string {
+function formatQty(value: number, intl?: ReturnType<typeof useIntl>): string {
     const num = Number(value || 0);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
+    const yi = intl?.formatMessage({id: 'number.yi', defaultMessage: '亿'}) || '亿';
+    const wan = intl?.formatMessage({id: 'number.wan', defaultMessage: '万'}) || '万';
 
     if (absNum >= 100000000) {
-        return `${sign}${(absNum / 100000000).toFixed(2)}亿`;
+        return `${sign}${(absNum / 100000000).toFixed(2)}${yi}`;
     } else if (absNum >= 10000) {
-        return `${sign}${(absNum / 10000).toFixed(2)}万`;
+        return `${sign}${(absNum / 10000).toFixed(2)}${wan}`;
     } else if (absNum >= 1000) {
         return `${sign}${absNum.toLocaleString()}`;
     } else {
@@ -324,6 +328,10 @@ const HotProductsScreen = () => {
     const navigation = useNavigation();
     const style = getStyleSheet(theme);
 
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'erp.module.hot_products', defaultMessage: 'Hot Products'})});
+    }, [navigation, intl]);
+
     const [teamId, setTeamId] = useState('');
     const [data, setData] = useState<HotProductsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -474,15 +482,15 @@ const HotProductsScreen = () => {
         switch (activeTab) {
             case 'amount':
                 progressWidth = (product.total_amount / maxAmount) * 100;
-                displayValue = formatMoney(product.total_amount);
+                displayValue = formatMoney(product.total_amount, intl);
                 break;
             case 'quantity':
                 progressWidth = (product.total_qty / maxQty) * 100;
-                displayValue = `${formatQty(product.total_qty)} ${product.uom}`;
+                displayValue = `${formatQty(product.total_qty, intl)} ${product.uom}`;
                 break;
             case 'comprehensive':
                 progressWidth = (product.comprehensiveScore / maxScore) * 100;
-                displayValue = `${product.comprehensiveScore.toFixed(1)}分`;
+                displayValue = `${product.comprehensiveScore.toFixed(1)}${intl.formatMessage({id: 'number.score_unit', defaultMessage: '分'})}`;
                 break;
         }
 
@@ -507,14 +515,14 @@ const HotProductsScreen = () => {
                                 {intl.formatMessage({id: 'boss_dashboard.hot.meta_qty', defaultMessage: '销量'})}
                             </Text>
                             <Text style={style.metaValue}>
-                                {formatQty(product.total_qty)} {product.uom}
+                                {formatQty(product.total_qty, intl)} {product.uom}
                             </Text>
                         </View>
                         <View style={style.metaItem}>
                             <Text style={style.metaLabel}>
                                 {intl.formatMessage({id: 'boss_dashboard.hot.meta_amount', defaultMessage: '金额'})}
                             </Text>
-                            <Text style={style.metaValue}>{formatMoney(product.total_amount)}</Text>
+                            <Text style={style.metaValue}>{formatMoney(product.total_amount, intl)}</Text>
                         </View>
                         <View style={style.metaItem}>
                             <Text style={style.metaLabel}>
@@ -683,14 +691,14 @@ const HotProductsScreen = () => {
                                 {intl.formatMessage({id: 'boss_dashboard.hot.total_qty', defaultMessage: '总销量'})}
                                 {data.uom && ` (${data.uom})`}
                             </Text>
-                            <Text style={style.summaryValue}>{formatQty(data.total_qty)}</Text>
+                            <Text style={style.summaryValue}>{formatQty(data.total_qty, intl)}</Text>
                         </View>
                         <View style={style.summaryCard}>
                             <Text style={style.summaryIcon}>💵</Text>
                             <Text style={style.summaryLabel}>
                                 {intl.formatMessage({id: 'boss_dashboard.hot.total_money', defaultMessage: '总金额'})}
                             </Text>
-                            <Text style={style.summaryValue}>{formatMoney(data.total_money)}</Text>
+                            <Text style={style.summaryValue}>{formatMoney(data.total_money, intl)}</Text>
                         </View>
                         <View style={style.summaryCard}>
                             <Text style={style.summaryIcon}>📋</Text>

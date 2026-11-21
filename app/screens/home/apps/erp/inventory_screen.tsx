@@ -7,7 +7,7 @@
  */
 
 import {useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -44,24 +44,27 @@ type SubTab = 'overview' | 'turnover' | 'alerts';
 
 // ---- Helper Functions ----
 
-function formatMoney(value: number): string {
+function formatMoney(value: number, intl?: ReturnType<typeof useIntl>, intl): string {
     const num = Number(value || 0);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
+    const yi = intl?.formatMessage({id: 'number.yi', defaultMessage: '亿'}) || '亿';
+    const wan = intl?.formatMessage({id: 'number.wan', defaultMessage: '万'}) || '万';
 
     if (absNum >= 100000000) {
-        return `${sign}¥${(absNum / 100000000).toFixed(2)}亿`;
+        return `${sign}¥${(absNum / 100000000).toFixed(2)}${yi}`;
     } else if (absNum >= 10000) {
-        return `${sign}¥${(absNum / 10000).toFixed(2)}万`;
+        return `${sign}¥${(absNum / 10000).toFixed(2)}${wan}`;
     } else {
         return `${sign}¥${absNum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 }
 
-function formatQty(value: number): string {
+function formatQty(value: number, intl?: ReturnType<typeof useIntl>, intl): string {
     const num = Number(value || 0);
+    const wan = intl?.formatMessage({id: 'number.wan', defaultMessage: '万'}) || '万';
     if (num >= 10000) {
-        return `${(num / 10000).toFixed(1)}万`;
+        return `${(num / 10000).toFixed(1)}${wan}`;
     }
     return num.toLocaleString();
 }
@@ -296,6 +299,10 @@ const InventoryScreen = () => {
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'erp.module.inventory', defaultMessage: 'Inventory'})});
+    }, [navigation, intl]);
+
     const [data, setData] = useState<InventoryData | null>(null);
     const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -426,7 +433,7 @@ const InventoryScreen = () => {
                         <Text style={styles.kpiLabel}>
                             {intl.formatMessage({id: 'boss_dashboard.inv.total_value', defaultMessage: '库存总值'})}
                         </Text>
-                        <Text style={styles.kpiValue}>{formatMoney(summary.total_stock_value)}</Text>
+                        <Text style={styles.kpiValue}>{formatMoney(summary.total_stock_value, intl)}</Text>
                     </View>
                     <View style={styles.kpiCard}>
                         <Text style={styles.kpiLabel}>
@@ -451,7 +458,7 @@ const InventoryScreen = () => {
                             {intl.formatMessage({id: 'boss_dashboard.inv.dead_value', defaultMessage: '呆滞价值'})}
                         </Text>
                         <Text style={[styles.kpiValue, summary.dead_value > 0 && styles.kpiValueWarn]}>
-                            {formatMoney(summary.dead_value)}
+                            {formatMoney(summary.dead_value, intl)}
                         </Text>
                     </View>
                 </View>
@@ -472,7 +479,7 @@ const InventoryScreen = () => {
                                 style={styles.warehouseExpand}
                             />
                             <Text style={styles.warehouseName}>{w.warehouse}</Text>
-                            <Text style={styles.warehouseStat}>{formatMoney(w.stock_value)}</Text>
+                            <Text style={styles.warehouseStat}>{formatMoney(w.stock_value, intl)}</Text>
                             <Text style={styles.warehouseStat}>{intl.formatMessage({id: 'workbench.inventory.item_count', defaultMessage: '{count}品'}, {count: w.item_count})}</Text>
                             <Text style={styles.warehouseStat}>
                                 {w.turnover_days === null ? '—' : intl.formatMessage({id: 'workbench.inventory.days', defaultMessage: '{days}天'}, {days: w.turnover_days})}
@@ -485,8 +492,8 @@ const InventoryScreen = () => {
                                         <Text style={styles.itemName} numberOfLines={1}>
                                             {item.item_name || item.item_code}
                                         </Text>
-                                        <Text style={styles.itemStat}>{formatQty(item.qty)}</Text>
-                                        <Text style={styles.itemStat}>{formatMoney(item.stock_value)}</Text>
+                                        <Text style={styles.itemStat}>{formatQty(item.qty, intl)}</Text>
+                                        <Text style={styles.itemStat}>{formatMoney(item.stock_value, intl)}</Text>
                                         <Text style={styles.itemStat}>
                                             {item.turnover_days === null ? '—' : intl.formatMessage({id: 'workbench.inventory.days', defaultMessage: '{days}天'}, {days: item.turnover_days})}
                                         </Text>
@@ -515,10 +522,10 @@ const InventoryScreen = () => {
                         {data.trend.filter((t) => t.out_value > 0).map((t) => (
                             <View key={t.month} style={styles.trendRow}>
                                 <Text style={styles.trendMonth}>{t.month}</Text>
-                                <Text style={styles.trendStat}>{formatMoney(t.stock_value)}</Text>
-                                <Text style={styles.trendStat}>{formatMoney(t.out_value)}</Text>
+                                <Text style={styles.trendStat}>{formatMoney(t.stock_value, intl)}</Text>
+                                <Text style={styles.trendStat}>{formatMoney(t.out_value, intl)}</Text>
                                 <Text style={styles.trendStat}>
-                                    {t.turnover_days === null ? '—' : `${t.turnover_days}天`}
+                                    {t.turnover_days === null ? '—' : intl.formatMessage({id: 'workbench.inventory.days', defaultMessage: '{days}天'}, {days: t.turnover_days})}
                                 </Text>
                             </View>
                         ))}
@@ -537,8 +544,8 @@ const InventoryScreen = () => {
                                 <Text style={styles.itemName} numberOfLines={1}>
                                     {item.item_name || item.item_code}
                                 </Text>
-                                <Text style={styles.itemStat}>{formatQty(item.qty)}</Text>
-                                <Text style={styles.itemStat}>{formatMoney(item.stock_value)}</Text>
+                                <Text style={styles.itemStat}>{formatQty(item.qty, intl)}</Text>
+                                <Text style={styles.itemStat}>{formatMoney(item.stock_value, intl)}</Text>
                                 <Text style={styles.itemStat}>
                                     {item.turnover_days === null ? '—' : intl.formatMessage({id: 'workbench.inventory.days', defaultMessage: '{days}天'}, {days: item.turnover_days})}
                                 </Text>
@@ -563,7 +570,7 @@ const InventoryScreen = () => {
                     <View style={[styles.badgeDot, styles.badgeDotRed]}/>
                     <Text style={styles.alertTitle}>
                         {intl.formatMessage({id: 'boss_dashboard.inv.dead_stock', defaultMessage: '呆滞库存'})}
-                        {intl.formatMessage({id: 'workbench.inventory.dead_stock_count', defaultMessage: ' ({count}品 · {value})'}, {count: data.dead_stock.length, value: formatMoney(summary.dead_value)})}
+                        {intl.formatMessage({id: 'workbench.inventory.dead_stock_count', defaultMessage: ' ({count}品 · {value})'}, {count: data.dead_stock.length, value: formatMoney(summary.dead_value, intl)})}
                     </Text>
                 </View>
                 {data.dead_stock.length === 0 ? (
@@ -581,7 +588,7 @@ const InventoryScreen = () => {
                                 {` · ${d.never_out
                                     ? intl.formatMessage({id: 'boss_dashboard.inv.never_out', defaultMessage: '从未出库'})
                                     : intl.formatMessage({id: 'boss_dashboard.inv.days_no_out', defaultMessage: '{days}天无出库'}, {days: String(d.days_since_out)})}`}
-                                {` · ${formatQty(d.qty)} · ${formatMoney(d.stock_value)}`}
+                                {` · ${formatQty(d.qty, intl)} · ${formatMoney(d.stock_value, intl)}`}
                             </Text>
                         </View>
                     ))
@@ -611,8 +618,8 @@ const InventoryScreen = () => {
                             </Text>
                             <Text style={styles.alertMeta}>
                                 {l.warehouse}
-                                {` · ${intl.formatMessage({id: 'boss_dashboard.inv.actual', defaultMessage: '实际'})} ${formatQty(l.actual)} / ${intl.formatMessage({id: 'boss_dashboard.inv.safety', defaultMessage: '安全'})} ${formatQty(l.safety)}`}
-                                {` · ${intl.formatMessage({id: 'boss_dashboard.inv.shortage', defaultMessage: '缺口'})} ${formatQty(l.shortage)}`}
+                                {` · ${intl.formatMessage({id: 'boss_dashboard.inv.actual', defaultMessage: '实际'})} ${formatQty(l.actual, intl)} / ${intl.formatMessage({id: 'boss_dashboard.inv.safety', defaultMessage: '安全'})} ${formatQty(l.safety, intl)}`}
+                                {` · ${intl.formatMessage({id: 'boss_dashboard.inv.shortage', defaultMessage: '缺口'})} ${formatQty(l.shortage, intl)}`}
                             </Text>
                         </View>
                     ))

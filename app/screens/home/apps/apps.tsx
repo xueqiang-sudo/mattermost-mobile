@@ -3,7 +3,7 @@
 
 import {useIsFocused, useNavigation} from '@react-navigation/native';
 import {type StackNavigationProp} from '@react-navigation/stack';
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {Dimensions, ScrollView, Text, TouchableOpacity, View} from 'react-native';
@@ -148,6 +148,10 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const isFocusedRef = useRef(isFocused);
     isFocusedRef.current = isFocused;
     const navigation = useNavigation<StackNavigationProp<AppsStackParamList>>();
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'tab_bar.apps.label', defaultMessage: 'Apps'})});
+    }, [navigation, intl]);
 
     const [dashboardAccess, setDashboardAccess] = useState<DashboardAccess | null>(null);
     const [loading, setLoading] = useState(true);

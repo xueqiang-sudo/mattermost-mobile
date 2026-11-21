@@ -9,7 +9,7 @@
  */
 
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -104,6 +104,10 @@ const WarehouseInoutScreen = () => {
     const title = scanType === 'stock_out'
         ? intl.formatMessage({id: 'warehouse_inout.outbound_scan', defaultMessage: '出库'})
         : intl.formatMessage({id: 'warehouse_inout.inbound_scan', defaultMessage: '离线入库扫描'});
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title});
+    }, [navigation, title]);
 
     // ── Load data ──
     const loadRecords = useCallback(async () => {
@@ -900,7 +904,7 @@ const WarehouseInoutScreen = () => {
                                             <Text style={styles.pickListItemTitle}>{pl.name}</Text>
                                             {pl.customer_name && (
                                                 <Text style={styles.pickListItemSubtitle}>
-                                                    客户：{pl.customer_name}
+                                                    {intl.formatMessage({id: 'warehouse_inout.customer_label', defaultMessage: '客户：{name}'}, {name: pl.customer_name})}
                                                 </Text>
                                             )}
                                         </View>

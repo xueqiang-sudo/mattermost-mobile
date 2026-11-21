@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -313,6 +313,10 @@ const FinanceScreen = () => {
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
     const style = getStyleSheet(theme);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'erp.module.finance', defaultMessage: 'Finance'})});
+    }, [navigation, intl]);
 
     const [teamId, setTeamId] = useState('');
     const [loading, setLoading] = useState(true);

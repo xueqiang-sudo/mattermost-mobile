@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {useNavigation} from '@react-navigation/native';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -29,15 +29,17 @@ import {fetchSales, type SalesData, type Salesperson, type SalesCustomer} from '
 const NOW = new Date();
 type PeriodType = 'year' | 'half' | 'quarter' | 'month';
 
-function formatMoney(v: number): string {
+function formatMoney(v: number, intl?: ReturnType<typeof useIntl>): string {
     const num = Number(v || 0);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
+    const yi = intl?.formatMessage({id: 'number.yi', defaultMessage: '亿'}) || '亿';
+    const wan = intl?.formatMessage({id: 'number.wan', defaultMessage: '万'}) || '万';
 
     if (absNum >= 100000000) {
-        return `${sign}¥${(absNum / 100000000).toFixed(2)}亿`;
+        return `${sign}¥${(absNum / 100000000).toFixed(2)}${yi}`;
     } else if (absNum >= 10000) {
-        return `${sign}¥${(absNum / 10000).toFixed(2)}万`;
+        return `${sign}¥${(absNum / 10000).toFixed(2)}${wan}`;
     } else if (absNum >= 1000) {
         return `${sign}¥${absNum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
@@ -333,16 +335,16 @@ const SalespersonRow = ({sp, rank, isExpanded, onToggle, style}: SalespersonRowP
                     </View>
                     <View style={style.amountCol}>
                         <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.total_amount', defaultMessage: '金额'})}</Text>
-                        <Text style={style.amountValue}>{formatMoney(sp.order_amount)}</Text>
+                        <Text style={style.amountValue}>{formatMoney(sp.order_amount, intl)}</Text>
                     </View>
                     <View style={style.amountCol}>
                         <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.paid_amount', defaultMessage: '已收款'})}</Text>
-                        <Text style={[style.amountValue, style.textGreen]}>{formatMoney(sp.paid_amount)}</Text>
+                        <Text style={[style.amountValue, style.textGreen]}>{formatMoney(sp.paid_amount, intl)}</Text>
                     </View>
                     <View style={style.amountCol}>
                         <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.outstanding', defaultMessage: '未收款'})}</Text>
                         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <Text style={[style.amountValue, style.textRed]}>{formatMoney(sp.outstanding_amount)}</Text>
+                            <Text style={[style.amountValue, style.textRed]}>{formatMoney(sp.outstanding_amount, intl)}</Text>
                             {hasCustomers && (
                                 <Text style={style.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
                             )}
@@ -366,9 +368,9 @@ const SalespersonRow = ({sp, rank, isExpanded, onToggle, style}: SalespersonRowP
                                 {c.customer_name || c.customer}
                             </Text>
                             <Text style={style.customerCol}>{c.order_count}</Text>
-                            <Text style={style.customerCol}>{formatMoney(c.order_amount)}</Text>
-                            <Text style={[style.customerCol, style.textGreen]}>{formatMoney(c.paid_amount)}</Text>
-                            <Text style={[style.customerCol, style.textRed]}>{formatMoney(c.outstanding_amount)}</Text>
+                            <Text style={style.customerCol}>{formatMoney(c.order_amount, intl)}</Text>
+                            <Text style={[style.customerCol, style.textGreen]}>{formatMoney(c.paid_amount, intl)}</Text>
+                            <Text style={[style.customerCol, style.textRed]}>{formatMoney(c.outstanding_amount, intl)}</Text>
                         </View>
                     ))}
                 </View>
@@ -385,6 +387,10 @@ const SalesScreen = () => {
     const serverUrl = useServerUrl();
     const navigation = useNavigation();
     const style = getStyleSheet(theme);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({title: intl.formatMessage({id: 'erp.module.sales', defaultMessage: 'Sales Statistics'})});
+    }, [navigation, intl]);
 
     const [teamId, setTeamId] = useState('');
     const [periodType, setPeriodType] = useState<PeriodType>('month');
@@ -606,14 +612,14 @@ const SalesScreen = () => {
                                     <Text style={style.summaryLabel}>
                                         {intl.formatMessage({id: 'workbench.sales.total_amount', defaultMessage: '总金额'})}
                                     </Text>
-                                    <Text style={style.summaryValue}>{formatMoney(data.totals.order_amount)}</Text>
+                                    <Text style={style.summaryValue}>{formatMoney(data.totals.order_amount, intl)}</Text>
                                 </View>
                                 <View style={style.summaryItem}>
                                     <Text style={style.summaryLabel}>
                                         {intl.formatMessage({id: 'workbench.sales.paid_amount', defaultMessage: '已收款'})}
                                     </Text>
                                     <Text style={[style.summaryValue, style.textGreen]}>
-                                        {formatMoney(data.totals.paid_amount)}
+                                        {formatMoney(data.totals.paid_amount, intl)}
                                     </Text>
                                 </View>
                                 <View style={style.summaryItem}>
@@ -621,7 +627,7 @@ const SalesScreen = () => {
                                         {intl.formatMessage({id: 'workbench.sales.outstanding', defaultMessage: '未收款'})}
                                     </Text>
                                     <Text style={[style.summaryValue, style.textRed]}>
-                                        {formatMoney(data.totals.outstanding_amount)}
+                                        {formatMoney(data.totals.outstanding_amount, intl)}
                                     </Text>
                                 </View>
                             </View>
