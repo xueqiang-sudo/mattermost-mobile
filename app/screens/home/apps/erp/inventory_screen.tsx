@@ -44,7 +44,7 @@ type SubTab = 'overview' | 'turnover' | 'alerts';
 
 // ---- Helper Functions ----
 
-function formatMoney(value: number, intl?: ReturnType<typeof useIntl>, intl): string {
+function formatMoney(value: number, intl?: ReturnType<typeof useIntl>): string {
     const num = Number(value || 0);
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
@@ -60,7 +60,7 @@ function formatMoney(value: number, intl?: ReturnType<typeof useIntl>, intl): st
     }
 }
 
-function formatQty(value: number, intl?: ReturnType<typeof useIntl>, intl): string {
+function formatQty(value: number, intl?: ReturnType<typeof useIntl>): string {
     const num = Number(value || 0);
     const wan = intl?.formatMessage({id: 'number.wan', defaultMessage: '万'}) || '万';
     if (num >= 10000) {
