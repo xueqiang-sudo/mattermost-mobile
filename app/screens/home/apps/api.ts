@@ -49,28 +49,21 @@ export type AppDef = {
 };
 
 export const APPS: AppDef[] = [
-    // ERP-only apps
-    {key: 'hotproducts', labelId: 'workbench.tab.hot_products', defaultLabel: '热销榜', iconName: 'fire', erpOnly: true, noPermission: false},
-    {key: 'approvals', labelId: 'workbench.tab.approvals', defaultLabel: '审批清单', iconName: 'check-circle-outline', erpOnly: true, noPermission: false},
-    {key: 'finance', labelId: 'workbench.tab.finance', defaultLabel: '流水账', iconName: 'credit-card-outline', erpOnly: true, noPermission: false},
-    {key: 'sales', labelId: 'workbench.tab.sales', defaultLabel: '销售统计', iconName: 'chart-line', erpOnly: true, noPermission: false},
-    {key: 'inventory', labelId: 'workbench.tab.inventory', defaultLabel: '库存分析', iconName: 'archive-outline', erpOnly: true, noPermission: false},
-    {key: 'stock_out', labelId: 'warehouse_inout.outbound', defaultLabel: '出库', iconName: 'export-variant', erpOnly: true, noPermission: false},
-    {key: 'stock_in', labelId: 'warehouse_inout.inbound', defaultLabel: '入库', iconName: 'import', erpOnly: true, noPermission: false},
-    // Common apps
-    {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询', iconName: 'forum-outline', erpOnly: false, noPermission: false},
-    {key: 'price_list', labelId: 'workbench.tab.price_list', defaultLabel: '价格表', iconName: 'file-excel-outline', erpOnly: false, noPermission: false},
+    // Common apps (available for all teams)
+    {key: 'role_management', labelId: 'sidebar.tab.role_management', defaultLabel: '角色管理', iconName: 'account-multiple-outline', erpOnly: false, noPermission: false},
     {key: 'cloud_drive', labelId: 'workbench.tab.cloud_drive', defaultLabel: '云盘', iconName: 'folder-outline', erpOnly: false, noPermission: false},
     {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库', iconName: 'book-outline', erpOnly: false, noPermission: false},
-    {key: 'notebook', labelId: 'workbench.tab.notebook', defaultLabel: '记事本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
     {key: 'smart_notebook', labelId: 'workbench.tab.smart_notebook', defaultLabel: '智能笔记本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
-    // MES & Promotion
-    {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: 'MES', iconName: 'monitor', erpOnly: false, noPermission: false},
-    {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '推广', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},
+    {key: 'notebook', labelId: 'workbench.tab.notebook', defaultLabel: '记事本', iconName: 'notebook-outline', erpOnly: false, noPermission: true},
+    {key: 'todos', labelId: 'workspace.card.todos', defaultLabel: '待办事项', iconName: 'format-list-bulleted', erpOnly: false, noPermission: true},
+    {key: 'schedules', labelId: 'workspace.card.schedules', defaultLabel: '日程安排', iconName: 'calendar-outline', erpOnly: false, noPermission: true},
+    {key: 'conversations', labelId: 'workbench.tab.conversations', defaultLabel: '会话查询', iconName: 'forum-outline', erpOnly: false, noPermission: false},
+    {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '邀请统计', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},
+    // ERP-only apps
+    {key: 'stock_out', labelId: 'warehouse_inout.outbound', defaultLabel: '出库', iconName: 'export-variant', erpOnly: true, noPermission: false},
+    {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: '生产管理', iconName: 'monitor', erpOnly: true, noPermission: false},
     // Debug
     {key: 'debug', labelId: 'workbench.tab.debug', defaultLabel: '调试日志', iconName: 'bug-outline', erpOnly: false, noPermission: true},
-    // Role Management
-    {key: 'role_management', labelId: 'sidebar.tab.role_management', defaultLabel: '角色管理', iconName: 'account-multiple-outline', erpOnly: false, noPermission: false},
 ];
 
 // ---- MES Types ----

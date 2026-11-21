@@ -214,8 +214,8 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             if (app.key === 'conversations' && !conversationsEnabled) {
                 return false;
             }
-            // stock_in/stock_out check warehouse_inout permission
-            if (app.key === 'stock_in' || app.key === 'stock_out') {
+            // stock_out check warehouse_inout permission
+            if (app.key === 'stock_out') {
                 return allowedTabs.has('warehouse_inout');
             }
             // MES: require both API-level mes_enabled AND team-level mes_enabled (matches webapp)
@@ -237,17 +237,17 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     const handleAppPress = useCallback((app: AppDef) => {
         switch (app.key) {
+            case 'todos':
+                navigation.navigate(Screens.WORKSPACE_TODOS);
+                break;
+            case 'schedules':
+                navigation.navigate(Screens.WORKSPACE_SCHEDULES);
+                break;
             case 'mes':
                 navigation.navigate(Screens.APPS_MES);
                 break;
-            case 'promotion':
-                navigation.navigate(Screens.APPS_PROMOTION);
-                break;
             case 'role_management':
                 navigation.navigate(Screens.APPS_ROLE_MANAGEMENT);
-                break;
-            case 'price_list':
-                navigation.navigate(Screens.APPS_PRICE_LIST);
                 break;
             case 'cloud_drive':
                 navigation.navigate(Screens.APPS_CLOUD_DRIVE);
@@ -256,9 +256,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 navigation.navigate(Screens.APPS_KNOWLEDGE_BASE, {
                     kbWrite: Boolean(dashboardAccess?.kb_write),
                 });
-                break;
-            case 'notebook':
-                navigation.navigate(Screens.APPS_NOTEBOOK);
                 break;
             case 'smart_notebook':
                 (async () => {
@@ -362,14 +359,15 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             case 'inventory':
                 navigation.navigate(Screens.APPS_INVENTORY);
                 break;
-            case 'stock_in':
-            case 'stock_out': {
-                const scanType = app.key as 'stock_in' | 'stock_out';
-                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT, {
-                    initialScanType: scanType,
-                });
+            case 'stock_out':
+                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT);
                 break;
-            }
+            case 'notebook':
+                navigation.navigate(Screens.APPS_NOTEBOOK);
+                break;
+            case 'promotion':
+                navigation.navigate(Screens.APPS_PROMOTION);
+                break;
             case 'debug':
                 resetToDebug();
                 break;
@@ -456,26 +454,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                                 </View>
                             ) : (
                                 <View style={styles.gridContainer}>
-                                    {[
-                                        {keys: ['mes', 'stock_in', 'stock_out'], labelId: 'apps.category.production', defaultLabel: 'Production & Warehouse'},
-                                        {keys: ['cloud_drive', 'knowledge_base', 'smart_notebook', 'notebook'], labelId: 'apps.category.enterprise', defaultLabel: 'Enterprise Resources'},
-                                        {keys: ['role_management', 'conversations', 'promotion', 'debug'], labelId: 'apps.category.management', defaultLabel: 'Management'},
-                                    ].map((section) => {
-                                        const items = visibleApps.filter((a) => section.keys.includes(a.key));
-                                        if (items.length === 0) {return null;}
-                                        return (
-                                            <View key={section.labelId}>
-                                                <Text style={styles.sectionHeader}>
-                                                    {intl.formatMessage({id: section.labelId, defaultMessage: section.defaultLabel})}
-                                                </Text>
-                                                <View style={styles.sectionCard}>
-                                                    <View style={styles.sectionGrid}>
-                                                        {items.map((app) => renderAppCard(app))}
-                                                    </View>
-                                                </View>
-                                            </View>
-                                        );
-                                    })}
+                                    <View style={styles.sectionGrid}>
+                                        {visibleApps.map((app) => renderAppCard(app))}
+                                    </View>
                                 </View>
                             )}
                         </ScrollView>

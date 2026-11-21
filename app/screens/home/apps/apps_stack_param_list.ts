@@ -62,5 +62,5 @@ export type AppsStackParamList = {
     [Screens.APPS_HOT_PRODUCTS]: undefined;
     [Screens.APPS_INVENTORY]: undefined;
     [Screens.APPS_SALES]: undefined;
-    [Screens.APPS_WAREHOUSE_INOUT]: {initialScanType?: 'stock_in' | 'stock_out'; scanResult?: string} | undefined;
+    [Screens.APPS_WAREHOUSE_INOUT]: {scanResult?: string} | undefined;
 };

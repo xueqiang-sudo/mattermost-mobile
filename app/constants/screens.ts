@@ -6,7 +6,6 @@ import PLAYBOOKS_SCREENS from '@playbooks/constants/screens';
 export const ABOUT = 'About';
 export const ACCOUNT = 'Account';
 export const ACCOUNT_MODAL = 'AccountModal';
-export const AI_AGENT = 'AIAgent';
 export const APP_UPDATE = 'AppUpdate';
 export const APPS_FORM = 'AppForm';
 export const BOTTOM_SHEET = 'BottomSheet';
@@ -99,7 +98,6 @@ export const HOME = 'Home';
 export const HOME_TAB_CHAT = 'HomeTabChat';
 export const HOME_TAB_WORKSPACE = 'HomeTabWorkspace';
 export const HOME_TAB_APPS = 'HomeTabApps';
-export const HOME_TAB_AI_AGENT = 'HomeTabAIAgent';
 export const HOME_TAB_CONTACTS = 'HomeTabContacts';
 export const HOME_TAB_ME = 'HomeTabMe';
 export const APPS_HOME = 'AppsHome';
@@ -207,7 +205,6 @@ export default {
     ABOUT,
     ACCOUNT,
     ACCOUNT_MODAL,
-    AI_AGENT,
     APP_UPDATE,
     APPS_FORM,
     BOTTOM_SHEET,
@@ -288,7 +285,6 @@ export default {
     GLOBAL_DRAFTS,
     GLOBAL_DRAFTS_AND_SCHEDULED_POSTS,
     HOME,
-    HOME_TAB_AI_AGENT,
     HOME_TAB_APPS,
     HOME_TAB_CHAT,
     HOME_TAB_CONTACTS,

@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 /**
- * 离线出库/入库扫描 Screen
+ * 离线出库扫描 Screen
  * - 扫码后本地存储记录
  * - 支持日期/时段筛选、人工输入、删除、批量上传
  * - 调用 frappe-sync 插件 API (/api/pick-list)
@@ -53,8 +53,6 @@ import {
     type ScanRecord,
 } from './scan_database';
 
-type ScanType = 'stock_in' | 'stock_out';
-
 function formatDisplayBarcode(item: ScanRecord): string {
     // netWeight 存储的是 kg 值，需要乘以 100 转换为整数格式
     const weightValue = (item.netWeight || 0) * 100;
@@ -75,14 +73,12 @@ function formatDisplayBarcode(item: ScanRecord): string {
 const WarehouseInoutScreen = () => {
     const intl = useIntl();
     const navigation = useNavigation();
-    const route = useRoute<RouteProp<AppsStackParamList, typeof Screens.APPS_WAREHOUSE_INOUT>>();
-    const initialScanType = (route.params?.initialScanType || 'stock_out') as ScanType;
     const theme = useTheme();
     const serverUrl = useServerUrl();
     const styles = getStyleSheet(theme);
 
     // ── State ──
-    const [scanType] = useState<ScanType>(initialScanType);
+    const scanType = 'stock_out';
     const [scanDate, setScanDate] = useState(createCurrentDate());
     const [scanSession, setScanSession] = useState('');
     const [records, setRecords] = useState<ScanRecord[]>([]);
@@ -101,9 +97,7 @@ const WarehouseInoutScreen = () => {
     const [pickListDropdownOpen, setPickListDropdownOpen] = useState(false);
     const [isLoadingPickLists, setIsLoadingPickLists] = useState(false);
 
-    const title = scanType === 'stock_out'
-        ? intl.formatMessage({id: 'warehouse_inout.outbound_scan', defaultMessage: '出库'})
-        : intl.formatMessage({id: 'warehouse_inout.inbound_scan', defaultMessage: '离线入库扫描'});
+    const title = intl.formatMessage({id: 'warehouse_inout.outbound_scan', defaultMessage: '出库'});
 
     useLayoutEffect(() => {
         navigation.setOptions({title});

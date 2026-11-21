@@ -1664,6 +1664,8 @@
   "workspace.todos.delete_failed": "Delete failed",
   "workspace.schedules.title": "Schedules",
   "workspace.approvals.title": "Approvals",
+  "workspace.erp_only_title": "Feature Unavailable",
+  "workspace.erp_only_message": "This feature is only available for ERP enterprises. Please contact your administrator to enable ERP access.",
   "schedules.error": "Error",
   "schedules.delete_title": "Delete Schedule",
   "schedules.delete_confirm": "Are you sure you want to delete \"{name}\"?",

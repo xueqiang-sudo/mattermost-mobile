@@ -40,12 +40,20 @@ type WorkspaceCard = {
 };
 
 const CARDS: WorkspaceCard[] = [
-    {key: 'erp', icon: 'chart-bar', labelId: 'workspace.card.erp', defaultLabel: 'ERP', screen: Screens.WORKSPACE_ERP_MODULES},
-    {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: 'Approvals', screen: Screens.APPS_APPROVALS},
-    {key: 'todos', icon: 'format-list-bulleted', labelId: 'workspace.card.todos', defaultLabel: 'Todos', screen: Screens.WORKSPACE_TODOS},
-    {key: 'schedules', icon: 'calendar-outline', labelId: 'workspace.card.schedules', defaultLabel: 'Schedules', screen: Screens.WORKSPACE_SCHEDULES},
     {key: 'ai_assistant', icon: 'robot-happy', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI Assistant'},
-    {key: 'notebook', icon: 'notebook-outline', labelId: 'workspace.card.notebook', defaultLabel: 'Smart Notebook'},
+    {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: 'Approvals', screen: Screens.APPS_APPROVALS},
+    {key: 'hot_products', icon: 'fire', labelId: 'erp.module.hot_products', defaultLabel: 'Hot Products', screen: Screens.APPS_HOT_PRODUCTS},
+    {key: 'customers', icon: 'account-multiple-outline', labelId: 'erp.module.customers', defaultLabel: 'Customers', screen: Screens.ERP_CUSTOMERS},
+    {key: 'suppliers', icon: 'truck-delivery-outline', labelId: 'erp.module.suppliers', defaultLabel: 'Suppliers', screen: Screens.ERP_SUPPLIERS},
+    {key: 'sales_orders', icon: 'cart-outline', labelId: 'erp.module.sales_orders', defaultLabel: 'Sales Orders', screen: Screens.ERP_SALES_ORDERS},
+    {key: 'purchase_orders', icon: 'clipboard-text-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS},
+    {key: 'work_orders', icon: 'cog-outline', labelId: 'erp.module.work_orders', defaultLabel: 'Manufacturing', screen: Screens.ERP_WORK_ORDERS},
+    {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS},
+    {key: 'stock', icon: 'package-variant-closed', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK},
+    {key: 'warehouse_inout', icon: 'warehouse', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT},
+    {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: 'Finance', screen: Screens.APPS_FINANCE},
+    {key: 'sales', icon: 'chart-line', labelId: 'erp.module.sales', defaultLabel: 'Sales', screen: Screens.APPS_SALES},
+    {key: 'inventory', icon: 'products', labelId: 'erp.module.inventory', defaultLabel: 'Inventory', screen: Screens.APPS_INVENTORY},
 ];
 
 type RecentMessage = {
@@ -98,6 +106,9 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.08),
+    },
+    cardDisabled: {
+        opacity: 0.5,
     },
     cardWide: {
         width: '100%',
@@ -301,15 +312,33 @@ const WorkspaceScreen = ({navigation}: Props) => {
     const serverUrl = useServerUrl();
 
     // ---- State ----
-    const [newsText, setNewsText] = useState('');
-    const [newsChannel, setNewsChannel] = useState('');
-    const [hotProducts, setHotProducts] = useState<HotProduct[]>([]);
-    const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
+    const [isErpTeam, setIsErpTeam] = useState(false);
     const [approvalCount, setApprovalCount] = useState(0);
 
-    // Auto-scroll index for hot products
-    const [scrollIndex, setScrollIndex] = useState(0);
-    const scrollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+    // ---- Check if ERP team ----
+    useEffect(() => {
+        const checkErpTeam = async () => {
+            try {
+                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+                const teamId = await getCurrentTeamId(database);
+                if (!teamId) {return;}
+
+                // Use dashboard access API (same as contacts module)
+                try {
+                    const client = NetworkManager.getClient(serverUrl);
+                    const access = await client.doFetch(`/plugins/com.mattermost.frappe-sync/api/dashboard/access?team_id=${teamId}`, {
+                        method: 'get',
+                    });
+                    setIsErpTeam(access?.is_erp_synced_team === true);
+                } catch {
+                    // Fallback: check erp_address field
+                    const team = await database.get('Team').find(teamId);
+                    setIsErpTeam(Boolean((team as any)?.erp_address));
+                }
+            } catch { /* ignore */ }
+        };
+        checkErpTeam();
+    }, [serverUrl]);
 
     // ---- Fetch news ----
     useEffect(() => {
@@ -585,6 +614,16 @@ const WorkspaceScreen = ({navigation}: Props) => {
     }, [serverUrl, intl, theme]);
 
     const handleCardPress = useCallback((card: WorkspaceCard) => {
+        // Check if ERP team - all workspace cards require ERP
+        if (!isErpTeam) {
+            Alert.alert(
+                intl.formatMessage({id: 'workspace.erp_only_title', defaultMessage: '功能不可用'}),
+                intl.formatMessage({id: 'workspace.erp_only_message', defaultMessage: '此功能仅对 ERP 企业开放。如需使用，请联系管理员开通 ERP 权限。'}),
+                [{text: intl.formatMessage({id: 'ok', defaultMessage: '我知道了'})}],
+            );
+            return;
+        }
+
         if (card.key === 'notebook') {
             handleSmartNotebook();
         } else if (card.key === 'ai_assistant') {
@@ -592,133 +631,8 @@ const WorkspaceScreen = ({navigation}: Props) => {
         } else if (card.screen) {
             navigation.navigate(card.screen);
         }
-    }, [navigation, handleSmartNotebook, handleAIAssistant]);
+    }, [navigation, handleSmartNotebook, handleAIAssistant, isErpTeam, intl]);
 
-    const handleNewsPress = useCallback(() => {
-        navigation.navigate(Screens.WORKSPACE_NEWS);
-    }, [navigation]);
-
-    const handleHotPress = useCallback(() => {
-        navigation.navigate(Screens.APPS_HOT_PRODUCTS);
-    }, [navigation]);
-
-    const handleMessagePress = useCallback((channelId: string) => {
-        // Switch to Messages tab then navigate to the channel
-        DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
-        setTimeout(() => {
-            switchToChannelById(serverUrl, channelId);
-        }, 300);
-    }, [serverUrl]);
-
-    // ---- Visible hot products ----
-    const visibleHot = hotProducts.length <= 3
-        ? hotProducts
-        : Array.from({length: 3}, (_, i) => hotProducts[(scrollIndex + i) % hotProducts.length]);
-
-    // ---- Render: News card ----
-    const renderNewsCard = () => (
-        <TouchableOpacity style={styles.wideCard} onPress={newsText ? handleNewsPress : undefined} activeOpacity={newsText ? 0.7 : 1} testID='workspace.card.news'>
-            <View style={styles.wideCardHeader}>
-                <CompassIcon name='bullhorn-outline' size={20} color={theme.buttonBg}/>
-                <Text style={styles.wideCardTitle}>
-                    {intl.formatMessage({id: 'workspace.card.news', defaultMessage: 'Company News'})}
-                </Text>
-                {newsText ? (
-                    <Text style={styles.wideCardMore}>
-                        {intl.formatMessage({id: 'workspace.news.view_more', defaultMessage: 'Read more ›'})}
-                    </Text>
-                ) : null}
-            </View>
-            {newsText ? (
-                <>
-                    {newsChannel ? <Text style={styles.newsChannel}>{newsChannel}</Text> : null}
-                    <Text style={styles.newsText} numberOfLines={3}>{newsText}</Text>
-                </>
-            ) : (
-                <Text style={styles.newsEmpty}>
-                    {intl.formatMessage({id: 'workspace.news.empty_short', defaultMessage: 'No announcements'})}
-                </Text>
-            )}
-        </TouchableOpacity>
-    );
-
-    // ---- Render: Hot products card ----
-    const renderHotCard = () => (
-        <TouchableOpacity style={styles.wideCard} onPress={handleHotPress} activeOpacity={0.7} testID='workspace.card.hot_products'>
-            <View style={styles.wideCardHeader}>
-                <CompassIcon name='fire' size={20} color={theme.buttonBg}/>
-                <Text style={styles.wideCardTitle}>
-                    {intl.formatMessage({id: 'workspace.card.hot_products', defaultMessage: 'Hot Products'})}
-                </Text>
-                <Text style={styles.wideCardMore}>
-                    {intl.formatMessage({id: 'workspace.hot.view_more', defaultMessage: 'More ›'})}
-                </Text>
-            </View>
-            {hotProducts.length === 0 ? (
-                <Text style={styles.hotEmpty}>
-                    {intl.formatMessage({id: 'workspace.hot.empty', defaultMessage: 'No hot product data'})}
-                </Text>
-            ) : (
-                visibleHot.map((p, i) => {
-                    const globalIndex = hotProducts.indexOf(p);
-                    const rankColor = globalIndex < 3 ? RANK_COLORS[globalIndex] : changeOpacity(theme.centerChannelColor, 0.32);
-                    return (
-                        <View key={p.item_code} style={[styles.hotRow, i === visibleHot.length - 1 && styles.hotRowLast]}>
-                            <View style={[styles.hotRank, {backgroundColor: rankColor}]}>
-                                <Text style={styles.hotRankText}>{globalIndex + 1}</Text>
-                            </View>
-                            <Text style={styles.hotName} numberOfLines={1}>{p.item_name}</Text>
-                            <Text style={styles.hotQty}>{p.total_qty}{p.uom || ''}</Text>
-                            <Text style={styles.hotAmount}>{formatMoney(p.total_amount, intl)}</Text>
-                        </View>
-                    );
-                })
-            )}
-        </TouchableOpacity>
-    );
-
-    // ---- Render: Messages card ----
-    const renderMessagesCard = () => (
-        <View style={styles.wideCard} testID='workspace.card.messages'>
-            <View style={styles.wideCardHeader}>
-                <CompassIcon name='message-text-outline' size={20} color={theme.buttonBg}/>
-                <Text style={styles.wideCardTitle}>
-                    {intl.formatMessage({id: 'workspace.card.messages', defaultMessage: 'Messages'})}
-                </Text>
-            </View>
-            {recentMessages.length === 0 ? (
-                <Text style={styles.msgEmpty}>
-                    {intl.formatMessage({id: 'workspace.messages.empty', defaultMessage: 'No new messages'})}
-                </Text>
-            ) : (
-                <ScrollView style={styles.msgScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
-                    {recentMessages.map((msg, i) => {
-                        const initial = (msg.senderName || msg.channelName || '?').charAt(0).toUpperCase();
-                        return (
-                            <TouchableOpacity
-                                key={msg.postId}
-                                style={[styles.msgRow, i === recentMessages.length - 1 && styles.msgRowLast]}
-                                onPress={() => handleMessagePress(msg.channelId)}
-                                activeOpacity={0.7}
-                            >
-                                <View style={styles.msgAvatar}>
-                                    <Text style={styles.msgAvatarText}>{initial}</Text>
-                                </View>
-                                <View style={styles.msgContent}>
-                                    <View style={styles.msgTop}>
-                                        <Text style={styles.msgChannel} numberOfLines={1}>{msg.channelName}</Text>
-                                        <Text style={styles.msgTime}>{formatTimeAgo(msg.createAt, intl)}</Text>
-                                    </View>
-                                    <Text style={styles.msgSender}>{msg.senderName}</Text>
-                                    <Text style={styles.msgText} numberOfLines={2}>{msg.message}</Text>
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
-            )}
-        </View>
-    );
 
     // ---- Render: Normal card ----
     const renderCard = (card: WorkspaceCard) => {
@@ -727,7 +641,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
         return (
             <TouchableOpacity
                 key={card.key}
-                style={styles.card}
+                style={[styles.card, !isErpTeam && styles.cardDisabled]}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}
@@ -749,9 +663,6 @@ const WorkspaceScreen = ({navigation}: Props) => {
             <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
                     {CARDS.map(renderCard)}
-                    {renderHotCard()}
-                    {renderMessagesCard()}
-                    {renderNewsCard()}
                 </View>
             </ScrollView>
         </SafeAreaView>
