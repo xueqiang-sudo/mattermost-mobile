@@ -34,6 +34,8 @@ import PromotionScreen from './promotion/promotion_screen';
 import RoleManagementScreen from './role_management/role_management_screen';
 import MySuppliersScreen from './my_suppliers_screen';
 import SupplierDetailScreen from './supplier_detail_screen';
+import TodosScreen from '../workspace/todos_screen';
+import SchedulesScreen from '../workspace/schedules_screen';
 import {type AppsStackParamList} from './apps_stack_param_list';
 
 import type TeamModel from '@typings/database/models/servers/team';
@@ -98,6 +100,8 @@ export function AppsStack({currentUser, currentTeam, rnnHomeComponentId}: AppsSt
                 <Stack.Screen name={Screens.APPS_WAREHOUSE_INOUT} component={WarehouseInoutScreen} options={{title: '出入库'}}/>
                 <Stack.Screen name={Screens.MY_SUPPLIERS} component={MySuppliersScreen} options={{title: '我的供应商'}}/>
                 <Stack.Screen name={'SupplierDetail' as any} component={SupplierDetailScreen} options={{title: '供应商详情' as any}}/>
+                <Stack.Screen name={Screens.WORKSPACE_TODOS} component={TodosScreen} options={{title: '待办事项'}}/>
+                <Stack.Screen name={Screens.WORKSPACE_SCHEDULES} component={SchedulesScreen} options={{title: '日程安排'}}/>
             </Stack.Navigator>
         </AppsRnnHomeComponentIdContext.Provider>
     );

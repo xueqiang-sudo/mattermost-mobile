@@ -68,4 +68,6 @@ export type AppsStackParamList = {
         teamId: string;
         teamName: string;
     };
+    [Screens.WORKSPACE_TODOS]: undefined;
+    [Screens.WORKSPACE_SCHEDULES]: undefined;
 };
