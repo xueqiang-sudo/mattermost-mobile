@@ -142,32 +142,21 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    empty: {
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: theme.sidebarBg,
+    },
+    headerTitle: {
+        ...typography('Heading', 200, 'SemiBold'),
+        color: theme.sidebarText,
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 80,
     },
-    emptyText: {
-        color: changeOpacity(theme.centerChannelColor, 0.4),
-        ...typography('Body', 200, 'Regular'),
-        marginTop: 12,
-    },
-    fab: {
-        position: 'absolute',
-        right: 20,
-        bottom: 20,
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        backgroundColor: theme.buttonBg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
+    addButton: {
+        padding: 8,
     },
 }));
 
@@ -230,7 +219,10 @@ const ErpListScreen = ({
             if (e?.message === 'ERP_ACCESS_DENIED') {
                 setErpAccessDenied(true);
             } else {
-                Alert.alert('Error', e?.message || String(e));
+                Alert.alert(
+                    intl.formatMessage({id: 'erp.error', defaultMessage: 'Error'}),
+                    e?.message || String(e),
+                );
             }
         } finally {
             setLoading(false);
@@ -338,6 +330,14 @@ const ErpListScreen = ({
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>{title}</Text>
+                {canCreate && onCreate && (
+                    <TouchableOpacity style={styles.addButton} onPress={() => onCreate(navigation)} activeOpacity={0.8}>
+                        <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
+                    </TouchableOpacity>
+                )}
+            </View>
             {tabs && tabs.length > 1 && (
                 <View style={styles.tabs}>
                     {tabs.map((tab, i) => (
@@ -366,22 +366,9 @@ const ErpListScreen = ({
                 data={filteredData}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.name || item.id || String(Math.random())}
-                contentContainerStyle={filteredData.length === 0 ? {flex: 1} : {paddingBottom: 80}}
+                contentContainerStyle={{paddingBottom: 20}}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh}/>}
-                ListEmptyComponent={
-                    <View style={styles.empty}>
-                        <CompassIcon name='inbox-outline' size={48} color={changeOpacity(theme.centerChannelColor, 0.24)}/>
-                        <Text style={styles.emptyText}>
-                            {intl.formatMessage({id: 'erp.empty', defaultMessage: 'No data'})}
-                        </Text>
-                    </View>
-                }
             />
-            {canCreate && onCreate && (
-                <TouchableOpacity style={styles.fab} onPress={() => onCreate(navigation)} activeOpacity={0.8}>
-                    <CompassIcon name='plus' size={28} color={theme.buttonColor}/>
-                </TouchableOpacity>
-            )}
         </SafeAreaView>
     );
 };

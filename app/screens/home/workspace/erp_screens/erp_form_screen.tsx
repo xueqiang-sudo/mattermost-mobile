@@ -141,7 +141,10 @@ const ErpFormScreen = ({
         // Validate required fields
         for (const f of fields) {
             if (f.required && !form[f.key]?.trim()) {
-                Alert.alert('Validation', `${f.label} is required`);
+                Alert.alert(
+                    intl.formatMessage({id: 'erp.validation', defaultMessage: 'Validation'}),
+                    intl.formatMessage({id: 'erp.field_required', defaultMessage: '{field} is required'}, {field: f.label}),
+                );
                 return;
             }
         }
@@ -162,11 +165,14 @@ const ErpFormScreen = ({
             }
             navigation.goBack();
         } catch (e: any) {
-            Alert.alert('Error', e?.message || String(e));
+            Alert.alert(
+                intl.formatMessage({id: 'erp.error', defaultMessage: 'Error'}),
+                e?.message || String(e),
+            );
         } finally {
             setSubmitting(false);
         }
-    }, [form, fields, isEdit, name, serverUrl, createFn, updateFn, navigation]);
+    }, [form, fields, isEdit, name, serverUrl, createFn, updateFn, navigation, intl]);
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>

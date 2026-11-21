@@ -66,9 +66,12 @@ export const CustomersScreen = ({navigation}: Props) => {
             await deleteCustomer(serverUrl, item.name);
             refresh();
         } catch (e: any) {
-            Alert.alert('Error', e?.message || String(e));
+            Alert.alert(
+                intl.formatMessage({id: 'erp.error', defaultMessage: 'Error'}),
+                e?.message || String(e),
+            );
         }
-    }, [serverUrl]);
+    }, [serverUrl, intl]);
 
     return (
         <ErpListScreen
@@ -76,12 +79,13 @@ export const CustomersScreen = ({navigation}: Props) => {
             title={intl.formatMessage({id: 'erp.customers', defaultMessage: 'Customers'})}
             fetchFn={fetchCustomers}
             fields={[
-                {key: 'customer_name', label: 'Name'},
-                {key: 'customer_type', label: 'Type'},
-                {key: 'customer_group', label: 'Group'},
-                {key: 'territory', label: 'Territory'},
+                {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer_name', defaultMessage: 'Customer Name'})},
+                {key: 'customer_primary_contact', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
+                {key: 'customer_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'})},
+                {key: 'customer_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
+                {key: 'territory', label: intl.formatMessage({id: 'erp.field.territory', defaultMessage: 'Territory'})},
             ]}
-            searchPlaceholder='Search customers...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_customers', defaultMessage: 'Search customers...'})}
             onItemPress={handlePress}
             canCreate={true}
             onCreate={handleCreate}
@@ -110,9 +114,12 @@ export const SuppliersScreen = ({navigation}: Props) => {
             await deleteSupplier(serverUrl, item.name);
             refresh();
         } catch (e: any) {
-            Alert.alert('Error', e?.message || String(e));
+            Alert.alert(
+                intl.formatMessage({id: 'erp.error', defaultMessage: 'Error'}),
+                e?.message || String(e),
+            );
         }
-    }, [serverUrl]);
+    }, [serverUrl, intl]);
 
     return (
         <ErpListScreen
@@ -120,11 +127,12 @@ export const SuppliersScreen = ({navigation}: Props) => {
             title={intl.formatMessage({id: 'erp.suppliers', defaultMessage: 'Suppliers'})}
             fetchFn={fetchSuppliers}
             fields={[
-                {key: 'supplier_name', label: 'Name'},
-                {key: 'supplier_type', label: 'Type'},
-                {key: 'supplier_group', label: 'Group'},
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier_name', defaultMessage: 'Supplier Name'})},
+                {key: 'supplier_primary_contact', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
+                {key: 'supplier_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'})},
+                {key: 'supplier_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
             ]}
-            searchPlaceholder='Search suppliers...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_suppliers', defaultMessage: 'Search suppliers...'})}
             onItemPress={handlePress}
             canCreate={true}
             onCreate={handleCreate}
@@ -157,12 +165,12 @@ export const SalesOrdersScreen = ({navigation}: Props) => {
             fetchFn={fetchSalesOrders}
             tabs={tabs}
             fields={[
-                {key: 'customer_name', label: 'Customer'},
-                {key: 'grand_total', label: 'Amount', format: formatMoney},
-                {key: 'transaction_date', label: 'Date', format: formatDate},
-                {key: 'delivery_status', label: 'Delivery'},
+                {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer', defaultMessage: 'Customer'})},
+                {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery_status', defaultMessage: 'Delivery Status'})},
             ]}
-            searchPlaceholder='Search orders...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_orders', defaultMessage: 'Search orders...'})}
             onItemPress={handlePress}
         />
     );
@@ -190,12 +198,12 @@ export const PurchaseOrdersScreen = ({navigation}: Props) => {
             fetchFn={fetchPurchaseOrders}
             tabs={tabs}
             fields={[
-                {key: 'supplier_name', label: 'Supplier'},
-                {key: 'grand_total', label: 'Amount', format: formatMoney},
-                {key: 'transaction_date', label: 'Date', format: formatDate},
-                {key: 'status', label: 'Status'},
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier', defaultMessage: 'Supplier'})},
+                {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
             ]}
-            searchPlaceholder='Search orders...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_orders', defaultMessage: 'Search orders...'})}
             onItemPress={handlePress}
         />
     );
@@ -224,12 +232,12 @@ export const WorkOrdersScreen = ({navigation}: Props) => {
             fetchFn={fetchWorkOrders}
             tabs={tabs}
             fields={[
-                {key: 'production_item', label: 'Product'},
-                {key: 'produced_qty', label: 'Progress', format: formatProgress},
-                {key: 'planned_start_date', label: 'Start', format: formatDate},
-                {key: 'planned_end_date', label: 'End', format: formatDate},
+                {key: 'production_item', label: intl.formatMessage({id: 'erp.field.product', defaultMessage: 'Product'})},
+                {key: 'produced_qty', label: intl.formatMessage({id: 'erp.field.progress', defaultMessage: 'Progress'}), format: formatProgress},
+                {key: 'planned_start_date', label: intl.formatMessage({id: 'erp.field.planned_start', defaultMessage: 'Planned Start'}), format: formatDate},
+                {key: 'planned_end_date', label: intl.formatMessage({id: 'erp.field.planned_end', defaultMessage: 'Planned End'}), format: formatDate},
             ]}
-            searchPlaceholder='Search work orders...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_work_orders', defaultMessage: 'Search work orders...'})}
             onItemPress={handlePress}
         />
     );
@@ -257,13 +265,13 @@ export const ProjectsScreen = ({navigation}: Props) => {
             fetchFn={fetchProjects}
             tabs={tabs}
             fields={[
-                {key: 'project_name', label: 'Name'},
-                {key: 'percent_complete', label: 'Progress', format: (val: any) => val != null ? `${val}%` : '-'},
-                {key: 'expected_start_date', label: 'Start', format: formatDate},
-                {key: 'expected_end_date', label: 'End', format: formatDate},
-                {key: 'priority', label: 'Priority'},
+                {key: 'project_name', label: intl.formatMessage({id: 'erp.field.project_name', defaultMessage: 'Project Name'})},
+                {key: 'percent_complete', label: intl.formatMessage({id: 'erp.field.progress', defaultMessage: 'Progress'}), format: (val: any) => val != null ? `${val}%` : '-'},
+                {key: 'expected_start_date', label: intl.formatMessage({id: 'erp.field.planned_start', defaultMessage: 'Planned Start'}), format: formatDate},
+                {key: 'expected_end_date', label: intl.formatMessage({id: 'erp.field.planned_end', defaultMessage: 'Planned End'}), format: formatDate},
+                {key: 'priority', label: intl.formatMessage({id: 'erp.field.priority', defaultMessage: 'Priority'})},
             ]}
-            searchPlaceholder='Search projects...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_projects', defaultMessage: 'Search projects...'})}
             onItemPress={handlePress}
         />
     );
@@ -280,12 +288,12 @@ export const StockScreen = ({navigation}: Props) => {
             title={intl.formatMessage({id: 'erp.stock', defaultMessage: 'Stock'})}
             fetchFn={fetchItems}
             fields={[
-                {key: 'item_name', label: 'Name'},
-                {key: 'item_code', label: 'Code'},
-                {key: 'item_group', label: 'Group'},
-                {key: 'stock_uom', label: 'UOM'},
+                {key: 'item_name', label: intl.formatMessage({id: 'erp.field.item_name', defaultMessage: 'Item Name'})},
+                {key: 'item_code', label: intl.formatMessage({id: 'erp.field.item_code', defaultMessage: 'Item Code'})},
+                {key: 'item_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
+                {key: 'stock_uom', label: intl.formatMessage({id: 'erp.field.uom', defaultMessage: 'UOM'})},
             ]}
-            searchPlaceholder='Search items...'
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_items', defaultMessage: 'Search items...'})}
             onItemPress={(item) => navigation.navigate('ErpItemStock', {itemCode: item.item_code, itemName: item.item_name})}
         />
     );

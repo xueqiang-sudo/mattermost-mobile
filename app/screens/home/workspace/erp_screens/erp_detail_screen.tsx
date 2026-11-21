@@ -237,12 +237,15 @@ const ErpDetailScreen = ({
                 setSubData(subs);
             }
         } catch (e: any) {
-            Alert.alert('Error', e?.message || String(e));
+            Alert.alert(
+                intl.formatMessage({id: 'erp.error', defaultMessage: 'Error'}),
+                e?.message || String(e),
+            );
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [serverUrl, name, fetchDetailFn, subLists]);
+    }, [serverUrl, name, fetchDetailFn, subLists, intl]);
 
     useEffect(() => {
         loadData();
@@ -264,7 +267,10 @@ const ErpDetailScreen = ({
                             onDeleted?.(navigation);
                             navigation.goBack();
                         } catch (e: any) {
-                            Alert.alert('Error', e?.message || String(e));
+                            Alert.alert(
+                                intl.formatMessage({id: 'erp.error', defaultMessage: 'Error'}),
+                                e?.message || String(e),
+                            );
                         }
                     },
                 },
