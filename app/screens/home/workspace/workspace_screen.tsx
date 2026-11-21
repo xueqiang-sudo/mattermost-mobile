@@ -43,16 +43,16 @@ const CARDS: WorkspaceCard[] = [
     {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: 'Approvals', screen: Screens.APPS_APPROVALS},
     {key: 'hot_products', icon: 'fire', labelId: 'erp.module.hot_products', defaultLabel: 'Hot Products', screen: Screens.APPS_HOT_PRODUCTS},
     {key: 'customers', icon: 'account-multiple-outline', labelId: 'erp.module.customers', defaultLabel: 'Customers', screen: Screens.ERP_CUSTOMERS},
-    {key: 'suppliers', icon: 'truck-delivery-outline', labelId: 'erp.module.suppliers', defaultLabel: 'Suppliers', screen: Screens.ERP_SUPPLIERS},
-    {key: 'sales_orders', icon: 'cart-outline', labelId: 'erp.module.sales_orders', defaultLabel: 'Sales Orders', screen: Screens.ERP_SALES_ORDERS},
-    {key: 'purchase_orders', icon: 'clipboard-text-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS},
+    {key: 'suppliers', icon: 'car-outline', labelId: 'erp.module.suppliers', defaultLabel: 'Suppliers', screen: Screens.ERP_SUPPLIERS},
+    {key: 'sales_orders', icon: 'file-text-outline', labelId: 'erp.module.sales_orders', defaultLabel: 'Sales Orders', screen: Screens.ERP_SALES_ORDERS},
+    {key: 'purchase_orders', icon: 'credit-card-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS},
     {key: 'work_orders', icon: 'cog-outline', labelId: 'erp.module.work_orders', defaultLabel: 'Manufacturing', screen: Screens.ERP_WORK_ORDERS},
     {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS},
-    {key: 'stock', icon: 'package-variant-closed', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK},
-    {key: 'warehouse_inout', icon: 'warehouse', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT},
+    {key: 'stock', icon: 'products', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK},
+    {key: 'warehouse_inout', icon: 'send-outline', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT},
     {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: 'Finance', screen: Screens.APPS_FINANCE},
     {key: 'sales', icon: 'chart-line', labelId: 'erp.module.sales', defaultLabel: 'Sales', screen: Screens.APPS_SALES},
-    {key: 'inventory', icon: 'products', labelId: 'erp.module.inventory', defaultLabel: 'Inventory', screen: Screens.APPS_INVENTORY},
+    {key: 'inventory', icon: 'view-grid-plus-outline', labelId: 'erp.module.inventory', defaultLabel: 'Inventory', screen: Screens.APPS_INVENTORY},
 ];
 
 type RecentMessage = {
@@ -93,18 +93,21 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: 12,
+        justifyContent: 'space-between',
     },
     card: {
-        width: '48%',
+        width: '31%',
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        borderRadius: 10,
-        paddingVertical: 14,
-        paddingHorizontal: 12,
-        flexDirection: 'row',
+        borderRadius: 12,
+        paddingVertical: 20,
+        paddingHorizontal: 8,
+        flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: changeOpacity(theme.centerChannelColor, 0.08),
+        minHeight: 100,
     },
     cardDisabled: {
         opacity: 0.5,
@@ -116,11 +119,12 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 20,
     },
     cardIcon: {
-        marginRight: 10,
+        marginBottom: 8,
     },
     cardLabel: {
         color: theme.centerChannelColor,
-        ...typography('Body', 100, 'SemiBold'),
+        ...typography('Body', 75, 'SemiBold'),
+        textAlign: 'center',
     },
     cardSubtitle: {
         color: changeOpacity(theme.centerChannelColor, 0.56),
@@ -526,14 +530,12 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}
             >
-                <CompassIcon name={card.icon} size={22} color={theme.buttonBg} style={styles.cardIcon}/>
-                <View style={{flex: 1}}>
-                    <Text style={styles.cardLabel} numberOfLines={1}>
-                        {label}
-                        {showBadge ? ` (${approvalCount})` : ''}
-                    </Text>
-                    {card.subtitle ? <Text style={styles.cardSubtitle}>{card.subtitle}</Text> : null}
-                </View>
+                <CompassIcon name={card.icon} size={32} color={theme.buttonBg} style={styles.cardIcon}/>
+                <Text style={styles.cardLabel} numberOfLines={2}>
+                    {label}
+                    {showBadge ? ` (${approvalCount})` : ''}
+                </Text>
+                {card.subtitle ? <Text style={styles.cardSubtitle}>{card.subtitle}</Text> : null}
             </TouchableOpacity>
         );
     };
