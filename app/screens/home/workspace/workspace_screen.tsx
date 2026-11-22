@@ -398,6 +398,7 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         const checkErpTeam = async () => {
             try {
                 const teamId = currentTeamId;
+                debugLog('[WorkspaceScreen] checkErpTeam: teamId=', teamId, ' teamName=', currentTeam?.display_name);
                 if (!teamId) {
                     setIsErpTeam(false);
                     return;
@@ -409,12 +410,18 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
                     const access = await client.doFetch(`/plugins/com.mattermost.frappe-sync/api/dashboard/access?team_id=${teamId}`, {
                         method: 'get',
                     });
-                    setIsErpTeam(access?.is_erp_synced_team === true);
+                    const isErp = access?.is_erp_synced_team === true;
+                    debugLog('[WorkspaceScreen] dashboard/access response: is_erp_synced_team=', isErp);
+                    setIsErpTeam(isErp);
                 } catch {
                     // Fallback: check erp_address field
-                    setIsErpTeam(Boolean((currentTeam as any)?.erp_address));
+                    const fallback = Boolean((currentTeam as any)?.erp_address);
+                    debugLog('[WorkspaceScreen] dashboard/access failed, fallback erp_address=', fallback);
+                    setIsErpTeam(fallback);
                 }
-            } catch { /* ignore */ }
+            } catch (e) {
+                debugLog('[WorkspaceScreen] checkErpTeam error:', e);
+            }
         };
         checkErpTeam();
     }, [serverUrl, currentTeamId, currentTeam]);
@@ -435,18 +442,22 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
     // ---- Load ERP permissions ----
     useEffect(() => {
         const loadPermissions = async () => {
+            debugLog('[WorkspaceScreen] loadPermissions: isErpTeam=', isErpTeam, ' currentTeamId=', currentTeamId);
             if (!isErpTeam) {
+                debugLog('[WorkspaceScreen] Not ERP team, skip permissions load');
                 setErpPermissions(null);
                 return;
             }
 
             try {
+                debugLog('[WorkspaceScreen] Calling GET /plugins/com.mattermost.frappe-sync/api/erp/permissions');
                 const permissions = await getErpPermissions(serverUrl);
-                debugLog('[WorkspaceScreen] ERP permissions loaded:', JSON.stringify({
+                debugLog('[WorkspaceScreen] ERP permissions response:', JSON.stringify({
                     has_erp_account: permissions?.has_erp_account,
                     roles: permissions?.roles,
                     allowed_doctypes_count: permissions?.allowed_doctypes?.length ?? 0,
                     allowed_doctypes: permissions?.allowed_doctypes,
+                    data_scope: permissions?.data_scope,
                 }));
                 setErpPermissions(permissions);
             } catch (error) {
