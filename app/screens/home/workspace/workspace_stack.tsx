@@ -8,6 +8,8 @@ import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
 import {getChatListBackdropColor} from '@utils/theme';
 
+import type TeamModel from '@typings/database/models/servers/team';
+
 import CompanyNewsScreen from './company_news_screen';
 import ErpModulesScreen from './erp_modules_screen';
 import SchedulesScreen from './schedules_screen';
@@ -38,7 +40,11 @@ import MesScreen from '../apps/mes/mes_screen';
 
 const Stack = createStackNavigator();
 
-const WorkspaceStack = () => {
+type WorkspaceStackProps = {
+    currentTeam?: TeamModel;
+};
+
+export function WorkspaceStack({currentTeam}: WorkspaceStackProps) {
     const theme = useTheme();
     const headerBg = getChatListBackdropColor(theme);
 
@@ -53,7 +59,9 @@ const WorkspaceStack = () => {
             }}
         >
             {/* ── Workspace screens ── */}
-            <Stack.Screen name={Screens.HOME_TAB_WORKSPACE} component={WorkspaceScreen} options={{title: '工作台'}}/>
+            <Stack.Screen name={Screens.HOME_TAB_WORKSPACE} options={{title: '工作台'}}>
+                {() => <WorkspaceScreen currentTeam={currentTeam}/>}
+            </Stack.Screen>
             <Stack.Screen name={Screens.WORKSPACE_ERP_MODULES} component={ErpModulesScreen} options={{title: 'ERP'}}/>
             <Stack.Screen name={Screens.WORKSPACE_TODOS} component={TodosScreen} options={{title: 'Todos'}}/>
             <Stack.Screen name={Screens.WORKSPACE_NEWS} component={CompanyNewsScreen} options={{title: 'News'}}/>
@@ -93,5 +101,3 @@ const WorkspaceStack = () => {
         </Stack.Navigator>
     );
 };
-
-export default WorkspaceStack;

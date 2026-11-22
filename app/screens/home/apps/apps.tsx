@@ -73,7 +73,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
     },
     appCard: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
@@ -186,7 +186,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         appCard: {
             width: cardWidth,
             height: cardHeight,
-            aspectRatio: cardWidth / cardHeight,
         },
     };
 

@@ -1,7 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useState} from 'react';
+import {useNavigation} from '@react-navigation/native';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import NetworkManager from '@managers/network_manager';
 import {getChannelById} from '@queries/servers/channel';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {bottomSheet} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -28,6 +30,7 @@ import {fetchApprovals} from '../apps/api';
 import {getOrCreateSmartNotebookChannel} from '../apps/smart_notebook/smart_notebook_api';
 
 import type {StackNavigationProp} from '@react-navigation/stack';
+import type TeamModel from '@typings/database/models/servers/team';
 
 type WorkspaceCard = {
     key: string;
@@ -133,7 +136,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
     },
     card: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
@@ -342,10 +345,11 @@ function formatTimeAgo(ts: number, intl: ReturnType<typeof useIntl>): string {
 }
 
 type Props = {
-    navigation: StackNavigationProp<any>;
+    currentTeam?: TeamModel;
 };
 
-const WorkspaceScreen = ({navigation}: Props) => {
+const WorkspaceScreen = ({currentTeam}: Props) => {
+    const navigation = useNavigation<StackNavigationProp<any>>();
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
@@ -376,7 +380,6 @@ const WorkspaceScreen = ({navigation}: Props) => {
         card: {
             width: cardWidth,
             height: cardHeight,
-            aspectRatio: cardWidth / cardHeight,
         },
     };
 
@@ -387,13 +390,18 @@ const WorkspaceScreen = ({navigation}: Props) => {
     const [approvalCount, setApprovalCount] = useState(0);
     const [erpPermissions, setErpPermissions] = useState<ErpPermissionsResponse | null>(null);
 
+    // React to team changes
+    const currentTeamId = useMemo(() => currentTeam?.id, [currentTeam]);
+
     // ---- Check if ERP team ----
     useEffect(() => {
         const checkErpTeam = async () => {
             try {
-                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const teamId = await getCurrentTeamId(database);
-                if (!teamId) {return;}
+                const teamId = currentTeamId;
+                if (!teamId) {
+                    setIsErpTeam(false);
+                    return;
+                }
 
                 // Use dashboard access API (same as contacts module)
                 try {
@@ -404,26 +412,25 @@ const WorkspaceScreen = ({navigation}: Props) => {
                     setIsErpTeam(access?.is_erp_synced_team === true);
                 } catch {
                     // Fallback: check erp_address field
-                    const team = await database.get('Team').find(teamId);
-                    setIsErpTeam(Boolean((team as any)?.erp_address));
+                    setIsErpTeam(Boolean((currentTeam as any)?.erp_address));
                 }
             } catch { /* ignore */ }
         };
         checkErpTeam();
-    }, [serverUrl]);
+    }, [serverUrl, currentTeamId, currentTeam]);
 
     // ---- Fetch pending approval count ----
     useEffect(() => {
         const loadApprovals = async () => {
             try {
-                const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
-                const teamId = await getCurrentTeamId(database);
+                const teamId = currentTeamId;
+                if (!teamId) {return;}
                 const data = await fetchApprovals(serverUrl, teamId);
                 setApprovalCount(data.length);
             } catch { /* ignore */ }
         };
         loadApprovals();
-    }, [serverUrl]);
+    }, [serverUrl, currentTeamId]);
 
     // ---- Load ERP permissions ----
     useEffect(() => {
@@ -435,7 +442,7 @@ const WorkspaceScreen = ({navigation}: Props) => {
 
             try {
                 const permissions = await getErpPermissions(serverUrl);
-                console.log('[WorkspaceScreen] ERP permissions loaded:', JSON.stringify({
+                debugLog('[WorkspaceScreen] ERP permissions loaded:', JSON.stringify({
                     has_erp_account: permissions?.has_erp_account,
                     roles: permissions?.roles,
                     allowed_doctypes_count: permissions?.allowed_doctypes?.length ?? 0,
@@ -443,12 +450,12 @@ const WorkspaceScreen = ({navigation}: Props) => {
                 }));
                 setErpPermissions(permissions);
             } catch (error) {
-                console.warn('[WorkspaceScreen] Failed to load ERP permissions:', error);
+                debugLog('[WorkspaceScreen] Failed to load ERP permissions:', error);
                 setErpPermissions(null);
             }
         };
         loadPermissions();
-    }, [serverUrl, isErpTeam]);
+    }, [serverUrl, isErpTeam, currentTeamId]);
 
     // ---- Handlers ----
     const handleSmartNotebook = useCallback(async () => {
@@ -591,36 +598,6 @@ const WorkspaceScreen = ({navigation}: Props) => {
         }
     }, [serverUrl, intl, theme]);
 
-    const handleCardPress = useCallback((card: WorkspaceCard) => {
-        // Check if ERP team - all workspace cards require ERP
-        if (!isErpTeam) {
-            Alert.alert(
-                intl.formatMessage({id: 'workspace.erp_only_title', defaultMessage: '功能不可用'}),
-                intl.formatMessage({id: 'workspace.erp_only_message', defaultMessage: '此功能仅对 ERP 企业开放。如需使用，请联系管理员开通 ERP 权限。'}),
-                [{text: intl.formatMessage({id: 'ok', defaultMessage: '我知道了'})}],
-            );
-            return;
-        }
-
-        // Check if button is enabled (permission check)
-        if (!isButtonEnabled(card)) {
-            Alert.alert(
-                intl.formatMessage({id: 'workspace.no_permission_title', defaultMessage: '无权限'}),
-                intl.formatMessage({id: 'workspace.no_permission_message', defaultMessage: '您在 ERP 中没有此功能的权限，请联系管理员。'}),
-                [{text: intl.formatMessage({id: 'ok', defaultMessage: '我知道了'})}],
-            );
-            return;
-        }
-
-        if (card.key === 'notebook') {
-            handleSmartNotebook();
-        } else if (card.key === 'ai_assistant') {
-            handleAIAssistant();
-        } else if (card.screen) {
-            navigation.navigate(card.screen);
-        }
-    }, [navigation, handleSmartNotebook, handleAIAssistant, isErpTeam, isButtonEnabled, intl]);
-
     // ---- Helper: Check if button is enabled ----
     // 对齐 webapp sidebar_apps_section.tsx 的权限逻辑：
     // - 分析类应用（在 APP_ROLE_ACCESS 中）只检查角色，不检查 doctype
@@ -676,6 +653,36 @@ const WorkspaceScreen = ({navigation}: Props) => {
 
         return true;
     }, [isErpTeam, erpPermissions]);
+
+    const handleCardPress = useCallback((card: WorkspaceCard) => {
+        // Check if ERP team - all workspace cards require ERP
+        if (!isErpTeam) {
+            Alert.alert(
+                intl.formatMessage({id: 'workspace.erp_only_title', defaultMessage: '功能不可用'}),
+                intl.formatMessage({id: 'workspace.erp_only_message', defaultMessage: '此功能仅对 ERP 企业开放。如需使用，请联系管理员开通 ERP 权限。'}),
+                [{text: intl.formatMessage({id: 'ok', defaultMessage: '我知道了'})}],
+            );
+            return;
+        }
+
+        // Check if button is enabled (permission check)
+        if (!isButtonEnabled(card)) {
+            Alert.alert(
+                intl.formatMessage({id: 'workspace.no_permission_title', defaultMessage: '无权限'}),
+                intl.formatMessage({id: 'workspace.no_permission_message', defaultMessage: '您在 ERP 中没有此功能的权限，请联系管理员。'}),
+                [{text: intl.formatMessage({id: 'ok', defaultMessage: '我知道了'})}],
+            );
+            return;
+        }
+
+        if (card.key === 'notebook') {
+            handleSmartNotebook();
+        } else if (card.key === 'ai_assistant') {
+            handleAIAssistant();
+        } else if (card.screen) {
+            navigation.navigate(card.screen);
+        }
+    }, [navigation, handleSmartNotebook, handleAIAssistant, isErpTeam, isButtonEnabled, intl]);
 
     // ---- Render: Normal card ----
     const renderCard = (card: WorkspaceCard) => {
