@@ -119,17 +119,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 }));
 
 const ICON_COLORS: Record<string, string> = {
-    fire: '#FF6B35',
-    'check-circle-outline': '#4CAF50',
-    'credit-card-outline': '#2196F3',
-    'chart-line': '#FF9800',
-    'archive-outline': '#795548',
     'forum-outline': '#9C27B0',
-    'file-excel-outline': '#4CAF50',
     'folder-outline': '#2196F3',
     'book-outline': '#FF5722',
     'notebook-outline': '#607D8B',
-    'notebook-edit-outline': '#2196F3',
+    'account-multiple-outline': '#E91E63',
+    'format-list-bulleted': '#4CAF50',
+    'calendar-outline': '#FF9800',
+    'share-variant-outline': '#00BCD4',
+    'truck-delivery-outline': '#795548',
+    monitor: '#3F51B5',
+    'bug-outline': '#607D8B',
 };
 
 const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
@@ -250,10 +250,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             // Team-level gate: conversations
             if (app.key === 'conversations' && !conversationsEnabled) {
                 return false;
-            }
-            // stock_out check warehouse_inout permission
-            if (app.key === 'stock_out') {
-                return allowedTabs.has('warehouse_inout');
             }
             // MES: require both API-level mes_enabled AND team-level mes_enabled (matches webapp)
             if (app.key === 'mes') {
@@ -384,24 +380,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                 break;
             case 'conversations':
                 navigation.navigate(Screens.APPS_CONVERSATIONS);
-                break;
-            case 'hotproducts':
-                navigation.navigate(Screens.APPS_HOT_PRODUCTS);
-                break;
-            case 'approvals':
-                navigation.navigate(Screens.APPS_APPROVALS);
-                break;
-            case 'finance':
-                navigation.navigate(Screens.APPS_FINANCE);
-                break;
-            case 'sales':
-                navigation.navigate(Screens.APPS_SALES);
-                break;
-            case 'inventory':
-                navigation.navigate(Screens.APPS_INVENTORY);
-                break;
-            case 'stock_out':
-                navigation.navigate(Screens.APPS_WAREHOUSE_INOUT);
                 break;
             case 'notebook':
                 navigation.navigate(Screens.APPS_NOTEBOOK);

@@ -61,7 +61,6 @@ export const APPS: AppDef[] = [
     {key: 'promotion', labelId: 'sidebar.tab.promotion', defaultLabel: '邀请统计', iconName: 'share-variant-outline', erpOnly: false, noPermission: true},
     {key: 'my_suppliers', labelId: 'apps.my_suppliers', defaultLabel: '我的供应商', iconName: 'truck-delivery-outline', erpOnly: false, noPermission: true},
     // ERP-only apps
-    {key: 'stock_out', labelId: 'warehouse_inout.outbound', defaultLabel: '出库', iconName: 'export-variant', erpOnly: true, noPermission: false},
     {key: 'mes', labelId: 'sidebar.tab.mes', defaultLabel: '生产管理', iconName: 'monitor', erpOnly: true, noPermission: false},
     // Debug
     {key: 'debug', labelId: 'workbench.tab.debug', defaultLabel: '调试日志', iconName: 'bug-outline', erpOnly: false, noPermission: true},
