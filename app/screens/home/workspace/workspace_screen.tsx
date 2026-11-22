@@ -71,6 +71,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     },
     scrollContent: {
         padding: 16,
+        flexGrow: 1,
     },
     scrollArea: {
         flex: 1,
@@ -91,12 +92,10 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         textAlign: 'center',
     },
     grid: {
-        flex: 1,
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 16,
         justifyContent: 'space-between',
-        alignContent: 'flex-start',
     },
     card: {
         width: '48%',

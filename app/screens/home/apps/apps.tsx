@@ -66,17 +66,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingBottom: 32,
     },
     gridContainer: {
-        flex: 1,
         paddingHorizontal: 16,
         paddingTop: 8,
     },
     sectionGrid: {
-        flex: 1,
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 16,
         justifyContent: 'space-between',
-        alignContent: 'flex-start',
     },
     appCard: {
         width: '48%',
