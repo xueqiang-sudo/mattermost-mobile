@@ -1666,6 +1666,8 @@
   "workspace.approvals.title": "Approvals",
   "workspace.erp_only_title": "Feature Unavailable",
   "workspace.erp_only_message": "This feature is only available for ERP enterprises. Please contact your administrator to enable ERP access.",
+  "workspace.no_permission_title": "No Permission",
+  "workspace.no_permission_message": "You don't have permission to access this feature in ERP. Please contact your administrator.",
   "schedules.error": "Error",
   "schedules.delete_title": "Delete Schedule",
   "schedules.delete_confirm": "Are you sure you want to delete \"{name}\"?",

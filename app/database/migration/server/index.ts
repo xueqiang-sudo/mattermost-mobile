@@ -21,6 +21,7 @@ const {
     CUSTOM_PROFILE_FIELD,
     DRAFT,
     EMPLOYEE_CONTACT,
+    ERP_PERMISSIONS_CACHE,
     FILE,
     MY_CHANNEL,
     POST,
@@ -30,6 +31,24 @@ const {
 const {PLAYBOOK_RUN, PLAYBOOK_CHECKLIST, PLAYBOOK_CHECKLIST_ITEM, PLAYBOOK_RUN_ATTRIBUTE, PLAYBOOK_RUN_ATTRIBUTE_VALUE} = PLAYBOOK_TABLES;
 
 export default schemaMigrations({migrations: [
+    {
+        toVersion: 21,
+        steps: [
+            createTable({
+                name: ERP_PERMISSIONS_CACHE,
+                columns: [
+                    {name: 'user_id', type: 'string', isIndexed: true},
+                    {name: 'team_id', type: 'string', isIndexed: true},
+                    {name: 'is_erp_team', type: 'boolean'},
+                    {name: 'has_erp_account', type: 'boolean'},
+                    {name: 'roles', type: 'string'},
+                    {name: 'allowed_doctypes', type: 'string'},
+                    {name: 'data_scope', type: 'string'},
+                    {name: 'cached_at', type: 'number'},
+                ],
+            }),
+        ],
+    },
     {
         toVersion: 20,
         steps: [

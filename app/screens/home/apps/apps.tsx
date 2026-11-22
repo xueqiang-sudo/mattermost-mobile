@@ -6,7 +6,7 @@ import {type StackNavigationProp} from '@react-navigation/stack';
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -72,12 +72,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     sectionGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 16,
+        gap: 12,
         justifyContent: 'space-between',
     },
     appCard: {
-        width: '48%',
-        aspectRatio: 0.85,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         borderRadius: 12,
         paddingVertical: 20,
@@ -162,6 +160,35 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const teamSidebarAdmin = useMemo(() => dashboardAccess?.sidebar_admin_enabled === true, [dashboardAccess]);
 
     const styles = getStyleSheet(theme);
+
+    // Calculate optimal card dimensions based on screen size and visible apps
+    const {screenWidth, screenHeight} = Dimensions.get('window');
+    const numColumns = 2;
+
+    // We'll calculate the actual number of visible apps after filtering
+    // For now, use a reasonable estimate (will be recalculated when visibleApps changes)
+    const estimatedNumCards = 12; // Estimate for calculation
+    const estimatedNumRows = Math.ceil(estimatedNumCards / numColumns);
+
+    // Available space calculation
+    const horizontalPadding = 16 * 2; // left + right padding
+    const verticalPadding = 8 + 32; // top + bottom padding (paddingTop + paddingBottom)
+    const headerHeight = 44; // approximate header height
+    const gap = 12;
+
+    const availableWidth = screenWidth - horizontalPadding;
+    const availableHeight = screenHeight - insets.top - insets.bottom - headerHeight - verticalPadding;
+
+    const cardWidth = (availableWidth - gap) / numColumns;
+    const cardHeight = (availableHeight - (gap * (estimatedNumRows - 1))) / estimatedNumRows;
+
+    const dynamicStyles = {
+        appCard: {
+            width: cardWidth,
+            height: cardHeight,
+            aspectRatio: cardWidth / cardHeight,
+        },
+    };
 
     const bumpHomeReappearTick = useCallback(() => {
         if (!isFocusedRef.current) {
@@ -400,7 +427,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const renderAppCard = (app: AppDef) => (
         <TouchableOpacity
             key={app.key}
-            style={styles.appCard}
+            style={[styles.appCard, dynamicStyles.appCard]}
             onPress={() => handleAppPress(app)}
             activeOpacity={0.7}
             testID={`apps.${app.key}`}

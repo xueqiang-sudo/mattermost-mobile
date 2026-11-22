@@ -3,11 +3,12 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Alert, DeviceEventEmitter, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {addChannelToDefaultCategory} from '@actions/local/category';
 import {switchToChannelById} from '@actions/remote/channel';
+import {getErpPermissions, type ErpPermissionsResponse} from '@actions/remote/erp_permissions';
 import CompassIcon from '@components/compass_icon';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
@@ -36,23 +37,60 @@ type WorkspaceCard = {
     screen?: string;
     wide?: boolean;
     subtitle?: string;
+    doctype?: string;
+    analyticsDoctypes?: string[];
+};
+
+// Role-based access control for analytics apps
+const APP_ROLE_ACCESS: Record<string, string[]> = {
+    // 热销榜：所有 ERP 用户可访问（无角色限制）
+    hot_products: [],
+
+    // 审批清单：所有 ERP 用户可访问（无角色限制）
+    approvals: [],
+
+    // 流水账：总经理、系统管理员、财务经理（会计经理）
+    finance: [
+        'General Manager',      // 总经理
+        'System Manager',       // 系统管理员
+        'Accounts Manager',     // 财务经理/会计经理
+    ],
+
+    // 销售统计：总经理、系统管理员、副总经理、销售经理、财务经理
+    sales: [
+        'General Manager',          // 总经理
+        'System Manager',           // 系统管理员
+        'Deputy General Manager',   // 副总经理
+        'Sales Manager',            // 销售经理
+        'Accounts Manager',         // 财务经理/会计经理
+    ],
+
+    // 库存分析：总经理、系统管理员、副总经理、财务经理、销售经理、中台经理（内勤经理）
+    inventory: [
+        'General Manager',          // 总经理
+        'System Manager',           // 系统管理员
+        'Deputy General Manager',   // 副总经理
+        'Accounts Manager',         // 财务经理/会计经理
+        'Sales Manager',            // 销售经理
+        'Internal Manager',         // 中台经理/内勤经理
+    ],
 };
 
 const CARDS: WorkspaceCard[] = [
     {key: 'ai_assistant', icon: 'robot-happy', labelId: 'workspace.card.ai_assistant', defaultLabel: 'AI Assistant'},
     {key: 'approvals', icon: 'check-circle-outline', labelId: 'workspace.card.approvals', defaultLabel: 'Approvals', screen: Screens.APPS_APPROVALS},
-    {key: 'hot_products', icon: 'fire', labelId: 'erp.module.hot_products', defaultLabel: 'Hot Products', screen: Screens.APPS_HOT_PRODUCTS},
-    {key: 'work_orders', icon: 'cog-outline', labelId: 'erp.module.work_orders', defaultLabel: 'Manufacturing', screen: Screens.ERP_WORK_ORDERS},
-    {key: 'customers', icon: 'account-multiple-outline', labelId: 'erp.module.customers', defaultLabel: 'Customers', screen: Screens.ERP_CUSTOMERS},
-    {key: 'suppliers', icon: 'car-outline', labelId: 'erp.module.suppliers', defaultLabel: 'Suppliers', screen: Screens.ERP_SUPPLIERS},
-    {key: 'sales_orders', icon: 'file-text-outline', labelId: 'erp.module.sales_orders', defaultLabel: 'Sales Orders', screen: Screens.ERP_SALES_ORDERS},
-    {key: 'purchase_orders', icon: 'credit-card-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS},
-    {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS},
-    {key: 'stock', icon: 'products', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK},
-    {key: 'warehouse_inout', icon: 'send-outline', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT},
-    {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: 'Finance', screen: Screens.APPS_FINANCE},
-    {key: 'sales', icon: 'chart-line', labelId: 'erp.module.sales', defaultLabel: 'Sales', screen: Screens.APPS_SALES},
-    {key: 'inventory', icon: 'view-grid-plus-outline', labelId: 'erp.module.inventory', defaultLabel: 'Inventory', screen: Screens.APPS_INVENTORY},
+    {key: 'hot_products', icon: 'fire', labelId: 'erp.module.hot_products', defaultLabel: 'Hot Products', screen: Screens.APPS_HOT_PRODUCTS, analyticsDoctypes: ['Sales Order', 'Sales Invoice']},
+    {key: 'work_orders', icon: 'cog-outline', labelId: 'erp.module.work_orders', defaultLabel: 'Manufacturing', screen: Screens.ERP_WORK_ORDERS, doctype: 'Work Order'},
+    {key: 'customers', icon: 'account-multiple-outline', labelId: 'erp.module.customers', defaultLabel: 'Customers', screen: Screens.ERP_CUSTOMERS, doctype: 'Customer'},
+    {key: 'suppliers', icon: 'car-outline', labelId: 'erp.module.suppliers', defaultLabel: 'Suppliers', screen: Screens.ERP_SUPPLIERS, doctype: 'Supplier'},
+    {key: 'sales_orders', icon: 'file-text-outline', labelId: 'erp.module.sales_orders', defaultLabel: 'Sales Orders', screen: Screens.ERP_SALES_ORDERS, doctype: 'Sales Order'},
+    {key: 'purchase_orders', icon: 'credit-card-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS, doctype: 'Purchase Order'},
+    {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS, doctype: 'Project'},
+    {key: 'stock', icon: 'products', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK, doctype: 'Item'},
+    {key: 'warehouse_inout', icon: 'send-outline', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT, doctype: 'Stock Entry'},
+    {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: 'Finance', screen: Screens.APPS_FINANCE, analyticsDoctypes: ['GL Entry', 'Journal Entry']},
+    {key: 'sales', icon: 'chart-line', labelId: 'erp.module.sales', defaultLabel: 'Sales', screen: Screens.APPS_SALES, analyticsDoctypes: ['Sales Order', 'Sales Invoice']},
+    {key: 'inventory', icon: 'view-grid-plus-outline', labelId: 'erp.module.inventory', defaultLabel: 'Inventory', screen: Screens.APPS_INVENTORY, analyticsDoctypes: ['Item', 'Bin']},
 ];
 
 type RecentMessage = {
@@ -94,12 +132,10 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 16,
+        gap: 12,
         justifyContent: 'space-between',
     },
     card: {
-        width: '48%',
-        aspectRatio: 0.85,
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         borderRadius: 12,
         paddingVertical: 20,
@@ -312,12 +348,44 @@ type Props = {
 const WorkspaceScreen = ({navigation}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
-    const styles = getStyles(theme);
     const serverUrl = useServerUrl();
+    const insets = useSafeAreaInsets();
+
+    // Calculate optimal card dimensions based on screen size
+    const {screenWidth, screenHeight} = Dimensions.get('window');
+    const numColumns = 2;
+    const numCards = CARDS.length;
+    const numRows = Math.ceil(numCards / numColumns);
+
+    // Available space calculation
+    const horizontalPadding = 16 * 2; // left + right padding
+    const verticalPadding = 16 * 2; // top + bottom padding
+    const headerHeight = 44; // approximate header height
+    const gap = 12;
+
+    const availableWidth = screenWidth - horizontalPadding;
+    const availableHeight = screenHeight - insets.top - insets.bottom - headerHeight - verticalPadding;
+
+    const cardWidth = (availableWidth - gap) / numColumns;
+    const cardHeight = (availableHeight - (gap * (numRows - 1))) / numRows;
+
+    // Use the smaller dimension to ensure cards fit
+    const optimalCardSize = Math.min(cardWidth, cardHeight);
+
+    const dynamicStyles = {
+        card: {
+            width: cardWidth,
+            height: cardHeight,
+            aspectRatio: cardWidth / cardHeight,
+        },
+    };
+
+    const styles = getStyles(theme);
 
     // ---- State ----
     const [isErpTeam, setIsErpTeam] = useState(false);
     const [approvalCount, setApprovalCount] = useState(0);
+    const [erpPermissions, setErpPermissions] = useState<ErpPermissionsResponse | null>(null);
 
     // ---- Check if ERP team ----
     useEffect(() => {
@@ -356,6 +424,25 @@ const WorkspaceScreen = ({navigation}: Props) => {
         };
         loadApprovals();
     }, [serverUrl]);
+
+    // ---- Load ERP permissions ----
+    useEffect(() => {
+        const loadPermissions = async () => {
+            if (!isErpTeam) {
+                setErpPermissions(null);
+                return;
+            }
+
+            try {
+                const permissions = await getErpPermissions(serverUrl);
+                setErpPermissions(permissions);
+            } catch (error) {
+                console.warn('[WorkspaceScreen] Failed to load ERP permissions:', error);
+                setErpPermissions(null);
+            }
+        };
+        loadPermissions();
+    }, [serverUrl, isErpTeam]);
 
     // ---- Handlers ----
     const handleSmartNotebook = useCallback(async () => {
@@ -509,6 +596,16 @@ const WorkspaceScreen = ({navigation}: Props) => {
             return;
         }
 
+        // Check if button is enabled (permission check)
+        if (!isButtonEnabled(card)) {
+            Alert.alert(
+                intl.formatMessage({id: 'workspace.no_permission_title', defaultMessage: '无权限'}),
+                intl.formatMessage({id: 'workspace.no_permission_message', defaultMessage: '您在 ERP 中没有此功能的权限，请联系管理员。'}),
+                [{text: intl.formatMessage({id: 'ok', defaultMessage: '我知道了'})}],
+            );
+            return;
+        }
+
         if (card.key === 'notebook') {
             handleSmartNotebook();
         } else if (card.key === 'ai_assistant') {
@@ -516,17 +613,84 @@ const WorkspaceScreen = ({navigation}: Props) => {
         } else if (card.screen) {
             navigation.navigate(card.screen);
         }
-    }, [navigation, handleSmartNotebook, handleAIAssistant, isErpTeam, intl]);
+    }, [navigation, handleSmartNotebook, handleAIAssistant, isErpTeam, isButtonEnabled, intl]);
 
+    // ---- Helper: Check if button is enabled ----
+    const isButtonEnabled = useCallback((card: WorkspaceCard): boolean => {
+        // If not ERP team, all buttons disabled
+        if (!isErpTeam) {
+            return false;
+        }
+
+        // AI Assistant and Approvals are always available for ERP users
+        if (card.key === 'ai_assistant' || card.key === 'approvals') {
+            return true;
+        }
+
+        // If no permissions loaded yet, assume enabled (will check on click)
+        if (!erpPermissions) {
+            return true;
+        }
+
+        // If user has no ERP account, disable all ERP features
+        if (!erpPermissions.has_erp_account) {
+            return false;
+        }
+
+        // Check role-based access for analytics apps
+        const allowedRoles = APP_ROLE_ACCESS[card.key];
+        if (allowedRoles !== undefined) {
+            // Empty array means no role restriction (all ERP users can access)
+            if (allowedRoles.length === 0) {
+                // Still need to check doctype permissions for analytics
+                if (card.analyticsDoctypes && card.analyticsDoctypes.length > 0) {
+                    return card.analyticsDoctypes.some(dt =>
+                        erpPermissions.allowed_doctypes?.includes(dt) || false
+                    );
+                }
+                return true;
+            }
+
+            // Check if user has any of the allowed roles
+            const userRoles = erpPermissions.roles || [];
+            const hasRole = userRoles.some(userRole =>
+                allowedRoles.some(allowedRole =>
+                    userRole.toLowerCase() === allowedRole.toLowerCase()
+                )
+            );
+
+            if (!hasRole) {
+                return false;
+            }
+
+            // Also check doctype permissions for analytics
+            if (card.analyticsDoctypes && card.analyticsDoctypes.length > 0) {
+                return card.analyticsDoctypes.some(dt =>
+                    erpPermissions.allowed_doctypes?.includes(dt) || false
+                );
+            }
+
+            return true;
+        }
+
+        // Check doctype permission for non-analytics apps
+        if (card.doctype) {
+            return erpPermissions.allowed_doctypes?.includes(card.doctype) || false;
+        }
+
+        return true;
+    }, [isErpTeam, erpPermissions]);
 
     // ---- Render: Normal card ----
     const renderCard = (card: WorkspaceCard) => {
         const label = intl.formatMessage({id: card.labelId, defaultMessage: card.defaultLabel});
         const showBadge = card.key === 'approvals' && approvalCount > 0;
+        const enabled = isButtonEnabled(card);
+
         return (
             <TouchableOpacity
                 key={card.key}
-                style={[styles.card, !isErpTeam && styles.cardDisabled]}
+                style={[styles.card, dynamicStyles.card, (!isErpTeam || !enabled) && styles.cardDisabled]}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}

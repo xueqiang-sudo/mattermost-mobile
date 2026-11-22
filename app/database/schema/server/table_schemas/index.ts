@@ -42,3 +42,4 @@ export {default as ContactDepartmentSchema} from './contact_department';
 export {default as ContactDepartmentMemberSchema} from './contact_department_member';
 export {default as EmployeeContactSchema} from './employee_contact';
 export {default as ContactSyncVersionSchema} from './contact_sync_version';
+export {default as ErpPermissionsCacheSchema} from './erp_permissions_cache';

@@ -2640,6 +2640,8 @@
   "workspace.approvals.title": "审批",
   "workspace.erp_only_title": "功能不可用",
   "workspace.erp_only_message": "此功能仅对 ERP 企业开放。如需使用，请联系管理员开通 ERP 权限。",
+  "workspace.no_permission_title": "无权限",
+  "workspace.no_permission_message": "您在 ERP 中没有此功能的权限，请联系管理员。",
   "schedules.error": "错误",
   "schedules.delete_title": "删除日程",
   "schedules.delete_confirm": "确定删除「{name}」吗？",

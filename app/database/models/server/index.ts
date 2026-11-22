@@ -42,3 +42,4 @@ export {default as ContactDepartmentModel} from './contact_department';
 export {default as ContactDepartmentMemberModel} from './contact_department_member';
 export {default as EmployeeContactModel} from './employee_contact';
 export {default as ContactSyncVersionModel} from './contact_sync_version';
+export {default as ErpPermissionsCacheModel} from './erp_permissions_cache';

@@ -51,6 +51,7 @@ export const MM_TABLES = {
         CONTACT_DEPARTMENT_MEMBER: 'ContactDepartmentMember',
         EMPLOYEE_CONTACT: 'EmployeeContact',
         CONTACT_SYNC_VERSION: 'ContactSyncVersion',
+        ERP_PERMISSIONS_CACHE: 'ErpPermissionsCache',
     },
 };
 

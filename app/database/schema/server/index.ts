@@ -47,10 +47,11 @@ import {
     ContactDepartmentMemberSchema,
     EmployeeContactSchema,
     ContactSyncVersionSchema,
+    ErpPermissionsCacheSchema,
 } from './table_schemas';
 
 export const serverSchema: AppSchema = appSchema({
-    version: 20,
+    version: 21,
     tables: [
         CategorySchema,
         CategoryChannelSchema,
@@ -98,5 +99,6 @@ export const serverSchema: AppSchema = appSchema({
         ContactDepartmentMemberSchema,
         EmployeeContactSchema,
         ContactSyncVersionSchema,
+        ErpPermissionsCacheSchema,
     ],
 });
