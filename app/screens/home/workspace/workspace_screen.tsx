@@ -435,6 +435,12 @@ const WorkspaceScreen = ({navigation}: Props) => {
 
             try {
                 const permissions = await getErpPermissions(serverUrl);
+                console.log('[WorkspaceScreen] ERP permissions loaded:', JSON.stringify({
+                    has_erp_account: permissions?.has_erp_account,
+                    roles: permissions?.roles,
+                    allowed_doctypes_count: permissions?.allowed_doctypes?.length ?? 0,
+                    allowed_doctypes: permissions?.allowed_doctypes,
+                }));
                 setErpPermissions(permissions);
             } catch (error) {
                 console.warn('[WorkspaceScreen] Failed to load ERP permissions:', error);
@@ -616,6 +622,10 @@ const WorkspaceScreen = ({navigation}: Props) => {
     }, [navigation, handleSmartNotebook, handleAIAssistant, isErpTeam, isButtonEnabled, intl]);
 
     // ---- Helper: Check if button is enabled ----
+    // 对齐 webapp sidebar_apps_section.tsx 的权限逻辑：
+    // - 分析类应用（在 APP_ROLE_ACCESS 中）只检查角色，不检查 doctype
+    // - CRUD 模块（有 doctype 但不在 APP_ROLE_ACCESS 中）检查 allowed_doctypes
+    //   但如果 API 没返回 allowed_doctypes 则放行（服务端兜底）
     const isButtonEnabled = useCallback((card: WorkspaceCard): boolean => {
         // If not ERP team, all buttons disabled
         if (!isErpTeam) {
@@ -637,45 +647,31 @@ const WorkspaceScreen = ({navigation}: Props) => {
             return false;
         }
 
-        // Check role-based access for analytics apps
+        // Analytics apps: role-only check (matches webapp)
         const allowedRoles = APP_ROLE_ACCESS[card.key];
         if (allowedRoles !== undefined) {
-            // Empty array means no role restriction (all ERP users can access)
+            // Empty array = no role restriction, all ERP users can access
             if (allowedRoles.length === 0) {
-                // Still need to check doctype permissions for analytics
-                if (card.analyticsDoctypes && card.analyticsDoctypes.length > 0) {
-                    return card.analyticsDoctypes.some(dt =>
-                        erpPermissions.allowed_doctypes?.includes(dt) || false
-                    );
-                }
                 return true;
             }
 
-            // Check if user has any of the allowed roles
+            // Check if user has any of the allowed roles (case-insensitive)
             const userRoles = erpPermissions.roles || [];
-            const hasRole = userRoles.some(userRole =>
+            return userRoles.some(userRole =>
                 allowedRoles.some(allowedRole =>
                     userRole.toLowerCase() === allowedRole.toLowerCase()
                 )
             );
-
-            if (!hasRole) {
-                return false;
-            }
-
-            // Also check doctype permissions for analytics
-            if (card.analyticsDoctypes && card.analyticsDoctypes.length > 0) {
-                return card.analyticsDoctypes.some(dt =>
-                    erpPermissions.allowed_doctypes?.includes(dt) || false
-                );
-            }
-
-            return true;
         }
 
-        // Check doctype permission for non-analytics apps
+        // CRUD modules: check doctype permission
+        // If API didn't return allowed_doctypes, allow (server enforces)
         if (card.doctype) {
-            return erpPermissions.allowed_doctypes?.includes(card.doctype) || false;
+            const allowedDoctypes = erpPermissions.allowed_doctypes;
+            if (!allowedDoctypes || allowedDoctypes.length === 0) {
+                return true;
+            }
+            return allowedDoctypes.includes(card.doctype);
         }
 
         return true;

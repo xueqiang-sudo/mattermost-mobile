@@ -274,8 +274,9 @@ export async function getDashboardAccess(serverUrl: string, teamId?: string): Pr
         const team = await teamPromise;
         // Fallback: return all tabs if API fails
         return {
-            tabs: ['conversations', 'finance', 'sales', 'hotproducts', 'inventory',
-                'orders', 'projects', 'approvals', 'price_list', 'cloud_drive',
+            // ERP tabs (finance, sales, hotproducts, inventory, approvals) removed —
+            // controlled by ERP roles in workspace_screen, not by allowedTabs.
+            tabs: ['conversations', 'price_list', 'cloud_drive',
                 'knowledge_base',
                 'notebook'],
             is_admin: false,
