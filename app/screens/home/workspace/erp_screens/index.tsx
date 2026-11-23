@@ -83,7 +83,7 @@ export const CustomersScreen = ({navigation}: Props) => {
             fields={[
                 {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer_name', defaultMessage: 'Customer Name'})},
                 {key: 'customer_primary_contact', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
-                {key: 'customer_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'})},
+                {key: 'mobile_no', label: intl.formatMessage({id: 'erp.field.mobile', defaultMessage: 'Mobile'})},
                 {key: 'customer_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
                 {key: 'territory', label: intl.formatMessage({id: 'erp.field.territory', defaultMessage: 'Territory'})},
             ]}

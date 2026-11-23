@@ -86,7 +86,7 @@ export async function fetchCustomers(serverUrl: string, filtersOrOffset?: any, o
     const filters = Array.isArray(filtersOrOffset) ? filtersOrOffset : [];
     const start = Array.isArray(filtersOrOffset) ? offset : (filtersOrOffset || 0);
     return erpList(serverUrl, 'Customer',
-        ['name', 'customer_name', 'customer_type', 'customer_group', 'territory', 'customer_primary_contact', 'modified'],
+        ['name', 'customer_name', 'customer_group', 'territory', 'customer_primary_contact', 'mobile_no', 'modified'],
         filters, 50, start,
     );
 }
