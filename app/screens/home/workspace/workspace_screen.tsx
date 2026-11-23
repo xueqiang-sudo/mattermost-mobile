@@ -115,6 +115,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     scrollContent: {
         padding: 16,
         flexGrow: 1,
+        justifyContent: 'center',
     },
     scrollArea: {
         flex: 1,
@@ -138,7 +139,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
     },
     card: {
         paddingVertical: 16,
@@ -146,6 +147,8 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
+        borderRadius: 8,
     },
     cardDisabled: {
         opacity: 0.5,
