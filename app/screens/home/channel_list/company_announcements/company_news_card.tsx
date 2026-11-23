@@ -75,6 +75,11 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         color: changeOpacity(theme.centerChannelColor, 0.56),
         marginTop: 4,
     },
+    emptyText: {
+        ...typography('Body', 100, 'Regular'),
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginTop: 4,
+    },
 }));
 
 function formatTime(ts: number): string {
@@ -126,10 +131,6 @@ const CompanyNewsCard = ({componentId}: Props) => {
         showModal(Screens.ANNOUNCEMENT_LIST, intl.formatMessage({id: 'announcement.title', defaultMessage: '公司动态'}), {canWrite});
     }, [intl, canWrite]);
 
-    if (announcements.length === 0) {
-        return null;
-    }
-
     // Get pinned announcement or the latest one
     const pinnedItem = announcements.find((a) => a.is_pinned);
     const latestItem = pinnedItem || announcements[0];
@@ -155,22 +156,30 @@ const CompanyNewsCard = ({componentId}: Props) => {
                     </View>
                 )}
             </View>
-            <View style={styles.latestItem}>
-                {latestItem.is_pinned && (
-                    <CompassIcon
-                        name='pin-outline'
-                        size={14}
-                        color={theme.errorTextColor}
-                        style={styles.pinIcon}
-                    />
-                )}
-                <Text style={styles.latestTitle} numberOfLines={1}>
-                    {latestItem.title}
+            {announcements.length === 0 ? (
+                <Text style={styles.emptyText}>
+                    {intl.formatMessage({id: 'announcement.empty', defaultMessage: '暂无公告'})}
                 </Text>
-            </View>
-            <Text style={styles.latestMeta}>
-                {latestItem.author_name} · {formatTime(latestItem.created_at)}
-            </Text>
+            ) : (
+                <>
+                    <View style={styles.latestItem}>
+                        {latestItem.is_pinned && (
+                            <CompassIcon
+                                name='pin-outline'
+                                size={14}
+                                color={theme.errorTextColor}
+                                style={styles.pinIcon}
+                            />
+                        )}
+                        <Text style={styles.latestTitle} numberOfLines={1}>
+                            {latestItem.title}
+                        </Text>
+                    </View>
+                    <Text style={styles.latestMeta}>
+                        {latestItem.author_name} · {formatTime(latestItem.created_at)}
+                    </Text>
+                </>
+            )}
         </TouchableOpacity>
     );
 };

@@ -90,7 +90,7 @@ const CARDS: WorkspaceCard[] = [
     {key: 'purchase_orders', icon: 'credit-card-outline', labelId: 'erp.module.purchase_orders', defaultLabel: 'Purchase Orders', screen: Screens.ERP_PURCHASE_ORDERS, doctype: 'Purchase Order'},
     {key: 'projects', icon: 'folder-outline', labelId: 'erp.module.projects', defaultLabel: 'Projects', screen: Screens.ERP_PROJECTS, doctype: 'Project'},
     {key: 'stock', icon: 'products', labelId: 'erp.module.stock', defaultLabel: 'Stock', screen: Screens.ERP_STOCK, doctype: 'Item'},
-    {key: 'warehouse_inout', icon: 'send-outline', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT, doctype: 'Stock Entry'},
+    {key: 'warehouse_inout', icon: 'warehouse-outline', labelId: 'erp.module.stock_out', defaultLabel: 'Stock Out', screen: Screens.APPS_WAREHOUSE_INOUT, doctype: 'Stock Entry'},
     {key: 'quality_inspection', icon: 'clipboard-check-outline', labelId: 'erp.module.quality_inspection', defaultLabel: '质检', screen: Screens.ERP_QUALITY_INSPECTION, doctype: 'Quality Inspection'},
     {key: 'subcontracting', icon: 'transfer', labelId: 'erp.module.subcontracting', defaultLabel: '委外', screen: Screens.ERP_SUBCONTRACTING, doctype: 'Subcontracting Order'},
     {key: 'finance', icon: 'currency-usd', labelId: 'erp.module.finance', defaultLabel: 'Finance', screen: Screens.APPS_FINANCE, analyticsDoctypes: ['GL Entry', 'Journal Entry']},
