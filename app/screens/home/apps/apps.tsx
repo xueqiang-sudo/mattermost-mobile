@@ -64,13 +64,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     scrollContent: {
         flexGrow: 1,
         paddingBottom: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     gridContainer: {
         paddingHorizontal: 16,
         paddingTop: 8,
-        width: '100%',
     },
     sectionGrid: {
         flexDirection: 'row',
@@ -83,8 +80,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.05),
-        borderRadius: 8,
     },
     appIconContainer: {
         width: 56,
