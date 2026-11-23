@@ -36,6 +36,68 @@ const formatMoney = (val: any, item?: any) => {
     return `${item?.currency || '¥'} ${Number(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 };
 
+// 客户类型翻译映射
+const CUSTOMER_TYPE_MAP: Record<string, string> = {
+    'Company': '公司',
+    'Individual': '个人',
+    'Partnership': '合伙企业',
+    'Proprietorship': '独资企业',
+};
+
+const formatCustomerType = (val: any, intl: any) => {
+    if (!val) {return '-';}
+    const translated = CUSTOMER_TYPE_MAP[val];
+    if (translated) {
+        return translated;
+    }
+    // 如果没有预设翻译，尝试使用 i18n
+    const key = `erp.type.${val.toLowerCase()}`;
+    return intl.formatMessage({id: key, defaultMessage: val});
+};
+
+// 订单状态翻译映射
+const ORDER_STATUS_MAP: Record<string, string> = {
+    'Draft': '草稿',
+    'On Hold': '暂停',
+    'To Deliver and Bill': '待发货和开票',
+    'To Deliver': '待发货',
+    'To Bill': '待开票',
+    'Completed': '已完成',
+    'Cancelled': '已取消',
+    'Closed': '已关闭',
+};
+
+const formatOrderStatus = (val: any, intl: any) => {
+    if (!val) {return '-';}
+    const translated = ORDER_STATUS_MAP[val];
+    if (translated) {
+        return translated;
+    }
+    // 如果没有预设翻译，尝试使用 i18n
+    const key = `erp.status.${val.toLowerCase().replace(/\s+/g, '_')}`;
+    return intl.formatMessage({id: key, defaultMessage: val});
+};
+
+// 发货状态翻译映射
+const DELIVERY_STATUS_MAP: Record<string, string> = {
+    'Not Delivered': '未发货',
+    'Fully Delivered': '已完全发货',
+    'Partly Delivered': '部分发货',
+    'Closed': '已关闭',
+    'Returned': '已退货',
+};
+
+const formatDeliveryStatus = (val: any, intl: any) => {
+    if (!val) {return '-';}
+    const translated = DELIVERY_STATUS_MAP[val];
+    if (translated) {
+        return translated;
+    }
+    // 如果没有预设翻译，尝试使用 i18n
+    const key = `erp.delivery.${val.toLowerCase().replace(/\s+/g, '_')}`;
+    return intl.formatMessage({id: key, defaultMessage: val});
+};
+
 // ─── Customer Detail ───
 
 export const CustomerDetailScreen = (props: any) => {
@@ -47,7 +109,7 @@ export const CustomerDetailScreen = (props: any) => {
             fetchDetailFn={fetchCustomerDetail}
             fields={[
                 {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer_name', defaultMessage: 'Customer Name'})},
-                {key: 'customer_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'})},
+                {key: 'customer_type', label: intl.formatMessage({id: 'erp.field.type', defaultMessage: 'Type'}), format: (val: any) => formatCustomerType(val, intl)},
                 {key: 'customer_group', label: intl.formatMessage({id: 'erp.field.group', defaultMessage: 'Group'})},
                 {key: 'territory', label: intl.formatMessage({id: 'erp.field.territory', defaultMessage: 'Territory'})},
                 {key: 'customer_primary_contact', label: intl.formatMessage({id: 'erp.field.contact', defaultMessage: 'Contact'})},
@@ -62,8 +124,8 @@ export const CustomerDetailScreen = (props: any) => {
                     {key: 'name', label: intl.formatMessage({id: 'erp.field.order_no', defaultMessage: 'Order No.'})},
                     {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
                     {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
-                    {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
-                    {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery', defaultMessage: 'Delivery'})},
+                    {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'}), format: (val: any) => formatOrderStatus(val, intl)},
+                    {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery', defaultMessage: 'Delivery'}), format: (val: any) => formatDeliveryStatus(val, intl)},
                 ],
             }]}
             canEdit={true}

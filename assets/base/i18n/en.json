@@ -3138,5 +3138,22 @@
   "announcement.form.pin": "Pin this announcement",
   "announcement.empty": "No announcements",
   "schedules.empty_description": "Chat with AI assistant to automatically generate and manage your schedules",
-  "schedules.chat_with_ai": "Chat with AI Assistant"
+  "schedules.chat_with_ai": "Chat with AI Assistant",
+  "erp.type.company": "Company",
+  "erp.type.individual": "Individual",
+  "erp.type.partnership": "Partnership",
+  "erp.type.proprietorship": "Proprietorship",
+  "erp.status.draft": "Draft",
+  "erp.status.on_hold": "On Hold",
+  "erp.status.to_deliver_and_bill": "To Deliver and Bill",
+  "erp.status.to_deliver": "To Deliver",
+  "erp.status.to_bill": "To Bill",
+  "erp.status.completed": "Completed",
+  "erp.status.cancelled": "Cancelled",
+  "erp.status.closed": "Closed",
+  "erp.delivery.not_delivered": "Not Delivered",
+  "erp.delivery.fully_delivered": "Fully Delivered",
+  "erp.delivery.partly_delivered": "Partly Delivered",
+  "erp.delivery.closed": "Closed",
+  "erp.delivery.returned": "Returned"
 }

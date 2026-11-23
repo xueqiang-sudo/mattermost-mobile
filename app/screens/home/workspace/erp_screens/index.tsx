@@ -49,6 +49,39 @@ const formatProgress = (val: any, item?: any) => {
     return '-';
 };
 
+// 发货状态翻译映射
+const DELIVERY_STATUS_MAP: Record<string, string> = {
+    'Not Delivered': '未发货',
+    'Fully Delivered': '已完全发货',
+    'Partly Delivered': '部分发货',
+    'Closed': '已关闭',
+    'Returned': '已退货',
+};
+
+const formatDeliveryStatus = (val: any) => {
+    if (!val) {return '-';}
+    return DELIVERY_STATUS_MAP[val] || val;
+};
+
+// 订单状态翻译映射
+const ORDER_STATUS_MAP: Record<string, string> = {
+    'Draft': '草稿',
+    'On Hold': '暂停',
+    'To Deliver and Bill': '待发货和开票',
+    'To Deliver': '待发货',
+    'To Bill': '待开票',
+    'Completed': '已完成',
+    'Cancelled': '已取消',
+    'Closed': '已关闭',
+    'To Receive and Bill': '待收货和开票',
+    'To Receive': '待收货',
+};
+
+const formatOrderStatus = (val: any) => {
+    if (!val) {return '-';}
+    return ORDER_STATUS_MAP[val] || val;
+};
+
 // ─── Customers ───
 
 export const CustomersScreen = ({navigation}: Props) => {
@@ -170,7 +203,7 @@ export const SalesOrdersScreen = ({navigation}: Props) => {
                 {key: 'customer_name', label: intl.formatMessage({id: 'erp.field.customer', defaultMessage: 'Customer'})},
                 {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
                 {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
-                {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery_status', defaultMessage: 'Delivery Status'})},
+                {key: 'delivery_status', label: intl.formatMessage({id: 'erp.field.delivery_status', defaultMessage: 'Delivery Status'}), format: formatDeliveryStatus},
             ]}
             searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_orders', defaultMessage: 'Search orders...'})}
             onItemPress={handlePress}
@@ -203,7 +236,7 @@ export const PurchaseOrdersScreen = ({navigation}: Props) => {
                 {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier', defaultMessage: 'Supplier'})},
                 {key: 'grand_total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
                 {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
-                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'}), format: formatOrderStatus},
             ]}
             searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_orders', defaultMessage: 'Search orders...'})}
             onItemPress={handlePress}

@@ -159,7 +159,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     // Calculate optimal card dimensions based on screen size and visible apps
     const {screenWidth} = Dimensions.get('window');
-    const numColumns = 3;
+    const numColumns = 2;
 
     // Available space calculation
     const horizontalPadding = 16 * 2; // left + right padding

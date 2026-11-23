@@ -3186,5 +3186,22 @@
   "announcement.form.pin": "置顶此公告",
   "announcement.empty": "暂无公告",
   "schedules.empty_description": "与 AI 助手聊天，可以自动生成和管理您的日程安排",
-  "schedules.chat_with_ai": "与 AI 助手聊天"
+  "schedules.chat_with_ai": "与 AI 助手聊天",
+  "erp.type.company": "公司",
+  "erp.type.individual": "个人",
+  "erp.type.partnership": "合伙企业",
+  "erp.type.proprietorship": "独资企业",
+  "erp.status.draft": "草稿",
+  "erp.status.on_hold": "暂停",
+  "erp.status.to_deliver_and_bill": "待发货和开票",
+  "erp.status.to_deliver": "待发货",
+  "erp.status.to_bill": "待开票",
+  "erp.status.completed": "已完成",
+  "erp.status.cancelled": "已取消",
+  "erp.status.closed": "已关闭",
+  "erp.delivery.not_delivered": "未发货",
+  "erp.delivery.fully_delivered": "已完全发货",
+  "erp.delivery.partly_delivered": "部分发货",
+  "erp.delivery.closed": "已关闭",
+  "erp.delivery.returned": "已退货"
 }
