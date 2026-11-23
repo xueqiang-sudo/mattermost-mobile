@@ -172,15 +172,6 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
         },
     };
 
-    // Chunk visible apps into rows of 4
-    const appRows = useMemo(() => {
-        const rows: AppDef[][] = [];
-        for (let i = 0; i < visibleApps.length; i += numColumns) {
-            rows.push(visibleApps.slice(i, i + numColumns));
-        }
-        return rows;
-    }, [visibleApps]);
-
     const bumpHomeReappearTick = useCallback(() => {
         if (!isFocusedRef.current) {
             return;
@@ -262,6 +253,15 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
             return allowedTabs.has(app.key);
         });
     }, [dashboardAccess, isErpTeam, conversationsEnabled, teamMes, isTeamAdmin, isSysAdmin, hasErpSuppliers]);
+
+    // Chunk visible apps into rows of 4
+    const appRows = useMemo(() => {
+        const rows: AppDef[][] = [];
+        for (let i = 0; i < visibleApps.length; i += numColumns) {
+            rows.push(visibleApps.slice(i, i + numColumns));
+        }
+        return rows;
+    }, [visibleApps]);
 
     const handleAppPress = useCallback((app: AppDef) => {
         switch (app.key) {
