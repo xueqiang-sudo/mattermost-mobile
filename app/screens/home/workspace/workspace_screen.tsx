@@ -460,11 +460,11 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         try {
             const displayName = intl.formatMessage({
                 id: 'apps.smart_notebook.display_name',
-                defaultMessage: 'Smart Notebook',
+                defaultMessage: 'Smart Notes',
             });
             const welcomeMessage = intl.formatMessage({
                 id: 'apps.smart_notebook.welcome',
-                defaultMessage: 'Welcome to Smart Notebook! Record your ideas and notes here.',
+                defaultMessage: 'Welcome to Smart Notes! Record your ideas and notes here.',
             });
             const channel = await getOrCreateSmartNotebookChannel(serverUrl, displayName, welcomeMessage);
             if (channel?.id) {

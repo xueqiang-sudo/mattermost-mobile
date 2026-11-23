@@ -279,11 +279,11 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                     try {
                         const displayName = intl.formatMessage({
                             id: 'apps.smart_notebook.display_name',
-                            defaultMessage: '智能笔记本',
+                            defaultMessage: '智能笔记',
                         });
                         const welcomeMessage = intl.formatMessage({
                             id: 'apps.smart_notebook.welcome',
-                            defaultMessage: '欢迎使用智能笔记本！在这里记录你的想法和笔记。',
+                            defaultMessage: '欢迎使用智能笔记！在这里记录你的想法和笔记。',
                         });
                         const channel = await getOrCreateSmartNotebookChannel(
                             serverUrl,

@@ -251,7 +251,7 @@ const ChannelHeader = ({
     }, [channelId, teamId, intl]);
 
     const openKnowledgeNotes = useCallback(() => {
-        const title = intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记本'});
+        const title = intl.formatMessage({id: 'smart_notebook.title', defaultMessage: '智能笔记'});
         goToScreen(Screens.APPS_SMART_NOTEBOOK, title, {channelId});
     }, [intl, channelId]);
 

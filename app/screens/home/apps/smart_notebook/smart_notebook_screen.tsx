@@ -165,10 +165,10 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                     // channelId passed from goToScreen (channel header menu)
                     setChannel({id: propChannelId, name: '', display_name: '', team_id: '', type: ''});
                 } else {
-                    const displayName = intl.formatMessage({id: 'smart_notebook.channel_display_name', defaultMessage: '智能笔记本'});
+                    const displayName = intl.formatMessage({id: 'smart_notebook.channel_display_name', defaultMessage: '智能笔记'});
                     const welcomeMessage = intl.formatMessage({
                         id: 'smart_notebook.welcome_post',
-                        defaultMessage: '📒 **欢迎使用智能笔记本**\n\n**随手记** — 随时发送消息，自动同步到知识图谱，帮你构建个人知识网络。\n\n**备忘录** — 结构化的标题+内容笔记，适合记录待办事项、会议纪要等，不同步到知识图谱。',
+                        defaultMessage: '📒 **欢迎使用智能笔记**\n\n**随手记** — 随时发送消息，自动同步到知识图谱，帮你构建个人知识网络。\n\n**备忘录** — 结构化的标题+内容笔记，适合记录待办事项、会议纪要等，不同步到知识图谱。',
                     });
                     const ch = await getOrCreateSmartNotebookChannel(serverUrl, displayName, welcomeMessage);
                     setChannel(ch);

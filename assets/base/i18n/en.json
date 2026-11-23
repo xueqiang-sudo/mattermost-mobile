@@ -3139,8 +3139,6 @@
   "announcement.empty": "No announcements",
   "schedules.empty_description": "Chat with AI assistant to automatically generate and manage your schedules",
   "schedules.chat_with_ai": "Chat with AI Assistant",
-  "erp.type.company": "Company",
-  "erp.type.individual": "Individual",
   "erp.type.partnership": "Partnership",
   "erp.type.proprietorship": "Proprietorship",
   "erp.status.draft": "Draft",
@@ -3155,5 +3153,11 @@
   "erp.delivery.fully_delivered": "Fully Delivered",
   "erp.delivery.partly_delivered": "Partly Delivered",
   "erp.delivery.closed": "Closed",
-  "erp.delivery.returned": "Returned"
+  "erp.delivery.returned": "Returned",
+  "apps.smart_notebook.display_name": "Smart Notes",
+  "apps.smart_notebook.welcome": "Welcome to Smart Notes! Record your ideas and notes here.",
+  "smart_notebook.channel_display_name": "Smart Notes",
+  "smart_notebook.welcome_post": "📒 **Welcome to Smart Notes**\n\n**Quick Notes** — Send messages anytime, auto-synced to your knowledge graph.\n\n**Memos** — Structured title+content notes for to-dos and meeting minutes.",
+  "smart_notebook.title": "Smart Notes",
+  "workbench.tab.smart_notebook": "Smart Notes"
 }

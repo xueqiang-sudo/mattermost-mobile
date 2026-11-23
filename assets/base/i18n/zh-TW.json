@@ -2901,5 +2901,11 @@
   "invite.success": "成功",
   "invite.user_added": "用戶已添加到企業。",
   "invite.add_failed": "新增用戶失敗",
-  "invite.add_failed_message": "請重試。"
+  "invite.add_failed_message": "請重試。",
+  "apps.smart_notebook.display_name": "智能筆記",
+  "apps.smart_notebook.welcome": "歡迎使用智能筆記！在這裡記錄你的想法和筆記。",
+  "smart_notebook.channel_display_name": "智能筆記",
+  "smart_notebook.welcome_post": "📒 **歡迎使用智能筆記**\n\n**隨手記** — 隨時發送訊息，自動同步到知識圖譜，幫你構建個人知識網絡。\n\n**備忘錄** — 結構化的標題+內容筆記，適合記錄待辦事項、會議紀要等，不同步到知識圖譜。",
+  "smart_notebook.title": "智能筆記",
+  "workbench.tab.smart_notebook": "智能筆記"
 }
