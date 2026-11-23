@@ -4,7 +4,7 @@
 import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {addChannelToDefaultCategory} from '@actions/local/category';
@@ -140,9 +140,9 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     gridRow: {
         flexDirection: 'row',
         gap: 12,
-        justifyContent: 'flex-start',
     },
     card: {
+        flex: 1,
         paddingVertical: 16,
         paddingHorizontal: 8,
         flexDirection: 'column',
@@ -357,20 +357,8 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
 
     const styles = getStyles(theme);
 
-    // Calculate card width for fixed-size layout
-    const numColumns = 4;
-    const {screenWidth} = Dimensions.get('window');
-    const availableWidth = screenWidth - 32; // scrollContent padding 16*2
-    const rowGap = 12;
-    const cardWidth = (availableWidth - rowGap * (numColumns - 1)) / numColumns;
-
-    const dynamicStyles = {
-        card: {
-            width: cardWidth,
-        },
-    };
-
     // Chunk cards into rows of 4
+    const numColumns = 4;
     const cardRows = useMemo(() => {
         const rows: WorkspaceCard[][] = [];
         for (let i = 0; i < CARDS.length; i += numColumns) {
@@ -698,7 +686,7 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         return (
             <TouchableOpacity
                 key={card.key}
-                style={[styles.card, dynamicStyles.card, (!isErpTeam || !enabled) && styles.cardDisabled]}
+                style={[styles.card, (!isErpTeam || !enabled) && styles.cardDisabled]}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}
@@ -713,6 +701,11 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         );
     };
 
+    // Placeholder to keep columns aligned when last row has fewer items
+    const renderPlaceholder = (index: number) => (
+        <View key={`placeholder-${index}`} style={styles.card}/>
+    );
+
     return (
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']} testID='workspace.screen'>
             <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -720,6 +713,7 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
                     {cardRows.map((row, rowIndex) => (
                         <View key={rowIndex} style={styles.gridRow}>
                             {row.map(renderCard)}
+                            {Array.from({length: numColumns - row.length}, (_, i) => renderPlaceholder(i))}
                         </View>
                     ))}
                 </View>

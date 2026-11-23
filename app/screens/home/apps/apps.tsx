@@ -6,7 +6,7 @@ import {type StackNavigationProp} from '@react-navigation/stack';
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Dimensions, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -75,9 +75,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     gridRow: {
         flexDirection: 'row',
         gap: 12,
-        justifyContent: 'flex-start',
     },
     appCard: {
+        flex: 1,
         paddingVertical: 16,
         paddingHorizontal: 8,
         alignItems: 'center',
@@ -159,18 +159,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     const styles = getStyleSheet(theme);
 
-    // Calculate card width for fixed-size layout
     const numColumns = 4;
-    const {screenWidth} = Dimensions.get('window');
-    const availableWidth = screenWidth - 32; // gridContainer padding 16*2
-    const rowGap = 12;
-    const cardWidth = (availableWidth - rowGap * (numColumns - 1)) / numColumns;
-
-    const dynamicStyles = {
-        appCard: {
-            width: cardWidth,
-        },
-    };
 
     const bumpHomeReappearTick = useCallback(() => {
         if (!isFocusedRef.current) {
@@ -396,7 +385,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const renderAppCard = (app: AppDef) => (
         <TouchableOpacity
             key={app.key}
-            style={[styles.appCard, dynamicStyles.appCard]}
+            style={styles.appCard}
             onPress={() => handleAppPress(app)}
             activeOpacity={0.7}
             testID={`apps.${app.key}`}
@@ -471,6 +460,9 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                                         {appRows.map((row, rowIndex) => (
                                             <View key={rowIndex} style={styles.gridRow}>
                                                 {row.map(renderAppCard)}
+                                                {Array.from({length: numColumns - row.length}, (_, i) => (
+                                                    <View key={`placeholder-${i}`} style={styles.appCard}/>
+                                                ))}
                                             </View>
                                         ))}
                                     </View>
