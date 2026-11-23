@@ -65,10 +65,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexGrow: 1,
         paddingBottom: 32,
         justifyContent: 'center',
+        alignItems: 'center',
     },
     gridContainer: {
         paddingHorizontal: 16,
         paddingTop: 8,
+        width: '100%',
     },
     sectionGrid: {
         flexDirection: 'row',
