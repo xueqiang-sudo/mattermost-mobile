@@ -3136,5 +3136,13 @@
   "announcement.form.title_placeholder": "Enter announcement title",
   "announcement.form.content_placeholder": "Enter announcement content",
   "announcement.form.pin": "Pin this announcement",
-  "announcement.empty": "No announcements"
+  "announcement.empty": "No announcements",
+  "schedules.empty_description": "Chat with AI assistant to automatically generate and manage your schedules",
+  "schedules.chat_with_ai": "Chat with AI Assistant",
+  "ai_assistant.no_bots": "No AI Assistants",
+  "ai_assistant.no_bots_detail": "No AI assistants configured for this team. Please contact your administrator.",
+  "ai_assistant.error": "Error",
+  "ai_assistant.create_channel_failed": "Failed to create bot channel. Please try again.",
+  "ai_assistant.select_bot": "Select AI Assistant",
+  "ai_assistant.error_detail": "Please try again later."
 }

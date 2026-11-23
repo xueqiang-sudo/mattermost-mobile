@@ -18,9 +18,18 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
+import {getCurrentTeamId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
+import {openDirectChannelWithBot} from '@screens/channel/ai_actions/ai_api';
+import {switchToChannelById} from '@actions/remote/channel';
+import {DeviceEventEmitter} from 'react-native';
+import {Navigation, Screens} from '@constants';
+import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
+import {bottomSheet} from '@screens/navigation';
+import {bottomSheetSnapPoint} from '@utils/helpers';
 
 type Schedule = {
     id: string;
@@ -145,6 +154,31 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         color: theme.buttonColor,
         ...typography('Body', 200, 'SemiBold'),
     },
+    headerButton: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    emptyDescription: {
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        ...typography('Body', 100, 'Regular'),
+        textAlign: 'center',
+        marginTop: 8,
+        marginBottom: 24,
+        paddingHorizontal: 32,
+    },
+    aiButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.buttonBg,
+        borderRadius: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        gap: 8,
+    },
+    aiButtonText: {
+        color: theme.buttonColor,
+        ...typography('Body', 100, 'SemiBold'),
+    },
 }));
 
 const SchedulesScreen = () => {
@@ -155,8 +189,18 @@ const SchedulesScreen = () => {
     const styles = getStyles(theme);
 
     useLayoutEffect(() => {
-        navigation.setOptions({title: intl.formatMessage({id: 'workspace.schedules.title', defaultMessage: 'Schedules'})});
-    }, [navigation, intl]);
+        navigation.setOptions({
+            title: intl.formatMessage({id: 'workspace.schedules.title', defaultMessage: 'Schedules'}),
+            headerRight: () => (
+                <TouchableOpacity
+                    onPress={handleAIAssistant}
+                    style={styles.headerButton}
+                >
+                    <CompassIcon name='robot-happy' size={24} color={theme.sidebarText}/>
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, intl, handleAIAssistant, styles.headerButton, theme.sidebarText]);
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [loading, setLoading] = useState(true);
@@ -224,6 +268,82 @@ const SchedulesScreen = () => {
             ],
         );
     }, [serverUrl, intl]);
+
+    const handleAIAssistant = useCallback(async () => {
+        try {
+            const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+            const client = NetworkManager.getClient(serverUrl);
+            const teamId = await getCurrentTeamId(database);
+            if (!teamId) {
+                return;
+            }
+
+            // Query bot users in the current team
+            const users = await client.getProfilesInTeam(teamId, 0, 200);
+            const bots = (users || []).filter((u: any) => u.is_bot && !u.delete_at);
+
+            if (bots.length === 0) {
+                Alert.alert(
+                    intl.formatMessage({id: 'ai_assistant.no_bots', defaultMessage: 'No AI assistants'}),
+                    intl.formatMessage({id: 'ai_assistant.no_bots_detail', defaultMessage: 'No AI assistants configured for this team. Please contact your administrator.'}),
+                );
+                return;
+            }
+
+            const openBotChat = async (botUserId: string) => {
+                const result = await openDirectChannelWithBot(serverUrl, botUserId, teamId);
+                if (result.data) {
+                    DeviceEventEmitter.emit(Navigation.NAVIGATE_TO_TAB, {screen: Screens.HOME_TAB_CHAT});
+                    setTimeout(() => {
+                        switchToChannelById(serverUrl, result.data!.id);
+                    }, 300);
+                } else {
+                    Alert.alert(
+                        intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Error'}),
+                        intl.formatMessage({id: 'ai_assistant.create_channel_failed', defaultMessage: 'Failed to create bot channel. Please try again.'}),
+                    );
+                }
+            };
+
+            if (bots.length === 1) {
+                await openBotChat(bots[0].id);
+                return;
+            }
+
+            // Multiple bots: show bottom sheet for selection
+            const CLOSE_BUTTON_ID = 'close-bot-selection';
+            const snapPoint = bottomSheetSnapPoint(bots.length, ITEM_HEIGHT);
+
+            const renderContent = () => (
+                <View>
+                    {bots.map((bot: any) => (
+                        <SlideUpPanelItem
+                            key={bot.id}
+                            leftIcon='robot-happy'
+                            onPress={async () => {
+                                await openBotChat(bot.id);
+                            }}
+                            text={bot.nickname || bot.username}
+                            testID={`bot_selection.${bot.id}`}
+                        />
+                    ))}
+                </View>
+            );
+
+            bottomSheet({
+                closeButtonId: CLOSE_BUTTON_ID,
+                title: intl.formatMessage({id: 'ai_assistant.select_bot', defaultMessage: 'Select AI Assistant'}),
+                snapPoints: [1, snapPoint],
+                renderContent,
+                theme,
+            });
+        } catch (error) {
+            Alert.alert(
+                intl.formatMessage({id: 'ai_assistant.error', defaultMessage: 'Failed to load AI assistants'}),
+                intl.formatMessage({id: 'ai_assistant.error_detail', defaultMessage: 'Please try again later.'}),
+            );
+        }
+    }, [serverUrl, intl, theme]);
 
     const formatTime = (isoStr: string | null) => {
         if (!isoStr) {return '-';}
@@ -307,6 +427,21 @@ const SchedulesScreen = () => {
                         <Text style={styles.emptyText}>
                             {intl.formatMessage({id: 'schedules.empty', defaultMessage: '暂无日程安排'})}
                         </Text>
+                        <Text style={styles.emptyDescription}>
+                            {intl.formatMessage({
+                                id: 'schedules.empty_description',
+                                defaultMessage: '与 AI 助手聊天，可以自动生成和管理您的日程安排',
+                            })}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.aiButton}
+                            onPress={handleAIAssistant}
+                        >
+                            <CompassIcon name='robot-happy' size={20} color={theme.buttonColor}/>
+                            <Text style={styles.aiButtonText}>
+                                {intl.formatMessage({id: 'schedules.chat_with_ai', defaultMessage: '与 AI 助手聊天'})}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 ) : (
                     schedules.map((schedule) => {
