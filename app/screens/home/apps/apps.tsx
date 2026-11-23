@@ -6,7 +6,7 @@ import {type StackNavigationProp} from '@react-navigation/stack';
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Dimensions, ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -70,15 +70,16 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingTop: 8,
     },
     sectionGrid: {
+        gap: 12,
+    },
+    gridRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'flex-start',
+        gap: 12,
     },
     appCard: {
+        flex: 1,
         paddingVertical: 16,
         paddingHorizontal: 8,
-        marginHorizontal: 6,
-        marginVertical: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -158,26 +159,15 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     const styles = getStyleSheet(theme);
 
-    // Calculate optimal card dimensions based on screen size and visible apps
-    const {screenWidth} = Dimensions.get('window');
-    const numColumns = 3;
-
-    // Available space calculation
-    const horizontalPadding = 16 * 2; // left + right padding
-    const cardMargin = 6; // each card has marginHorizontal: 6, so 12 total per card
-
-    const availableWidth = screenWidth - horizontalPadding;
-    // 每个卡片宽度 = 可用宽度 / 列数 - 左右 margin
-    const cardWidth = availableWidth / numColumns - cardMargin * 2;
-
-    const dynamicStyles = {
-        appCard: {
-            width: cardWidth,
-            // 确保宽度不会被 flex 压缩
-            flexShrink: 0,
-            flexGrow: 0,
-        },
-    };
+    // Chunk visible apps into rows of 4
+    const numColumns = 4;
+    const appRows = useMemo(() => {
+        const rows: AppDef[][] = [];
+        for (let i = 0; i < visibleApps.length; i += numColumns) {
+            rows.push(visibleApps.slice(i, i + numColumns));
+        }
+        return rows;
+    }, [visibleApps]);
 
     const bumpHomeReappearTick = useCallback(() => {
         if (!isFocusedRef.current) {
@@ -394,7 +384,7 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const renderAppCard = (app: AppDef) => (
         <TouchableOpacity
             key={app.key}
-            style={[styles.appCard, dynamicStyles.appCard]}
+            style={styles.appCard}
             onPress={() => handleAppPress(app)}
             activeOpacity={0.7}
             testID={`apps.${app.key}`}
@@ -466,7 +456,11 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                             ) : (
                                 <View style={styles.gridContainer}>
                                     <View style={styles.sectionGrid}>
-                                        {visibleApps.map((app) => renderAppCard(app))}
+                                        {appRows.map((row, rowIndex) => (
+                                            <View key={rowIndex} style={styles.gridRow}>
+                                                {row.map(renderAppCard)}
+                                            </View>
+                                        ))}
                                     </View>
                                 </View>
                             )}
