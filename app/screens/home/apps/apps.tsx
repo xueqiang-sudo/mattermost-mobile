@@ -72,12 +72,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     sectionGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
         justifyContent: 'flex-start',
     },
     appCard: {
         paddingVertical: 16,
         paddingHorizontal: 8,
+        marginHorizontal: 6,
+        marginVertical: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -163,11 +164,11 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     // Available space calculation
     const horizontalPadding = 16 * 2; // left + right padding
-    const gap = 12;
+    const cardMargin = 6; // each card has marginHorizontal: 6, so 12 total per card
 
     const availableWidth = screenWidth - horizontalPadding;
-    // 计算每个卡片的宽度：(可用宽度 - 间距) / 列数
-    const cardWidth = (availableWidth - gap * (numColumns - 1)) / numColumns;
+    // 每个卡片宽度 = 可用宽度 / 列数 - 左右 margin
+    const cardWidth = availableWidth / numColumns - cardMargin * 2;
 
     const dynamicStyles = {
         appCard: {
