@@ -159,18 +159,22 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
 
     // Calculate optimal card dimensions based on screen size and visible apps
     const {screenWidth} = Dimensions.get('window');
-    const numColumns = 2;
+    const numColumns = 3;
 
     // Available space calculation
     const horizontalPadding = 16 * 2; // left + right padding
     const gap = 12;
 
     const availableWidth = screenWidth - horizontalPadding;
+    // 计算每个卡片的宽度：(可用宽度 - 间距) / 列数
     const cardWidth = (availableWidth - gap * (numColumns - 1)) / numColumns;
 
     const dynamicStyles = {
         appCard: {
             width: cardWidth,
+            // 确保宽度不会被 flex 压缩
+            flexShrink: 0,
+            flexGrow: 0,
         },
     };
 
