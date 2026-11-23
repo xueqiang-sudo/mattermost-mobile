@@ -3186,11 +3186,5 @@
   "announcement.form.pin": "置顶此公告",
   "announcement.empty": "暂无公告",
   "schedules.empty_description": "与 AI 助手聊天，可以自动生成和管理您的日程安排",
-  "schedules.chat_with_ai": "与 AI 助手聊天",
-  "ai_assistant.no_bots": "暂无 AI 助手",
-  "ai_assistant.no_bots_detail": "当前企业未配置 AI 助手，请联系管理员。",
-  "ai_assistant.error": "错误",
-  "ai_assistant.create_channel_failed": "创建机器人频道失败，请重试。",
-  "ai_assistant.select_bot": "选择 AI 助手",
-  "ai_assistant.error_detail": "请稍后重试。"
+  "schedules.chat_with_ai": "与 AI 助手聊天"
 }
