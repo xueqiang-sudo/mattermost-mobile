@@ -15,6 +15,7 @@ import {showModal} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
+import {getDashboardAccess} from '../../apps/api';
 import {fetchAnnouncements} from './announcement_api';
 import type {Announcement} from './types';
 
@@ -97,26 +98,33 @@ const CompanyNewsCard = ({componentId}: Props) => {
     const styles = getStyles(theme);
 
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [canWrite, setCanWrite] = useState(false);
 
-    const loadAnnouncements = useCallback(async () => {
+    const loadData = useCallback(async () => {
         try {
             const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
             const teamId = await getCurrentTeamId(database);
             if (!teamId) {return;}
+
+            // Load announcements
             const data = await fetchAnnouncements(serverUrl, teamId);
             setAnnouncements(data);
+
+            // Check write permission
+            const access = await getDashboardAccess(serverUrl, teamId);
+            setCanWrite(access?.announcement_write === true);
         } catch {
             // ignore
         }
     }, [serverUrl]);
 
     useEffect(() => {
-        loadAnnouncements();
-    }, [loadAnnouncements]);
+        loadData();
+    }, [loadData]);
 
     const handlePress = useCallback(() => {
-        showModal(Screens.ANNOUNCEMENT_LIST, intl.formatMessage({id: 'announcement.title', defaultMessage: '公司动态'}), {canWrite: true});
-    }, [intl]);
+        showModal(Screens.ANNOUNCEMENT_LIST, intl.formatMessage({id: 'announcement.title', defaultMessage: '公司动态'}), {canWrite});
+    }, [intl, canWrite]);
 
     if (announcements.length === 0) {
         return null;
