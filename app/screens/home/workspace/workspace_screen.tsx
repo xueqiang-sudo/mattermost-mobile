@@ -140,7 +140,7 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
     gridRow: {
         flexDirection: 'row',
         gap: 12,
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
     },
     card: {
         paddingVertical: 16,

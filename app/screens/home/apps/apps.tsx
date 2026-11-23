@@ -75,7 +75,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     gridRow: {
         flexDirection: 'row',
         gap: 12,
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
     },
     appCard: {
         paddingVertical: 16,
