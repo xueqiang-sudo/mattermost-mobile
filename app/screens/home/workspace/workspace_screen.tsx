@@ -355,7 +355,7 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
 
     // Calculate optimal card dimensions based on screen size
     const {screenWidth} = Dimensions.get('window');
-    const numColumns = 3;
+    const numColumns = 4;
 
     // Available space calculation
     const horizontalPadding = 16 * 2; // left + right padding
