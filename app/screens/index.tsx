@@ -72,6 +72,15 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.APP_UPDATE:
             screen = withIntl(withSafeAreaInsets(require('@screens/app_update').default));
             break;
+        case Screens.ANNOUNCEMENT_LIST:
+            screen = withServerDatabase(require('@screens/home/channel_list/company_announcements/announcement_list_screen').default);
+            break;
+        case Screens.ANNOUNCEMENT_DETAIL:
+            screen = withServerDatabase(require('@screens/home/channel_list/company_announcements/announcement_detail_screen').default);
+            break;
+        case Screens.ANNOUNCEMENT_FORM:
+            screen = withServerDatabase(require('@screens/home/channel_list/company_announcements/announcement_form_screen').default);
+            break;
         case Screens.APPS_FORM:
             screen = withServerDatabase(require('@screens/apps_form').default);
             break;

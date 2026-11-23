@@ -18,7 +18,7 @@ import WorkspaceScreen from './workspace_screen';
 import {
     CustomersScreen, SuppliersScreen, SalesOrdersScreen,
     PurchaseOrdersScreen, WorkOrdersScreen, ProjectsScreen as ErpProjectsScreen,
-    StockScreen,
+    StockScreen, QualityInspectionScreen, SubcontractingScreen,
 } from './erp_screens';
 import {
     CustomerDetailScreen, CustomerFormScreen,
@@ -28,6 +28,8 @@ import {
     WorkOrderDetailScreen, WorkOrderFormScreen,
     ProjectDetailScreen,
     ItemStockScreen,
+    QualityInspectionDetailScreen,
+    SubcontractingDetailScreen,
 } from './erp_screens/detail_and_form_screens';
 import AppWebView from '../apps/app_webview';
 import ApprovalsScreen from '../apps/erp/approvals_screen';
@@ -75,6 +77,8 @@ export function WorkspaceStack({currentTeam}: WorkspaceStackProps) {
             <Stack.Screen name={Screens.ERP_WORK_ORDERS} component={WorkOrdersScreen} options={{title: 'Manufacturing'}}/>
             <Stack.Screen name={Screens.ERP_PROJECTS} component={ErpProjectsScreen} options={{title: 'Projects'}}/>
             <Stack.Screen name={Screens.ERP_STOCK} component={StockScreen} options={{title: 'Stock'}}/>
+            <Stack.Screen name={Screens.ERP_QUALITY_INSPECTION} component={QualityInspectionScreen} options={{title: '质检'}}/>
+            <Stack.Screen name={Screens.ERP_SUBCONTRACTING} component={SubcontractingScreen} options={{title: '委外'}}/>
 
             {/* ── ERP detail/form screens ── */}
             <Stack.Screen name={Screens.ERP_CUSTOMER_DETAIL} component={CustomerDetailScreen} options={{title: 'Customer Detail'}}/>
@@ -88,6 +92,8 @@ export function WorkspaceStack({currentTeam}: WorkspaceStackProps) {
             <Stack.Screen name={Screens.ERP_WORK_ORDER_DETAIL + 'Form'} component={WorkOrderFormScreen} options={{title: 'Edit Work Order'}}/>
             <Stack.Screen name={Screens.ERP_PROJECT_DETAIL} component={ProjectDetailScreen} options={{title: 'Project Detail'}}/>
             <Stack.Screen name={Screens.ERP_ITEM_STOCK} component={ItemStockScreen} options={{title: 'Stock Detail'}}/>
+            <Stack.Screen name={Screens.ERP_QUALITY_INSPECTION_DETAIL} component={QualityInspectionDetailScreen} options={{title: '质检详情'}}/>
+            <Stack.Screen name={Screens.ERP_SUBCONTRACTING_DETAIL} component={SubcontractingDetailScreen} options={{title: '委外详情'}}/>
 
             {/* ── Shared app screens (used by both workspace cards & ERP modules) ── */}
             <Stack.Screen name={Screens.APPS_WEBVIEW} component={AppWebView} options={{headerShown: false}}/>

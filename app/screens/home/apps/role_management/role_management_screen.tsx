@@ -62,6 +62,8 @@ const CONFIG_ITEMS: ConfigItem[] = [
     {key: 'drive_write', labelId: 'workbench.permissions.drive_write', defaultLabel: '云盘写入', isFlag: true, parentFlag: 'cloud_drive'},
     {key: 'knowledge_base', labelId: 'workbench.tab.knowledge_base', defaultLabel: '知识库'},
     {key: 'kb_write', labelId: 'workbench.permissions.kb_write', defaultLabel: '知识库写入', isFlag: true, parentFlag: 'knowledge_base'},
+    {key: 'announcement', labelId: 'workbench.tab.announcement', defaultLabel: '公司动态'},
+    {key: 'announcement_write', labelId: 'workbench.permissions.announcement_write', defaultLabel: '公司动态发布', isFlag: true, parentFlag: 'announcement'},
     {key: 'account_switch', labelId: 'workbench.permissions.account_switch', defaultLabel: '多账号切换'},
     {key: 'contact_edit', labelId: 'workbench.permissions.contact_edit', defaultLabel: '增删改外部联系人'},
     {key: 'contact_scope_department', labelId: 'workbench.permissions.contact_scope_department', defaultLabel: '查看同部门外部联系人', isFlag: true},

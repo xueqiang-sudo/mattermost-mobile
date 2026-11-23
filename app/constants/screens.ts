@@ -132,6 +132,8 @@ export const ERP_PURCHASE_ORDERS = 'ErpPurchaseOrders';
 export const ERP_WORK_ORDERS = 'ErpWorkOrders';
 export const ERP_PROJECTS = 'ErpProjects';
 export const ERP_STOCK = 'ErpStock';
+export const ERP_QUALITY_INSPECTION = 'ErpQualityInspection';
+export const ERP_SUBCONTRACTING = 'ErpSubcontracting';
 export const ERP_CUSTOMER_DETAIL = 'ErpCustomerDetail';
 export const ERP_CUSTOMER_FORM = 'ErpCustomerForm';
 export const ERP_SUPPLIER_DETAIL = 'ErpSupplierDetail';
@@ -141,6 +143,11 @@ export const ERP_PURCHASE_ORDER_DETAIL = 'ErpPurchaseOrderDetail';
 export const ERP_WORK_ORDER_DETAIL = 'ErpWorkOrderDetail';
 export const ERP_PROJECT_DETAIL = 'ErpProjectDetail';
 export const ERP_ITEM_STOCK = 'ErpItemStock';
+export const ERP_QUALITY_INSPECTION_DETAIL = 'ErpQualityInspectionDetail';
+export const ERP_SUBCONTRACTING_DETAIL = 'ErpSubcontractingDetail';
+export const ANNOUNCEMENT_LIST = 'AnnouncementList';
+export const ANNOUNCEMENT_DETAIL = 'AnnouncementDetail';
+export const ANNOUNCEMENT_FORM = 'AnnouncementForm';
 export const INTEGRATION_SELECTOR = 'IntegrationSelector';
 export const INTERACTIVE_DIALOG = 'InteractiveDialog';
 export const INVITE = 'Invite';
@@ -337,6 +344,9 @@ export default {
     ERP_WORK_ORDER_DETAIL,
     ERP_PROJECT_DETAIL,
     ERP_ITEM_STOCK,
+    ANNOUNCEMENT_LIST,
+    ANNOUNCEMENT_DETAIL,
+    ANNOUNCEMENT_FORM,
     INTEGRATION_SELECTOR,
     INTERACTIVE_DIALOG,
     INVITE,

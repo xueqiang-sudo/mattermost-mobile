@@ -17,6 +17,8 @@ import {
     fetchWorkOrders, createWorkOrder, stopWorkOrder,
     fetchProjects, fetchProjectTasks,
     fetchStockBalances, fetchItems,
+    fetchQualityInspections,
+    fetchSubcontractingOrders,
 } from '../erp_api';
 
 import ErpListScreen from './erp_list_screen';
@@ -295,6 +297,81 @@ export const StockScreen = ({navigation}: Props) => {
             ]}
             searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_items', defaultMessage: 'Search items...'})}
             onItemPress={(item) => navigation.navigate('ErpItemStock', {itemCode: item.item_code, itemName: item.item_name})}
+        />
+    );
+};
+
+// ─── Quality Inspection ───
+
+const INSPECTION_TYPE_LABEL: Record<string, string> = {
+    Incoming: '来料检',
+    Outgoing: '出货检',
+    'In Process': '过程检',
+};
+
+const formatInspectionType = (val: any) => INSPECTION_TYPE_LABEL[val] || val || '-';
+
+export const QualityInspectionScreen = ({navigation}: Props) => {
+    const intl = useIntl();
+
+    const tabs = [
+        {key: 'all', label: intl.formatMessage({id: 'erp.all', defaultMessage: 'All'}), filters: []},
+        {key: 'accepted', label: intl.formatMessage({id: 'erp.accepted', defaultMessage: 'Accepted'}), filters: [['status', '=', 'Accepted']]},
+        {key: 'rejected', label: intl.formatMessage({id: 'erp.rejected', defaultMessage: 'Rejected'}), filters: [['status', '=', 'Rejected']]},
+    ];
+
+    const handlePress = useCallback(async (item: any) => {
+        navigation.navigate('ErpQualityInspectionDetail', {name: item.name});
+    }, [navigation]);
+
+    return (
+        <ErpListScreen
+            navigation={navigation}
+            title={intl.formatMessage({id: 'erp.quality_inspection', defaultMessage: '质检'})}
+            fetchFn={fetchQualityInspections}
+            tabs={tabs}
+            fields={[
+                {key: 'item_name', label: intl.formatMessage({id: 'erp.field.item_name', defaultMessage: 'Item Name'})},
+                {key: 'inspection_type', label: intl.formatMessage({id: 'erp.field.inspection_type', defaultMessage: 'Inspection Type'}), format: formatInspectionType},
+                {key: 'report_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+            ]}
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_qi', defaultMessage: 'Search quality inspections...'})}
+            onItemPress={handlePress}
+        />
+    );
+};
+
+// ─── Subcontracting ───
+
+export const SubcontractingScreen = ({navigation}: Props) => {
+    const intl = useIntl();
+
+    const tabs = [
+        {key: 'all', label: intl.formatMessage({id: 'erp.all', defaultMessage: 'All'}), filters: []},
+        {key: 'open', label: intl.formatMessage({id: 'erp.open', defaultMessage: 'Open'}), filters: [['status', 'in', ['Open', 'Material Transferred', 'Partially Received']]]},
+        {key: 'completed', label: intl.formatMessage({id: 'erp.completed', defaultMessage: 'Completed'}), filters: [['status', '=', 'Completed']]},
+    ];
+
+    const handlePress = useCallback(async (item: any) => {
+        navigation.navigate('ErpSubcontractingDetail', {name: item.name});
+    }, [navigation]);
+
+    return (
+        <ErpListScreen
+            navigation={navigation}
+            title={intl.formatMessage({id: 'erp.subcontracting', defaultMessage: '委外'})}
+            fetchFn={fetchSubcontractingOrders}
+            tabs={tabs}
+            fields={[
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier', defaultMessage: 'Supplier'})},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                {key: 'total_qty', label: intl.formatMessage({id: 'erp.field.qty', defaultMessage: 'Qty'})},
+                {key: 'per_received', label: intl.formatMessage({id: 'erp.field.received', defaultMessage: 'Received'}), format: formatProgress},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+            ]}
+            searchPlaceholder={intl.formatMessage({id: 'erp.placeholder.search_subcontracting', defaultMessage: 'Search subcontracting orders...'})}
+            onItemPress={handlePress}
         />
     );
 };

@@ -186,13 +186,14 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         borderColor: changeOpacity(theme.centerChannelColor, 0.1),
         overflow: 'hidden',
     },
-    salespersonRow: {
+    salespersonNameRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
-        paddingVertical: 12,
+        paddingTop: 12,
+        paddingBottom: 8,
     },
-    salespersonRowClickable: {
+    salespersonNameRowClickable: {
         backgroundColor: changeOpacity(theme.centerChannelColor, 0.02),
     },
     rankCol: {
@@ -211,6 +212,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     amountCols: {
         flexDirection: 'row',
         gap: 12,
+        paddingHorizontal: 12,
+        paddingBottom: 12,
     },
     amountCol: {
         alignItems: 'flex-end',
@@ -318,40 +321,38 @@ const SalespersonRow = ({sp, rank, isExpanded, onToggle, style}: SalespersonRowP
     return (
         <View style={style.salespersonCard}>
             <TouchableOpacity
-                style={[style.salespersonRow, hasCustomers && style.salespersonRowClickable]}
+                style={[style.salespersonNameRow, hasCustomers && style.salespersonNameRowClickable]}
                 onPress={hasCustomers ? onToggle : undefined}
                 activeOpacity={hasCustomers ? 0.7 : 1}
             >
                 <View style={style.rankCol}>
                     <Text style={style.rankText}>{getRankIcon(rank)}</Text>
                 </View>
-                <Text style={style.nameCol} numberOfLines={1}>
+                <Text style={style.nameCol}>
                     {sp.display_name || sp.name}
                 </Text>
-                <View style={style.amountCols}>
-                    <View style={style.amountCol}>
-                        <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.order_count', defaultMessage: '订单'})}</Text>
-                        <Text style={style.amountValue}>{sp.order_count}</Text>
-                    </View>
-                    <View style={style.amountCol}>
-                        <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.total_amount', defaultMessage: '金额'})}</Text>
-                        <Text style={style.amountValue}>{formatMoney(sp.order_amount, intl)}</Text>
-                    </View>
-                    <View style={style.amountCol}>
-                        <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.paid_amount', defaultMessage: '已收款'})}</Text>
-                        <Text style={[style.amountValue, style.textGreen]}>{formatMoney(sp.paid_amount, intl)}</Text>
-                    </View>
-                    <View style={style.amountCol}>
-                        <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.outstanding', defaultMessage: '未收款'})}</Text>
-                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <Text style={[style.amountValue, style.textRed]}>{formatMoney(sp.outstanding_amount, intl)}</Text>
-                            {hasCustomers && (
-                                <Text style={style.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-                            )}
-                        </View>
-                    </View>
-                </View>
+                {hasCustomers && (
+                    <Text style={style.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+                )}
             </TouchableOpacity>
+            <View style={style.amountCols}>
+                <View style={style.amountCol}>
+                    <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.order_count', defaultMessage: '订单'})}</Text>
+                    <Text style={style.amountValue}>{sp.order_count}</Text>
+                </View>
+                <View style={style.amountCol}>
+                    <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.total_amount', defaultMessage: '金额'})}</Text>
+                    <Text style={style.amountValue}>{formatMoney(sp.order_amount, intl)}</Text>
+                </View>
+                <View style={style.amountCol}>
+                    <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.paid_amount', defaultMessage: '已收款'})}</Text>
+                    <Text style={[style.amountValue, style.textGreen]}>{formatMoney(sp.paid_amount, intl)}</Text>
+                </View>
+                <View style={style.amountCol}>
+                    <Text style={style.amountLabel}>{intl.formatMessage({id: 'workbench.sales.outstanding', defaultMessage: '未收款'})}</Text>
+                    <Text style={[style.amountValue, style.textRed]}>{formatMoney(sp.outstanding_amount, intl)}</Text>
+                </View>
+            </View>
 
             {isExpanded && hasCustomers && (
                 <View style={style.customerSection}>

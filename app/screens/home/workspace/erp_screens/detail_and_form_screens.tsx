@@ -16,6 +16,8 @@ import {
     createWorkOrder, updateWorkOrder,
     fetchProjectDetail, fetchProjectTasks,
     fetchStockBalances,
+    fetchQualityInspectionDetail,
+    fetchSubcontractingOrderDetail,
 } from '../erp_api';
 
 import ErpDetailScreen from './erp_detail_screen';
@@ -349,6 +351,60 @@ export const ItemStockScreen = (props: any) => {
                     {key: 'projected_qty', label: intl.formatMessage({id: 'erp.field.projected_qty', defaultMessage: 'Projected'}), format: (val: any) => val != null ? String(Number(val).toFixed(2)) : '0'},
                 ],
             }]}
+        />
+    );
+};
+
+// ─── Quality Inspection Detail ───
+
+const INSPECTION_TYPE_LABEL: Record<string, string> = {
+    Incoming: '来料检',
+    Outgoing: '出货检',
+    'In Process': '过程检',
+};
+
+export const QualityInspectionDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            title={intl.formatMessage({id: 'erp.detail.quality_inspection', defaultMessage: '质检详情'})}
+            fetchDetailFn={fetchQualityInspectionDetail}
+            fields={[
+                {key: 'item_name', label: intl.formatMessage({id: 'erp.field.item_name', defaultMessage: 'Item Name'})},
+                {key: 'item_code', label: intl.formatMessage({id: 'erp.field.item_code', defaultMessage: 'Item Code'})},
+                {key: 'inspection_type', label: intl.formatMessage({id: 'erp.field.inspection_type', defaultMessage: 'Inspection Type'}), format: (val: any) => INSPECTION_TYPE_LABEL[val] || val || '-'},
+                {key: 'report_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'reference_type', label: intl.formatMessage({id: 'erp.field.reference_type', defaultMessage: 'Reference Type'})},
+                {key: 'reference_name', label: intl.formatMessage({id: 'erp.field.reference_name', defaultMessage: 'Reference Name'})},
+                {key: 'sample_size', label: intl.formatMessage({id: 'erp.field.sample_size', defaultMessage: 'Sample Size'})},
+                {key: 'inspected_by', label: intl.formatMessage({id: 'erp.field.inspected_by', defaultMessage: 'Inspected By'})},
+                {key: 'remarks', label: intl.formatMessage({id: 'erp.field.remarks', defaultMessage: 'Remarks'})},
+            ]}
+        />
+    );
+};
+
+// ─── Subcontracting Order Detail ───
+
+export const SubcontractingDetailScreen = (props: any) => {
+    const intl = useIntl();
+    return (
+        <ErpDetailScreen
+            {...props}
+            title={intl.formatMessage({id: 'erp.detail.subcontracting', defaultMessage: '委外详情'})}
+            fetchDetailFn={fetchSubcontractingOrderDetail}
+            fields={[
+                {key: 'supplier_name', label: intl.formatMessage({id: 'erp.field.supplier', defaultMessage: 'Supplier'})},
+                {key: 'transaction_date', label: intl.formatMessage({id: 'erp.field.date', defaultMessage: 'Date'}), format: formatDate},
+                {key: 'schedule_date', label: intl.formatMessage({id: 'erp.field.schedule_date', defaultMessage: 'Required By'}), format: formatDate},
+                {key: 'status', label: intl.formatMessage({id: 'erp.field.status', defaultMessage: 'Status'})},
+                {key: 'total_qty', label: intl.formatMessage({id: 'erp.field.total_qty', defaultMessage: 'Total Qty'})},
+                {key: 'total', label: intl.formatMessage({id: 'erp.field.amount', defaultMessage: 'Amount'}), format: formatMoney},
+                {key: 'per_received', label: intl.formatMessage({id: 'erp.field.received', defaultMessage: '% Received'}), format: (val: any) => val != null ? `${val}%` : '-'},
+                {key: 'supplier_warehouse', label: intl.formatMessage({id: 'erp.field.supplier_warehouse', defaultMessage: 'Job Worker Warehouse'})},
+            ]}
         />
     );
 };

@@ -73,7 +73,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
     },
     appCard: {
         paddingVertical: 16,

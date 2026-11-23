@@ -206,8 +206,15 @@ const ErpListScreen = ({
     const [erpAccessDenied, setErpAccessDenied] = useState(false);
 
     useLayoutEffect(() => {
-        navigation.setOptions({title});
-    }, [navigation, title]);
+        navigation.setOptions({
+            title,
+            headerRight: canCreate && onCreate ? () => (
+                <TouchableOpacity style={styles.addButton} onPress={() => onCreate(navigation)} activeOpacity={0.8}>
+                    <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
+                </TouchableOpacity>
+            ) : undefined,
+        });
+    }, [navigation, title, canCreate, onCreate, theme, styles.addButton]);
 
     const loadData = useCallback(async (tabIndex = activeTab, reset = true) => {
         setErpAccessDenied(false);
@@ -330,14 +337,6 @@ const ErpListScreen = ({
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>{title}</Text>
-                {canCreate && onCreate && (
-                    <TouchableOpacity style={styles.addButton} onPress={() => onCreate(navigation)} activeOpacity={0.8}>
-                        <CompassIcon name='plus' size={24} color={theme.sidebarText}/>
-                    </TouchableOpacity>
-                )}
-            </View>
             {tabs && tabs.length > 1 && (
                 <View style={styles.tabs}>
                     {tabs.map((tab, i) => (

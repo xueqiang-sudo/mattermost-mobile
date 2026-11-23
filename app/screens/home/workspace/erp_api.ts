@@ -263,3 +263,33 @@ export async function fetchWarehouses(serverUrl: string): Promise<any[]> {
         [['disabled', '=', 0]], 200,
     );
 }
+
+// ─── Quality Inspection ───
+
+export async function fetchQualityInspections(serverUrl: string, filtersOrOffset?: any, offset = 0): Promise<any[]> {
+    const filters = Array.isArray(filtersOrOffset) ? filtersOrOffset : [];
+    const start = Array.isArray(filtersOrOffset) ? offset : (filtersOrOffset || 0);
+    return erpList(serverUrl, 'Quality Inspection',
+        ['name', 'report_date', 'inspection_type', 'status', 'item_code', 'item_name', 'inspected_by', 'reference_type', 'reference_name', 'modified'],
+        filters, 50, start,
+    );
+}
+
+export async function fetchQualityInspectionDetail(serverUrl: string, name: string): Promise<any> {
+    return erpGet(serverUrl, 'Quality Inspection', name);
+}
+
+// ─── Subcontracting ───
+
+export async function fetchSubcontractingOrders(serverUrl: string, filtersOrOffset?: any, offset = 0): Promise<any[]> {
+    const filters = Array.isArray(filtersOrOffset) ? filtersOrOffset : [];
+    const start = Array.isArray(filtersOrOffset) ? offset : (filtersOrOffset || 0);
+    return erpList(serverUrl, 'Subcontracting Order',
+        ['name', 'supplier', 'supplier_name', 'transaction_date', 'schedule_date', 'status', 'total_qty', 'total', 'per_received', 'modified'],
+        filters, 50, start,
+    );
+}
+
+export async function fetchSubcontractingOrderDetail(serverUrl: string, name: string): Promise<any> {
+    return erpGet(serverUrl, 'Subcontracting Order', name);
+}

@@ -11,6 +11,7 @@ import {useIsTablet} from '@hooks/device';
 import PlaybooksButton from '@playbooks/components/playbooks_button';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 
+import {CompanyNewsCard} from '../company_announcements';
 import Categories from './categories';
 import ChannelListHeader from './header';
 import LoadChannelsError from './load_channels_error';
@@ -83,6 +84,7 @@ const CategoriesList = ({
 
         return (
             <>
+                <CompanyNewsCard/>
                 {playbooksButtonComponent}
                 <Categories/>
             </>
