@@ -139,15 +139,11 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'flex-start',
     },
     card: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        borderRadius: 12,
-        paddingVertical: 20,
-        paddingHorizontal: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     cardDisabled: {
         opacity: 0.5,
@@ -356,30 +352,19 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
     const insets = useSafeAreaInsets();
 
     // Calculate optimal card dimensions based on screen size
-    const {screenWidth, screenHeight} = Dimensions.get('window');
-    const numColumns = 2;
-    const numCards = CARDS.length;
-    const numRows = Math.ceil(numCards / numColumns);
+    const {screenWidth} = Dimensions.get('window');
+    const numColumns = 3;
 
     // Available space calculation
     const horizontalPadding = 16 * 2; // left + right padding
-    const verticalPadding = 16 * 2; // top + bottom padding
-    const headerHeight = 44; // approximate header height
     const gap = 12;
 
     const availableWidth = screenWidth - horizontalPadding;
-    const availableHeight = screenHeight - insets.top - insets.bottom - headerHeight - verticalPadding;
-
-    const cardWidth = (availableWidth - gap) / numColumns;
-    const cardHeight = (availableHeight - (gap * (numRows - 1))) / numRows;
-
-    // Use the smaller dimension to ensure cards fit
-    const optimalCardSize = Math.min(cardWidth, cardHeight);
+    const cardWidth = (availableWidth - gap * (numColumns - 1)) / numColumns;
 
     const dynamicStyles = {
         card: {
             width: cardWidth,
-            height: cardHeight,
         },
     };
 

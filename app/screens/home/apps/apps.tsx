@@ -6,7 +6,7 @@ import {type StackNavigationProp} from '@react-navigation/stack';
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
-import {Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Dimensions, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -76,14 +76,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'flex-start',
     },
     appCard: {
-        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
-        borderRadius: 12,
-        paddingVertical: 20,
-        paddingHorizontal: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     appIconContainer: {
         width: 56,
@@ -162,30 +158,19 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
     const styles = getStyleSheet(theme);
 
     // Calculate optimal card dimensions based on screen size and visible apps
-    const {screenWidth, screenHeight} = Dimensions.get('window');
-    const numColumns = 2;
-
-    // We'll calculate the actual number of visible apps after filtering
-    // For now, use a reasonable estimate (will be recalculated when visibleApps changes)
-    const estimatedNumCards = 12; // Estimate for calculation
-    const estimatedNumRows = Math.ceil(estimatedNumCards / numColumns);
+    const {screenWidth} = Dimensions.get('window');
+    const numColumns = 3;
 
     // Available space calculation
     const horizontalPadding = 16 * 2; // left + right padding
-    const verticalPadding = 8 + 32; // top + bottom padding (paddingTop + paddingBottom)
-    const headerHeight = 44; // approximate header height
     const gap = 12;
 
     const availableWidth = screenWidth - horizontalPadding;
-    const availableHeight = screenHeight - insets.top - insets.bottom - headerHeight - verticalPadding;
-
-    const cardWidth = (availableWidth - gap) / numColumns;
-    const cardHeight = (availableHeight - (gap * (estimatedNumRows - 1))) / estimatedNumRows;
+    const cardWidth = (availableWidth - gap * (numColumns - 1)) / numColumns;
 
     const dynamicStyles = {
         appCard: {
             width: cardWidth,
-            height: cardHeight,
         },
     };
 
