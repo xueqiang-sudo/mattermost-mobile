@@ -362,11 +362,15 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
     const gap = 12;
 
     const availableWidth = screenWidth - horizontalPadding;
+    // 计算每个卡片的宽度：(可用宽度 - 间距) / 列数
     const cardWidth = (availableWidth - gap * (numColumns - 1)) / numColumns;
 
     const dynamicStyles = {
         card: {
             width: cardWidth,
+            // 确保宽度不会被 flex 压缩
+            flexShrink: 0,
+            flexGrow: 0,
         },
     };
 
