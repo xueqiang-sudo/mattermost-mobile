@@ -4,7 +4,7 @@
 import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, DeviceEventEmitter, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {addChannelToDefaultCategory} from '@actions/local/category';
@@ -135,15 +135,16 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         textAlign: 'center',
     },
     grid: {
+        gap: 12,
+    },
+    gridRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'flex-start',
+        gap: 12,
     },
     card: {
+        flex: 1,
         paddingVertical: 16,
         paddingHorizontal: 8,
-        marginHorizontal: 6,
-        marginVertical: 6,
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
@@ -354,28 +355,17 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
     const serverUrl = useServerUrl();
     const insets = useSafeAreaInsets();
 
-    // Calculate optimal card dimensions based on screen size
-    const {screenWidth} = Dimensions.get('window');
-    const numColumns = 4;
-
-    // Available space calculation
-    const horizontalPadding = 16 * 2; // left + right padding
-    const cardMargin = 6; // each card has marginHorizontal: 6, so 12 total per card
-
-    const availableWidth = screenWidth - horizontalPadding;
-    // 每个卡片宽度 = 可用宽度 / 列数 - 左右 margin
-    const cardWidth = availableWidth / numColumns - cardMargin * 2;
-
-    const dynamicStyles = {
-        card: {
-            width: cardWidth,
-            // 确保宽度不会被 flex 压缩
-            flexShrink: 0,
-            flexGrow: 0,
-        },
-    };
-
     const styles = getStyles(theme);
+
+    // Chunk cards into rows of 4
+    const numColumns = 4;
+    const cardRows = useMemo(() => {
+        const rows: WorkspaceCard[][] = [];
+        for (let i = 0; i < CARDS.length; i += numColumns) {
+            rows.push(CARDS.slice(i, i + numColumns));
+        }
+        return rows;
+    }, []);
 
     // ---- State ----
     const [isErpTeam, setIsErpTeam] = useState(false);
@@ -696,7 +686,7 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         return (
             <TouchableOpacity
                 key={card.key}
-                style={[styles.card, dynamicStyles.card, (!isErpTeam || !enabled) && styles.cardDisabled]}
+                style={[styles.card, (!isErpTeam || !enabled) && styles.cardDisabled]}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
                 testID={`workspace.card.${card.key}`}
@@ -715,7 +705,11 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']} testID='workspace.screen'>
             <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.grid}>
-                    {CARDS.map(renderCard)}
+                    {cardRows.map((row, rowIndex) => (
+                        <View key={rowIndex} style={styles.gridRow}>
+                            {row.map(renderCard)}
+                        </View>
+                    ))}
                 </View>
             </ScrollView>
         </SafeAreaView>
