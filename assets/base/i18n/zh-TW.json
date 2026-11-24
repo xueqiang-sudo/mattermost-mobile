@@ -2907,5 +2907,8 @@
   "smart_notebook.channel_display_name": "智能筆記",
   "smart_notebook.welcome_post": "📒 **歡迎使用智能筆記**\n\n**隨手記** — 隨時發送訊息，自動同步到知識圖譜，幫你構建個人知識網絡。\n\n**備忘錄** — 結構化的標題+內容筆記，適合記錄待辦事項、會議紀要等，不同步到知識圖譜。",
   "smart_notebook.title": "智能筆記",
-  "workbench.tab.smart_notebook": "智能筆記"
+  "workbench.tab.smart_notebook": "智能筆記",
+  "schedules.hint": "給 AI 助手發訊息即可建立日程，如「下午2點開會提醒我」「每天9點提醒查看郵件」，AI 會自動建立並在指定時間提醒你。",
+  "conversation_search.result_count": "共 {count} 條聊天記錄摘要",
+  "conversation_search.no_results": "未找到與「{keyword}」相關的聊天記錄"
 }

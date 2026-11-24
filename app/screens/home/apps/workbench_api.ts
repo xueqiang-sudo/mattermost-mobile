@@ -356,6 +356,49 @@ export async function getConversationDetail(
     return data || {channel_id: channelId, channel_name: '', date, summary: '', messages: []};
 }
 
+export type PersonSearchResult = {
+    date: string;
+    channel_id: string;
+    channel_name: string;
+    summary: string;
+};
+
+export type PersonSearchUser = {
+    id: string;
+    nickname: string;
+    username: string;
+    phone: string;
+};
+
+export type PersonSearchResponse = {
+    ok: boolean;
+    user?: PersonSearchUser;
+    results: PersonSearchResult[];
+    total: number;
+    has_more: boolean;
+    error?: string;
+};
+
+export async function searchConversationsByPerson(
+    serverUrl: string,
+    teamId: string,
+    keyword: string,
+    page = 0,
+    perPage = 20,
+): Promise<PersonSearchResponse> {
+    const params = new URLSearchParams({
+        team_id: teamId,
+        keyword,
+        page: String(page),
+        per_page: String(perPage),
+    });
+    return apiFetch(
+        serverUrl,
+        `${FACT_EXTRACTOR_BASE}/api/conversations/search-by-person?${params}`,
+        {method: 'get'},
+    );
+}
+
 export type FactQueryResult = {
     memory: string;
     raw_messages: Array<{user: string; text: string; time: string}>;

@@ -3159,5 +3159,8 @@
   "smart_notebook.channel_display_name": "Smart Notes",
   "smart_notebook.welcome_post": "📒 **Welcome to Smart Notes**\n\n**Quick Notes** — Send messages anytime, auto-synced to your knowledge graph.\n\n**Memos** — Structured title+content notes for to-dos and meeting minutes.",
   "smart_notebook.title": "Smart Notes",
-  "workbench.tab.smart_notebook": "Smart Notes"
+  "workbench.tab.smart_notebook": "Smart Notes",
+  "schedules.hint": "Send a message to the AI assistant to create schedules, e.g. \"Remind me about the meeting at 2pm\" or \"Remind me to check emails every day at 9am\". The AI will automatically create and remind you on time.",
+  "conversation_search.result_count": "{count} chat summary results",
+  "conversation_search.no_results": "No chat records found for \"{keyword}\""
 }
