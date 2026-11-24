@@ -72,7 +72,12 @@ const MarkdownCodeBlock = ({language = '', content, textStyle, theme}: MarkdownC
     const style = getStyleSheet(theme);
     const SyntaxHighlighter = useMemo(() => {
         if (!syntaxHighlighter) {
-            syntaxHighlighter = require('@components/syntax_highlight').default;
+            try {
+                syntaxHighlighter = require('@components/syntax_highlight').default;
+            } catch {
+                // syntax_highlight 模块加载失败，降级为纯文本渲染
+                syntaxHighlighter = null;
+            }
         }
 
         return syntaxHighlighter;
@@ -216,11 +221,15 @@ const MarkdownCodeBlock = ({language = '', content, textStyle, theme}: MarkdownC
                 >
                     <View>
                         <View style={style.code}>
-                            <SyntaxHighlighter
-                                code={codeContent}
-                                language={getHighlightLanguageFromNameOrAlias(language)}
-                                textStyle={textStyle}
-                            />
+                            {SyntaxHighlighter ? (
+                                <SyntaxHighlighter
+                                    code={codeContent}
+                                    language={getHighlightLanguageFromNameOrAlias(language)}
+                                    textStyle={textStyle}
+                                />
+                            ) : (
+                                <Text style={[textStyle, {color: theme.centerChannelColor}]}>{codeContent}</Text>
+                            )}
                         </View>
                         {renderPlusMoreLines()}
                     </View>
