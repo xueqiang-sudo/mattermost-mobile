@@ -319,7 +319,7 @@ export function useVoiceRecorder(
                 return;
             }
 
-            const path = result.filePath;
+            const path = stopResult.filePath;
             const localPath = toFileUri(path);
             const name = localPath.substring(localPath.lastIndexOf('/') + 1);
             const extension = name.split('.').pop()?.toLowerCase() || DEFAULT_RECORDING_EXTENSION;
