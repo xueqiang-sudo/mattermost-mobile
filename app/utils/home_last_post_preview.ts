@@ -146,6 +146,12 @@ export function getHomeLastPostPreviewText(
     postType: string | undefined,
     channelType: ChannelType,
 ): string {
+    // 语音转文字：显示转写文本，未完成或失败时显示提示
+    if (postType === Post.POST_TYPES.CUSTOM_VOICE_ASR) {
+        const voiceMessage = typeof rawMessageOrInput === 'object' ? rawMessageOrInput.message : rawMessageOrInput;
+        return voiceMessage?.trim() || '语音转换失败';
+    }
+
     if (postType === Post.POST_TYPES.CHANGE_CHANNEL_PRIVACY) {
         const isNowPrivate = channelType === General.PRIVATE_CHANNEL;
         return intl.formatMessage(

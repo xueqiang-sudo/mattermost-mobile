@@ -227,10 +227,7 @@ export function selectOrderedPosts(
             continue;
         }
 
-        // 语音转文字：隐藏 custom_voice_asr 帖（含附件）；服务端另发一条普通文字帖展示转写结果
-        if (post.currentPost.type === Post.POST_TYPES.CUSTOM_VOICE_ASR) {
-            continue;
-        }
+        // 语音转文字：custom_voice_asr 帖子由服务端插件更新 message 为转写文本，正常显示
 
         // Filter out join/leave messages if necessary
         if (shouldFilterJoinLeavePost(post.currentPost, showJoinLeave, currentUsername)) {
