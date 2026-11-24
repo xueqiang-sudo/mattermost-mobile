@@ -188,6 +188,21 @@ export async function getQueryResult(serverUrl: string, queryId: string): Promis
     return apiGet(serverUrl, `${AI_API_BASE}/api/query/result/${encodeURIComponent(queryId)}`);
 }
 
+export async function getActiveDates(
+    serverUrl: string,
+    teamId: string,
+    channelIds: string[],
+    year?: number,
+    month?: number,
+): Promise<{ok: boolean; active_dates: Record<string, string[]>; error?: string}> {
+    return apiPost(serverUrl, `${AI_API_BASE}/api/query/active-dates`, {
+        team_id: teamId,
+        channel_ids: channelIds,
+        ...(year ? {year} : {}),
+        ...(month ? {month} : {}),
+    });
+}
+
 export async function graduateMemory(serverUrl: string, teamId: string, memoryPath: string): Promise<any> {
     return apiPost(serverUrl, `${AI_API_BASE}/api/kb/graduate`, {team_id: teamId, memoryPath});
 }

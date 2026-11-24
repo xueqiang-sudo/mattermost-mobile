@@ -29,6 +29,7 @@ import {typography} from '@utils/typography';
 import {
     queryAIAssistant,
     getQueryResult,
+    getActiveDates,
     graduateMemory,
     askKnowledgeBase,
     listConsultations,
@@ -142,22 +143,45 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 24,
         alignItems: 'center',
     },
-    datePicker: {
+    datePickerWrap: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+    },
+    dateSelectBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        justifyContent: 'space-between',
+        height: 40,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
     },
-    datePickerButton: {
-        padding: 8,
-    },
-    datePickerText: {
-        ...typography('Body', 100, 'SemiBold'),
+    dateSelectText: {
+        ...typography('Body', 100, 'Regular'),
         color: theme.centerChannelColor,
-        marginHorizontal: 16,
+    },
+    dateDropdown: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: changeOpacity(theme.centerChannelColor, 0.16),
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 200,
+        backgroundColor: theme.centerChannelBg,
+    },
+    dateDropdownItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+    },
+    dateDropdownItemText: {
+        ...typography('Body', 100, 'Regular'),
+        color: theme.centerChannelColor,
+    },
+    dateDropdownItemSelected: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.08),
     },
     graduateButton: {
         flexDirection: 'row',
@@ -239,6 +263,8 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
     const [consultationQA, setConsultationQA] = useState<ConsultationQA[]>([]);
     const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [graduatedPaths, setGraduatedPaths] = useState<Set<string>>(new Set());
+    const [availableDates, setAvailableDates] = useState<string[]>([]);
+    const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
 
     // Fetch consultations for this channel
     useEffect(() => {
@@ -310,28 +336,42 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
         }
     }, [channelId, serverUrl, teamId]);
 
+    // Load available dates for history tab
+    const loadActiveDates = useCallback(async (year?: number, month?: number) => {
+        try {
+            const result = await getActiveDates(serverUrl, teamId, [channelId], year, month);
+            if (result.ok && result.active_dates[channelId]) {
+                setAvailableDates(result.active_dates[channelId].sort().reverse());
+            } else {
+                setAvailableDates([]);
+            }
+        } catch {
+            setAvailableDates([]);
+        }
+    }, [serverUrl, teamId, channelId]);
+
     const handleTabChange = useCallback((tab: ActiveTab) => {
         setActiveTab(tab);
+        setDateDropdownOpen(false);
         if (tab === 'history') {
             loadTabData(tab, selectedDate);
+            loadActiveDates();
         } else {
             loadTabData(tab);
         }
-    }, [loadTabData, selectedDate]);
+    }, [loadTabData, loadActiveDates, selectedDate]);
 
     // Auto-load latest summary on mount
     useEffect(() => {
         loadTabData('latest');
     }, []);
 
-    // Date navigation helpers
-    const shiftDate = useCallback((days: number) => {
-        const d = new Date(selectedDate);
-        d.setDate(d.getDate() + days);
-        const newDate = d.toISOString().split('T')[0];
-        setSelectedDate(newDate);
-        loadTabData('history', newDate);
-    }, [selectedDate, loadTabData]);
+    // Handle date selection from dropdown
+    const handleDateSelect = useCallback((date: string) => {
+        setSelectedDate(date);
+        setDateDropdownOpen(false);
+        loadTabData('history', date);
+    }, [loadTabData]);
 
     const handleGraduate = useCallback(async (memoryPath: string) => {
         if (!memoryPath || graduatedPaths.has(memoryPath)) {
@@ -378,6 +418,46 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             setSearching(false);
         }
     }, [searchQuery, searching, serverUrl, teamId, intl]));
+
+    const renderDatePicker = () => (
+        <View style={styles.datePickerWrap}>
+            <TouchableOpacity
+                style={styles.dateSelectBtn}
+                onPress={() => setDateDropdownOpen(!dateDropdownOpen)}
+            >
+                <Text style={styles.dateSelectText}>
+                    {availableDates.length > 0
+                        ? selectedDate
+                        : intl.formatMessage({id: 'ai_assistant.no_history_dates', defaultMessage: '暂无历史摘要'})}
+                </Text>
+                <CompassIcon
+                    name={dateDropdownOpen ? 'menu-up' : 'menu-down'}
+                    size={20}
+                    color={changeOpacity(theme.centerChannelColor, 0.48)}
+                />
+            </TouchableOpacity>
+            {dateDropdownOpen && (
+                <ScrollView style={styles.dateDropdown} nestedScrollEnabled={true}>
+                    {availableDates.map((date) => (
+                        <TouchableOpacity
+                            key={date}
+                            style={[styles.dateDropdownItem, selectedDate === date && styles.dateDropdownItemSelected]}
+                            onPress={() => handleDateSelect(date)}
+                        >
+                            <Text style={styles.dateDropdownItemText}>{date}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    {availableDates.length === 0 && (
+                        <View style={{paddingVertical: 16, alignItems: 'center'}}>
+                            <Text style={styles.emptyText}>
+                                {intl.formatMessage({id: 'ai_assistant.no_dates_available', defaultMessage: '该月暂无摘要数据'})}
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
+        </View>
+    );
 
     const renderTabs = () => (
         <View style={styles.tabs}>
@@ -442,18 +522,8 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
             const msg = emptyMessages[activeTab];
             return (
                 <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
-                    {/* 【修复】历史标签页显示日期选择器 */}
-                    {showDatePicker && (
-                        <View style={styles.datePicker}>
-                            <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(-1)}>
-                                <CompassIcon name='chevron-left' size={20} color={theme.centerChannelColor}/>
-                            </TouchableOpacity>
-                            <Text style={styles.datePickerText}>{selectedDate}</Text>
-                            <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(1)}>
-                                <CompassIcon name='chevron-right' size={20} color={theme.centerChannelColor}/>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                    {/* 历史标签页日期下拉框 */}
+                    {showDatePicker && renderDatePicker()}
                     <View style={styles.emptyState}>
                         <CompassIcon name={msg.icon} size={48} color={changeOpacity(theme.centerChannelColor, 0.32)}/>
                         <Text style={styles.emptyText}>{msg.text}</Text>
@@ -599,17 +669,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
                 data={results}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.content}
-                ListHeaderComponent={showDatePicker ? (
-                    <View style={styles.datePicker}>
-                        <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(-1)}>
-                            <CompassIcon name='chevron-left' size={20} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                        <Text style={styles.datePickerText}>{selectedDate}</Text>
-                        <TouchableOpacity style={styles.datePickerButton} onPress={() => shiftDate(1)}>
-                            <CompassIcon name='chevron-right' size={20} color={theme.centerChannelColor}/>
-                        </TouchableOpacity>
-                    </View>
-                ) : undefined}
+                ListHeaderComponent={showDatePicker ? renderDatePicker() : undefined}
                 renderItem={({item}) => {
                     const isGraduated = graduatedPaths.has(item.path || '');
                     return (
