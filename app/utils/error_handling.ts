@@ -16,6 +16,7 @@ import {
 } from '@utils/sentry';
 
 import {logWarning} from './log';
+import {debugLog, flushLogsToDisk} from '@store/debug_log';
 
 const messages = defineMessages({
     title: {
@@ -54,10 +55,16 @@ class JavascriptAndNativeErrorHandlerSingleton {
         }
 
         logWarning('Handling Javascript error', e, isFatal);
+        debugLog('ERROR_HANDLER', `isFatal=${isFatal}`, e instanceof Error ? e.message : String(e), e instanceof Error ? e.stack : '');
         setLatestRuntimeError(e, 'global_handler', isFatal);
 
         if (isBetaApp || isFatal) {
             captureJSException(e, isFatal);
+        }
+
+        if (isFatal) {
+            // 崩溃前将日志刷到磁盘，方便排查
+            flushLogsToDisk().catch(() => {});
         }
 
         if (isFatal && e instanceof Error) {
