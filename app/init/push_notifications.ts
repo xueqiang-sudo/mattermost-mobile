@@ -6,7 +6,7 @@ import {Platform} from 'react-native';
 import {checkNotifications, requestNotifications, RESULTS} from 'react-native-permissions';
 import JPush from 'jpush-react-native';
 
-import {storeConfig} from '@actions/app/config';
+import {fetchConfigAndLicense} from '@actions/remote/systems';
 import {ACTIVE_SERVER_URL_KEY} from '@constants/database';
 import DatabaseManager from '@database/manager';
 import EphemeralStore from '@store/ephemeral_store';
@@ -56,8 +56,8 @@ export async function registerIfNeeded() {
 /** 处理前台接收到的通知，更新应用内数据 */
 export async function handleInAppNotification(serverUrl: string, notification: NotificationWithData) {
     try {
-        // 更新应用内配置（如通知计数等）
-        await storeConfig(serverUrl);
+        // 刷新应用配置
+        await fetchConfigAndLicense(serverUrl);
     } catch (error) {
         logError(`${TAG} handleInAppNotification 失败`, error);
     }
