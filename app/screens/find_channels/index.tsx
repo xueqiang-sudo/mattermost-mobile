@@ -19,7 +19,6 @@ import {changeOpacity, getKeyboardAppearanceFromTheme, makeStyleSheetFromTheme} 
 import {typography} from '@utils/typography';
 
 import CategoryTabs, {type FindChannelsCategory} from './category_tabs';
-import ConversationSearch from './conversation_search';
 import FilteredList from './filtered_list';
 import UnfilteredList from './unfiltered_list';
 
@@ -93,12 +92,6 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
         Keyboard.dismiss();
         return popTopScreen(componentId);
     }, [componentId]);
-
-    // 检测 /chat 前缀（隐藏命令：按人搜索聊天记录摘要）
-    const chatKeyword = useMemo(() => {
-        const match = term.match(/^\/chat\s+(.+)/i);
-        return match ? match[1].trim() : '';
-    }, [term]);
 
     /**
      * 处理搜索文本变化
@@ -182,43 +175,37 @@ const FindChannels = ({closeButtonId, componentId}: Props) => {
                         testID='find_channels.search_bar'
                     />
                 </View>
-                {chatKeyword ? null : (
-                    <CategoryTabs
-                        activeCategory={category}
-                        onCategoryChange={setCategory}
-                        enableInternalGroups={ENABLE_INTERNAL_GROUPS}
-                    />
-                )}
+                <CategoryTabs
+                    activeCategory={category}
+                    onCategoryChange={setCategory}
+                    enableInternalGroups={ENABLE_INTERNAL_GROUPS}
+                />
                 <View
                     style={styles.listContainer}
                     onLayout={onLayout}
                     ref={listView}
                 >
-                    {chatKeyword ? (
-                        <ConversationSearch
-                            keyword={chatKeyword}
-                            close={close}
-                        />
-                    ) : term === '' ? (
-                        <UnfilteredList
-                            category={category}
-                            close={close}
-                            enableInternalGroups={ENABLE_INTERNAL_GROUPS}
-                            keyboardOverlap={overlap}
-                            testID='find_channels.unfiltered_list'
-                        />
-                    ) : (
-                        <FilteredList
-                            category={category}
-                            close={close}
-                            enableInternalGroups={ENABLE_INTERNAL_GROUPS}
-                            keyboardOverlap={overlap}
-                            loading={loading}
-                            onLoading={setLoading}
-                            term={term}
-                            testID='find_channels.filtered_list'
-                        />
-                    )}
+                    {term === '' &&
+                    <UnfilteredList
+                        category={category}
+                        close={close}
+                        enableInternalGroups={ENABLE_INTERNAL_GROUPS}
+                        keyboardOverlap={overlap}
+                        testID='find_channels.unfiltered_list'
+                    />
+                    }
+                    {Boolean(term) &&
+                    <FilteredList
+                        category={category}
+                        close={close}
+                        enableInternalGroups={ENABLE_INTERNAL_GROUPS}
+                        keyboardOverlap={overlap}
+                        loading={loading}
+                        onLoading={setLoading}
+                        term={term}
+                        testID='find_channels.filtered_list'
+                    />
+                    }
                 </View>
             </View>
         </SafeAreaView>

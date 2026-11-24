@@ -182,11 +182,11 @@ export function useVoiceRecorder(
             // 给系统足够的时间完成音频服务初始化，避免阻塞主线程
             if (wasFreshlyGranted) {
                 // 新授权：iOS 需要激活 AVAudioSession，Android 需要获取 AudioFocus
-                // 至少等待 800ms 让系统完成初始化
-                await new Promise((resolve) => setTimeout(resolve, 800));
+                // 首次安装至少等待 1500ms 让系统完成初始化
+                await new Promise((resolve) => setTimeout(resolve, 1500));
             } else {
                 // 已授权：短暂延迟即可
-                await new Promise((resolve) => setTimeout(resolve, 100));
+                await new Promise((resolve) => setTimeout(resolve, 200));
             }
 
             const replaceBeforeTs = startingTsRef.current;
@@ -273,30 +273,42 @@ export function useVoiceRecorder(
         const startingTs = startingTsRef.current;
         let filePathToClean: string | null = null;
 
-        try {
-            // 【关键修复】添加超时保护（3秒），防止 stopRecording 卡死
-            const stopPromise = VoiceRecorder.stopRecording();
-            const timeoutPromise = new Promise<{success: boolean; filePath?: string; durationMs?: number}>((resolve) => {
-                setTimeout(() => resolve({success: false}), 3000);
-            });
-
-            const result = await Promise.race([stopPromise, timeoutPromise]);
-
-            // 停止录音后，立即更新 UI 状态
+        // 【防御】确保全局状态一定会被重置
+        const resetState = () => {
             setState('idle');
             meteringShared.value = DEFAULT_METERING;
-
             isRecordingGlobally = false;
             isGlobalRecorderBusy = false;
+        };
 
-            if (!result.success || !result.filePath) {
+        try {
+            // 【关键修复】添加超时保护（5秒），防止 stopRecording 卡死（首次安装可能更慢）
+            let stopResult: {success: boolean; filePath?: string; durationMs?: number};
+            try {
+                const stopPromise = VoiceRecorder.stopRecording();
+                const timeoutPromise = new Promise<{success: boolean; filePath?: string; durationMs?: number}>((resolve) => {
+                    setTimeout(() => resolve({success: false}), 5000);
+                });
+                stopResult = await Promise.race([stopPromise, timeoutPromise]);
+            } catch (stopErr) {
+                // 原生 stopRecording 抛异常（首次安装音频服务未就绪）
+                logError('[useVoiceRecorder.stopRecordingAndSend] stopRecording 原生异常', stopErr);
+                resetState();
+                onError?.('process_failed');
+                return;
+            }
+
+            // 停止录音后，立即更新 UI 状态
+            resetState();
+
+            if (!stopResult.success || !stopResult.filePath) {
                 onError?.(startingTs && (Date.now() - startingTs) < MIN_RECORDING_DURATION_MS ? 'too_short' : 'process_failed');
                 return;
             }
 
-            filePathToClean = result.filePath;
+            filePathToClean = stopResult.filePath;
 
-            const durationMs = result.durationMs ?? (Date.now() - recordStartTimeRef.current);
+            const durationMs = stopResult.durationMs ?? (Date.now() - recordStartTimeRef.current);
             if (durationMs < MIN_RECORDING_DURATION_MS) {
                 try {
                     await VoiceRecorder.cancelRecording();
@@ -339,10 +351,7 @@ export function useVoiceRecorder(
             logError('[useVoiceRecorder.stopRecordingAndSend] 处理失败', err);
 
             // 发生异常时也要确保状态被重置
-            setState('idle');
-            meteringShared.value = DEFAULT_METERING;
-            isRecordingGlobally = false;
-            isGlobalRecorderBusy = false;
+            resetState();
             onError?.('process_failed');
         } finally {
             // 清理临时录音文件，无论成功或失败

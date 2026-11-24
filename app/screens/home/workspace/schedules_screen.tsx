@@ -104,6 +104,11 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         alignItems: 'center',
         marginTop: 8,
     },
+    cardFooterRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     cardMeta: {
         color: changeOpacity(theme.centerChannelColor, 0.48),
         ...typography('Body', 50, 'Regular'),
@@ -158,13 +163,23 @@ const getStyles = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 8,
         paddingVertical: 4,
     },
-    emptyDescription: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        ...typography('Body', 100, 'Regular'),
-        textAlign: 'center',
-        marginTop: 8,
-        marginBottom: 24,
-        paddingHorizontal: 32,
+    hintCard: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: changeOpacity(theme.buttonBg, 0.06),
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 12,
+        gap: 8,
+    },
+    hintIcon: {
+        marginTop: 2,
+    },
+    hintText: {
+        flex: 1,
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+        ...typography('Body', 75, 'Regular'),
+        lineHeight: 18,
     },
     aiButton: {
         flexDirection: 'row',
@@ -360,11 +375,17 @@ const SchedulesScreen = () => {
     };
 
     const getStatusStyle = (status: string, enabled: boolean) => {
-        if (!enabled || status === 'paused') {
+        if (!enabled || status === 'paused' || status === 'cancelled') {
             return {bg: changeOpacity(theme.centerChannelColor, 0.08), color: changeOpacity(theme.centerChannelColor, 0.56)};
         }
         if (status === 'completed') {
             return {bg: changeOpacity(theme.onlineIndicator, 0.12), color: theme.onlineIndicator};
+        }
+        if (status === 'failed') {
+            return {bg: changeOpacity(theme.errorTextColor, 0.12), color: theme.errorTextColor};
+        }
+        if (status === 'pending') {
+            return {bg: changeOpacity(theme.centerChannelColor, 0.08), color: changeOpacity(theme.centerChannelColor, 0.72)};
         }
         return {bg: changeOpacity(theme.buttonBg, 0.12), color: theme.buttonBg};
     };
@@ -373,8 +394,11 @@ const SchedulesScreen = () => {
         if (!enabled) {return intl.formatMessage({id: 'schedules.status.disabled', defaultMessage: '已停用'});}
         switch (status) {
         case 'active': return intl.formatMessage({id: 'schedules.status.active', defaultMessage: '进行中'});
+        case 'pending': return intl.formatMessage({id: 'schedules.status.pending', defaultMessage: '等待中'});
         case 'paused': return intl.formatMessage({id: 'schedules.status.paused', defaultMessage: '已暂停'});
         case 'completed': return intl.formatMessage({id: 'schedules.status.completed', defaultMessage: '已完成'});
+        case 'failed': return intl.formatMessage({id: 'schedules.status.failed', defaultMessage: '失败'});
+        case 'cancelled': return intl.formatMessage({id: 'schedules.status.cancelled', defaultMessage: '已取消'});
         default: return status;
         }
     };
@@ -416,6 +440,17 @@ const SchedulesScreen = () => {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh}/>}
                 showsVerticalScrollIndicator={false}
             >
+                {/* 提示卡片 - 始终显示 */}
+                <TouchableOpacity style={styles.hintCard} onPress={handleAIAssistant} activeOpacity={0.7}>
+                    <CompassIcon name='lightbulb-on-outline' size={18} color={theme.buttonBg} style={styles.hintIcon}/>
+                    <Text style={styles.hintText}>
+                        {intl.formatMessage({
+                            id: 'schedules.hint',
+                            defaultMessage: '给 AI 助手发消息即可创建日程，如「下午2点开会提醒我」「每天9点提醒查看邮件」，AI 会自动创建并在指定时间提醒你。',
+                        })}
+                    </Text>
+                </TouchableOpacity>
+
                 {schedules.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <CompassIcon
@@ -426,12 +461,6 @@ const SchedulesScreen = () => {
                         />
                         <Text style={styles.emptyText}>
                             {intl.formatMessage({id: 'schedules.empty', defaultMessage: '暂无日程安排'})}
-                        </Text>
-                        <Text style={styles.emptyDescription}>
-                            {intl.formatMessage({
-                                id: 'schedules.empty_description',
-                                defaultMessage: '与 AI 助手聊天，可以自动生成和管理您的日程安排',
-                            })}
                         </Text>
                         <TouchableOpacity
                             style={styles.aiButton}
@@ -446,20 +475,21 @@ const SchedulesScreen = () => {
                 ) : (
                     schedules.map((schedule) => {
                         const statusStyle = getStatusStyle(schedule.status, schedule.enabled);
+                        // 如果 name 是手机号格式或和 message 重复，不显示标题
+                        const isPhoneName = /^\d{5,}$/.test(schedule.name.trim());
+                        const isDuplicateName = schedule.name.trim() === schedule.message.trim();
+                        const showTitle = !isPhoneName && !isDuplicateName && schedule.name.trim().length > 0;
                         return (
                             <View key={schedule.id} style={styles.card}>
-                                <View style={styles.cardHeader}>
-                                    <Text style={styles.cardTitle} numberOfLines={1}>
-                                        {schedule.name}
-                                    </Text>
-                                    <View style={[styles.statusBadge, {backgroundColor: statusStyle.bg}]}>
-                                        <Text style={[styles.statusText, {color: statusStyle.color}]}>
-                                            {getStatusLabel(schedule.status, schedule.enabled)}
+                                {showTitle && (
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.cardTitle} numberOfLines={2}>
+                                            {schedule.name}
                                         </Text>
                                     </View>
-                                </View>
+                                )}
                                 <View style={styles.cardBody}>
-                                    <Text style={styles.cardMessage} numberOfLines={2}>
+                                    <Text style={styles.cardMessage}>
                                         {schedule.message}
                                     </Text>
                                 </View>
@@ -467,14 +497,21 @@ const SchedulesScreen = () => {
                                     <Text style={styles.cardMeta}>
                                         {`${intl.formatMessage({id: 'schedules.next_run', defaultMessage: '下次'})}: ${formatTime(schedule.next_run)}`}
                                     </Text>
-                                    <TouchableOpacity
-                                        style={styles.deleteButton}
-                                        onPress={() => handleDelete(schedule)}
-                                    >
+                                    <View style={styles.cardFooterRight}>
+                                        <View style={[styles.statusBadge, {backgroundColor: statusStyle.bg}]}>
+                                            <Text style={[styles.statusText, {color: statusStyle.color}]}>
+                                                {getStatusLabel(schedule.status, schedule.enabled)}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.deleteButton}
+                                            onPress={() => handleDelete(schedule)}
+                                        >
                                         <Text style={styles.deleteText}>
                                             {intl.formatMessage({id: 'schedules.delete', defaultMessage: '删除'})}
                                         </Text>
                                     </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
                         );

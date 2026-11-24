@@ -731,10 +731,14 @@ function DraftInput({
     const weChatPhoneFooter = useChatInputStyle;
 
     const handleVoiceRecorded = useCallback(async (voiceFiles: FileInfo[]) => {
-        await sendVoiceAsr?.(voiceFiles, () => {
-            // 显示上传失败的提示，与录音时间太短等提示一样
-            handleVoiceError('upload_failed')
-        });
+        try {
+            await sendVoiceAsr?.(voiceFiles, () => {
+                handleVoiceError('upload_failed');
+            });
+        } catch (err) {
+            // 防御性兜底：任何未捕获的异常都不应导致应用崩溃
+            handleVoiceError('process_failed');
+        }
     }, [sendVoiceAsr, intl]);
 
     const [voiceToastVisible, setVoiceToastVisible] = useState(false);

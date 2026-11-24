@@ -3207,6 +3207,7 @@
   "smart_notebook.title": "智能笔记",
   "workbench.tab.smart_notebook": "智能笔记",
   "schedules.hint": "给 AI 助手发消息即可创建日程，如「下午2点开会提醒我」「每天9点提醒查看邮件」，AI 会自动创建并在指定时间提醒你。",
-  "conversation_search.result_count": "共 {count} 条聊天记录摘要",
-  "conversation_search.no_results": "未找到与「{keyword}」相关的聊天记录"
+  "schedules.status.pending": "等待中",
+  "schedules.status.failed": "失败",
+  "schedules.status.cancelled": "已取消"
 }
