@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
@@ -132,14 +132,15 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Search (knowledge notes)
-    const [searchQuery, setSearchQuery] = useState('');
-
     // Quick notes data
     const [quickNotes, setQuickNotes] = useState<Post[]>([]);
     const [qnLoading, setQnLoading] = useState(true);
     const [qnRefreshing, setQnRefreshing] = useState(false);
-    const [qnSearchQuery, setQnSearchQuery] = useState('');
+
+    // Unified search
+    const [searchActive, setSearchActive] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const searchInputRef = useRef<TextInput>(null);
 
     // Refresh flag
     const needsRefresh = useRef(false);
@@ -149,7 +150,6 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphLoadingMore, setGraphLoadingMore] = useState(false);
     const [graphHasMore, setGraphHasMore] = useState(true);
-    const [graphSearchQuery, setGraphSearchQuery] = useState('');
     const graphOffsetRef = useRef(0);
     const GRAPH_PAGE_SIZE = 30;
 
@@ -217,19 +217,20 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         }
     }, [channel, loadAllPosts]);
 
-    // ---- Filtered knowledge posts ----
-    const filteredPosts = searchQuery
-        ? posts.filter(p => p.message.toLowerCase().includes(searchQuery.toLowerCase()))
-        : posts;
-
-    // ---- Filtered quick notes ----
-    const filteredQuickNotes = qnSearchQuery
-        ? quickNotes.filter(n => {
-            const data = getQuickNoteData(n);
-            const q = qnSearchQuery.toLowerCase();
-            return data.title.toLowerCase().includes(q) || data.content.toLowerCase().includes(q);
-        })
-        : quickNotes;
+    // ---- Unified search results ----
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return {notes: [], entities: [], memos: []};
+        const q = searchQuery.toLowerCase();
+        return {
+            notes: posts.filter(p => p.message.toLowerCase().includes(q)),
+            entities: graphEntities.filter(e =>
+                e.name.toLowerCase().includes(q) || (e.summary || '').toLowerCase().includes(q)),
+            memos: quickNotes.filter(n => {
+                const data = getQuickNoteData(n);
+                return data.title.toLowerCase().includes(q) || data.content.toLowerCase().includes(q);
+            }),
+        };
+    }, [searchQuery, posts, graphEntities, quickNotes]);
 
     // ---- Refresh ----
     const onRefreshKnowledge = useCallback(async () => {
@@ -496,26 +497,9 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                     {/* Timeline sub-tab */}
                     {subTab === 'timeline' && (
                         <>
-                            <View style={style.searchContainer}>
-                                <TextInput
-                                    style={style.searchInput}
-                                    placeholder={intl.formatMessage({id: 'smart_notebook.search', defaultMessage: '搜索笔记...'})}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                                    value={searchQuery}
-                                    onChangeText={setSearchQuery}
-                                    autoCapitalize='none'
-                                    autoCorrect={false}
-                                />
-                                {searchQuery.length > 0 && (
-                                    <TouchableOpacity onPress={() => setSearchQuery('')} style={style.searchActionBtn}>
-                                        <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-
                             {(() => {
                                 const dayMap = new Map<string, Post>();
-                                for (const post of filteredPosts) {
+                                for (const post of posts) {
                                     const dayKey = new Date(post.create_at).toISOString().split('T')[0];
                                     const existing = dayMap.get(dayKey);
                                     if (!existing || post.create_at < existing.create_at) {
@@ -536,9 +520,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                                             <View style={style.emptyContainer}>
                                                 <CompassIcon name='notebook-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
                                                 <Text style={style.emptyText}>
-                                                    {searchQuery
-                                                        ? intl.formatMessage({id: 'smart_notebook.no_results', defaultMessage: '没有找到匹配的笔记'})
-                                                        : intl.formatMessage({id: 'smart_notebook.empty', defaultMessage: '在频道中写笔记，自动同步到这里'})}
+                                                    {intl.formatMessage({id: 'smart_notebook.empty', defaultMessage: '在频道中写笔记，自动同步到这里'})}
                                                 </Text>
                                             </View>
                                         }
@@ -552,37 +534,13 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                     {/* Entities sub-tab */}
                     {subTab === 'entities' && (
                         <>
-                            <View style={style.searchContainer}>
-                                <TextInput
-                                    style={style.searchInput}
-                                    placeholder={intl.formatMessage({id: 'smart_notebook.search_entity', defaultMessage: '搜索实体...'})}
-                                    placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                                    value={graphSearchQuery}
-                                    onChangeText={setGraphSearchQuery}
-                                    autoCapitalize='none'
-                                    autoCorrect={false}
-                                />
-                                {graphSearchQuery.length > 0 && (
-                                    <TouchableOpacity onPress={() => setGraphSearchQuery('')}>
-                                        <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-
                             {graphLoading ? (
                                 <View style={style.loadingContainer}>
                                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                                 </View>
                             ) : (
                                 <FlatList
-                                    data={(() => {
-                                        const filter = graphSearchQuery.toLowerCase();
-                                        return graphEntities.filter(e => {
-                                            if (!filter) return true;
-                                            return e.name.toLowerCase().includes(filter) ||
-                                                   (e.summary || '').toLowerCase().includes(filter);
-                                        });
-                                    })()}
+                                    data={graphEntities}
                                     keyExtractor={(item) => item.uuid}
                                     refreshing={false}
                                     onRefresh={() => loadGraph(true)}
@@ -641,24 +599,9 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
             {/* ========== Quick Notes Tab ========== */}
             {topTab === 'quick_notes' && (
                 <>
-                    {/* Search + New button */}
+                    {/* New button */}
                     <View style={style.qnToolbar}>
-                        <View style={style.qnSearchWrap}>
-                            <TextInput
-                                style={style.searchInput}
-                                placeholder={intl.formatMessage({id: 'quick_note.search', defaultMessage: '搜索随手记...'})}
-                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
-                                value={qnSearchQuery}
-                                onChangeText={setQnSearchQuery}
-                                autoCapitalize='none'
-                                autoCorrect={false}
-                            />
-                            {qnSearchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setQnSearchQuery('')} style={style.searchActionBtn}>
-                                    <CompassIcon name='close-circle' size={20} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                        <View style={{flex: 1}}/>
                         <TouchableOpacity
                             style={style.qnNewBtn}
                             onPress={onCreateQuickNote}
@@ -676,25 +619,160 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                         </View>
                     ) : (
                         <FlatList
-                            data={filteredQuickNotes}
+                            data={quickNotes}
                             keyExtractor={keyExtractor}
                             refreshing={qnRefreshing}
                             onRefresh={onRefreshQuickNotes}
                             contentContainerStyle={style.listContent}
                             renderItem={renderQuickNoteItem}
-                            ListEmptyComponent={
-                                qnSearchQuery ? (
-                                    <View style={style.emptyContainer}>
-                                        <CompassIcon name='note-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
-                                        <Text style={style.emptyText}>
-                                            {intl.formatMessage({id: 'quick_note.no_results', defaultMessage: '没有找到匹配的随手记'})}
-                                        </Text>
-                                    </View>
-                                ) : null
-                            }
+                            ListEmptyComponent={null}
                         />
                     )}
                 </>
+            )}
+
+            {/* Bottom search bar */}
+            {!searchActive && (
+                <View style={style.bottomSearchBar}>
+                    <TouchableOpacity
+                        style={style.bottomSearchInput}
+                        onPress={() => {
+                            setSearchActive(true);
+                            setTimeout(() => searchInputRef.current?.focus(), 100);
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <CompassIcon name='magnify' size={18} color={changeOpacity(theme.centerChannelColor, 0.4)}/>
+                        <Text style={style.bottomSearchPlaceholder}>
+                            {intl.formatMessage({id: 'smart_notebook.search_all', defaultMessage: '搜索笔记、实体、备忘录...'})}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Full-screen search overlay */}
+            {searchActive && (
+                <View style={style.searchOverlay}>
+                    <View style={style.searchOverlayHeader}>
+                        <View style={style.searchOverlayInputWrap}>
+                            <CompassIcon name='magnify' size={18} color={changeOpacity(theme.centerChannelColor, 0.4)}/>
+                            <TextInput
+                                ref={searchInputRef}
+                                style={style.searchOverlayInput}
+                                placeholder={intl.formatMessage({id: 'smart_notebook.search_all', defaultMessage: '搜索笔记、实体、备忘录...'})}
+                                placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.5)}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoCapitalize='none'
+                                autoCorrect={false}
+                                autoFocus={true}
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <CompassIcon name='close-circle' size={18} color={changeOpacity(theme.centerChannelColor, 0.5)}/>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setSearchActive(false);
+                                setSearchQuery('');
+                            }}
+                        >
+                            <Text style={style.searchCancelBtn}>
+                                {intl.formatMessage({id: 'smart_notebook.search_cancel', defaultMessage: '取消'})}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {searchQuery.trim() ? (
+                        <FlatList
+                            data={[
+                                ...searchResults.notes.map(p => ({type: 'note' as const, data: p})),
+                                ...searchResults.entities.map(e => ({type: 'entity' as const, data: e})),
+                                ...searchResults.memos.map(m => ({type: 'memo' as const, data: m})),
+                            ]}
+                            keyExtractor={(item, index) => `${item.type}-${index}`}
+                            contentContainerStyle={style.listContent}
+                            renderItem={({item}) => {
+                                if (item.type === 'note') {
+                                    const post = item.data as Post;
+                                    return (
+                                        <TouchableOpacity
+                                            style={style.searchResultItem}
+                                            onPress={() => {
+                                                setSearchActive(false);
+                                                setSearchQuery('');
+                                                popTopScreen();
+                                            }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={style.searchResultBadge}>
+                                                <Text style={style.searchResultBadgeText}>笔记</Text>
+                                            </View>
+                                            <Text style={style.searchResultText} numberOfLines={2}>{post.message}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                }
+                                if (item.type === 'entity') {
+                                    const entity = item.data as GraphEntity;
+                                    return (
+                                        <TouchableOpacity
+                                            style={style.searchResultItem}
+                                            onPress={() => {
+                                                setSearchActive(false);
+                                                setSearchQuery('');
+                                                openEntityDetail(entity);
+                                            }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={[style.searchResultBadge, {backgroundColor: changeOpacity(theme.buttonBg, 0.15)}]}>
+                                                <Text style={[style.searchResultBadgeText, {color: theme.buttonBg}]}>实体</Text>
+                                            </View>
+                                            <View style={{flex: 1}}>
+                                                <Text style={style.searchResultText} numberOfLines={1}>{entity.name}</Text>
+                                                {entity.summary ? (
+                                                    <Text style={style.searchResultSubtext} numberOfLines={1}>{entity.summary}</Text>
+                                                ) : null}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                }
+                                // memo
+                                const memo = item.data as Post;
+                                const memoData = getQuickNoteData(memo);
+                                return (
+                                    <TouchableOpacity
+                                        style={style.searchResultItem}
+                                        onPress={() => {
+                                            setSearchActive(false);
+                                            setSearchQuery('');
+                                            openQuickNote(memo);
+                                        }}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={[style.searchResultBadge, {backgroundColor: changeOpacity(theme.centerChannelColor, 0.1)}]}>
+                                            <Text style={style.searchResultBadgeText}>备忘录</Text>
+                                        </View>
+                                        <View style={{flex: 1}}>
+                                            <Text style={style.searchResultText} numberOfLines={1}>{memoData.title}</Text>
+                                            {memoData.content ? (
+                                                <Text style={style.searchResultSubtext} numberOfLines={1}>{memoData.content}</Text>
+                                            ) : null}
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            }}
+                            ListEmptyComponent={
+                                <View style={style.emptyContainer}>
+                                    <Text style={style.emptyText}>
+                                        {intl.formatMessage({id: 'smart_notebook.search_no_results', defaultMessage: '没有找到匹配的结果'})}
+                                    </Text>
+                                </View>
+                            }
+                        />
+                    ) : null}
+                </View>
             )}
         </SafeAreaView>
     );
@@ -1001,6 +1079,95 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     noRelationsText: {
         ...typography('Body', 75),
         color: changeOpacity(theme.centerChannelColor, 0.5),
+    },
+
+    // ---- Bottom search bar ----
+    bottomSearchBar: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: changeOpacity(theme.centerChannelColor, 0.1),
+        backgroundColor: theme.centerChannelBg,
+    },
+    bottomSearchInput: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 36,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        gap: 8,
+    },
+    bottomSearchPlaceholder: {
+        ...typography('Body', 100),
+        color: changeOpacity(theme.centerChannelColor, 0.4),
+    },
+
+    // ---- Full-screen search overlay ----
+    searchOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: theme.centerChannelBg,
+        zIndex: 10,
+    },
+    searchOverlayHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        gap: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.1),
+    },
+    searchOverlayInputWrap: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 36,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.06),
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        gap: 8,
+    },
+    searchOverlayInput: {
+        flex: 1,
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+        padding: 0,
+    },
+    searchCancelBtn: {
+        ...typography('Body', 100),
+        color: theme.buttonBg,
+    },
+
+    // ---- Search results ----
+    searchResultItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 4,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.06),
+        gap: 10,
+    },
+    searchResultBadge: {
+        backgroundColor: changeOpacity(theme.buttonBg, 0.1),
+        borderRadius: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    searchResultBadgeText: {
+        ...typography('Body', 50, 'SemiBold'),
+        color: theme.buttonBg,
+    },
+    searchResultText: {
+        flex: 1,
+        ...typography('Body', 100),
+        color: theme.centerChannelColor,
+    },
+    searchResultSubtext: {
+        ...typography('Body', 75),
+        color: changeOpacity(theme.centerChannelColor, 0.5),
+        marginTop: 2,
     },
 
 }));
