@@ -419,7 +419,7 @@ const AIAssistantPanel = ({componentId, channelId, teamId, closeButtonId}: Props
 
         // 【修复】历史标签页空状态时也要显示日期选择器
         const showDatePicker = activeTab === 'history';
-        const showGraduate = activeTab === 'history' || activeTab === 'active';
+        const showGraduate = false;
 
         if (results.length === 0) {
             const emptyMessages: Record<ActiveTab, {icon: string; text: string; id: string}> = {
