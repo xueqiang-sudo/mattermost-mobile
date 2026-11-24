@@ -111,6 +111,7 @@ export const APPS_NOTEBOOK = 'AppsNotebook';
 export const APPS_SMART_NOTEBOOK = 'AppsSmartNotebook';
 export const SMART_NOTE_DETAIL = 'SmartNoteDetail';
 export const QUICK_NOTE_DETAIL = 'QuickNoteDetail';
+export const ENTITY_DETAIL = 'EntityDetail';
 export const APPS_CONVERSATIONS = 'AppsConversations';
 export const APPS_HOT_PRODUCTS = 'AppsHotProducts';
 export const APPS_APPROVALS = 'AppsApprovals';
@@ -314,6 +315,7 @@ export default {
     NOTE_ADD,
     SMART_NOTE_DETAIL,
     QUICK_NOTE_DETAIL,
+    ENTITY_DETAIL,
     APPS_CONVERSATIONS,
     APPS_HOT_PRODUCTS,
     APPS_APPROVALS,

@@ -33,11 +33,9 @@ import {
     getChannelPosts,
     deletePost,
     getGraphEntities,
-    getGraphRelations,
     type Post,
     type Channel,
     type GraphEntity,
-    type GraphRelation,
 } from './smart_notebook_api';
 
 // ---- Types ----
@@ -146,12 +144,14 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     // Refresh flag
     const needsRefresh = useRef(false);
 
-    // Graph (entities sub-tab)
+    // Entities sub-tab
     const [graphEntities, setGraphEntities] = useState<GraphEntity[]>([]);
-    const [graphRelations, setGraphRelations] = useState<GraphRelation[]>([]);
     const [graphLoading, setGraphLoading] = useState(false);
+    const [graphLoadingMore, setGraphLoadingMore] = useState(false);
+    const [graphHasMore, setGraphHasMore] = useState(true);
     const [graphSearchQuery, setGraphSearchQuery] = useState('');
-    const [expandedEntity, setExpandedEntity] = useState<string | null>(null);
+    const graphOffsetRef = useRef(0);
+    const GRAPH_PAGE_SIZE = 30;
 
     // ---- Init: get userId and channel ----
     useEffect(() => {
@@ -303,21 +303,32 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         );
     }, [intl, serverUrl]);
 
-    // ---- Load graph data ----
-    const loadGraph = useCallback(async () => {
+    // ---- Load graph entities (paginated) ----
+    const loadGraph = useCallback(async (refresh = false) => {
         if (!userId) return;
-        setGraphLoading(true);
+        if (refresh) {
+            setGraphLoading(true);
+            graphOffsetRef.current = 0;
+            setGraphHasMore(true);
+        } else {
+            setGraphLoadingMore(true);
+        }
         try {
-            const [entityResult, relationResult] = await Promise.all([
-                getGraphEntities(serverUrl, userId, 100),
-                getGraphRelations(serverUrl, userId, 100),
-            ]);
-            setGraphEntities(entityResult.entities || []);
-            setGraphRelations(relationResult.relations || []);
-        } catch (err) {
+            const offset = refresh ? 0 : graphOffsetRef.current;
+            const result = await getGraphEntities(serverUrl, userId, GRAPH_PAGE_SIZE, offset);
+            const newEntities = result.entities || [];
+            if (refresh) {
+                setGraphEntities(newEntities);
+            } else {
+                setGraphEntities(prev => [...prev, ...newEntities]);
+            }
+            graphOffsetRef.current = offset + newEntities.length;
+            setGraphHasMore(newEntities.length >= GRAPH_PAGE_SIZE);
+        } catch {
             // silently handle graph loading errors
         } finally {
             setGraphLoading(false);
+            setGraphLoadingMore(false);
         }
     }, [serverUrl, userId]);
 
@@ -327,13 +338,15 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         }
     }, [subTab, userId, loadGraph]);
 
-    // ---- Get relations for an entity ----
-    const getEntityRelations = useCallback((entityUuid: string, entityName: string): GraphRelation[] => {
-        return graphRelations.filter(rel =>
-            rel.source === entityUuid || rel.source === entityName ||
-            rel.target === entityUuid || rel.target === entityName,
-        );
-    }, [graphRelations]);
+    // ---- Navigate to entity detail ----
+    const openEntityDetail = useCallback((entity: GraphEntity) => {
+        goToScreen(Screens.ENTITY_DETAIL, entity.name, {
+            entityUuid: entity.uuid,
+            entityName: entity.name,
+            entitySummary: entity.summary || '',
+            userId,
+        });
+    }, [userId]);
 
     // ---- Render right actions for swipe (quick notes) ----
     const renderQnRightActions = useCallback((note: Post) => {
@@ -564,100 +577,52 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                                 <FlatList
                                     data={(() => {
                                         const filter = graphSearchQuery.toLowerCase();
-                                        return [...graphEntities]
-                                            .filter(e => {
-                                                if (!filter) return true;
-                                                return e.name.toLowerCase().includes(filter) ||
-                                                       (e.summary || '').toLowerCase().includes(filter);
-                                            });
+                                        return graphEntities.filter(e => {
+                                            if (!filter) return true;
+                                            return e.name.toLowerCase().includes(filter) ||
+                                                   (e.summary || '').toLowerCase().includes(filter);
+                                        });
                                     })()}
                                     keyExtractor={(item) => item.uuid}
-                                    extraData={expandedEntity}
                                     refreshing={false}
-                                    onRefresh={loadGraph}
-                                    contentContainerStyle={style.listContent}
-                                    renderItem={({item}) => {
-                                        const relations = getEntityRelations(item.uuid, item.name);
-                                        const isSelected = expandedEntity === item.uuid;
-
-                                        return (
-                                            <View style={style.entityCard}>
-                                                <TouchableOpacity
-                                                    style={[style.entityHeader, isSelected && style.entityHeaderExpanded]}
-                                                    onPress={() => setExpandedEntity(isSelected ? null : item.uuid)}
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <View style={style.entityIconContainer}>
-                                                        <CompassIcon
-                                                            name={isSelected ? 'chevron-down' : 'chevron-right'}
-                                                            size={20}
-                                                            color={theme.buttonBg}
-                                                        />
-                                                    </View>
-                                                    <View style={style.entityContent}>
-                                                        <Text style={style.entityName} numberOfLines={1}>
-                                                            {item.name}
-                                                        </Text>
-                                                        {item.summary ? (
-                                                            <Text style={style.entitySummary} numberOfLines={isSelected ? 10 : 2}>
-                                                                {item.summary}
-                                                            </Text>
-                                                        ) : null}
-                                                    </View>
-                                                </TouchableOpacity>
-
-                                                {isSelected && (
-                                                    <View style={style.entityDetails}>
-                                                        {relations.length > 0 ? (
-                                                            <View style={style.entitySection}>
-                                                                <Text style={style.entitySectionTitle}>
-                                                                    {intl.formatMessage(
-                                                                        {id: 'smart_notebook.entity.relations', defaultMessage: '关联关系 ({count})'},
-                                                                        {count: relations.length},
-                                                                    )}
-                                                                </Text>
-                                                                {relations.map((rel, idx) => {
-                                                                    const isSource = rel.source === item.uuid || rel.source === item.name;
-                                                                    const otherEntityName = isSource
-                                                                        ? (graphEntities.find(e => e.uuid === rel.target || e.name === rel.target)?.name || rel.target)
-                                                                        : (graphEntities.find(e => e.uuid === rel.source || e.name === rel.source)?.name || rel.source);
-
-                                                                    return (
-                                                                        <View key={idx} style={style.relationRow}>
-                                                                            <View style={style.relationDirection}>
-                                                                                <CompassIcon
-                                                                                    name={isSource ? 'arrow-right' : 'arrow-left'}
-                                                                                    size={16}
-                                                                                    color={theme.buttonBg}
-                                                                                />
-                                                                            </View>
-                                                                            <View style={style.relationContent}>
-                                                                                <Text style={style.relationType}>{rel.relation_type}</Text>
-                                                                                <Text style={style.relationEntity} numberOfLines={1}>
-                                                                                    {isSource ? '→' : '←'} {otherEntityName}
-                                                                                </Text>
-                                                                                {rel.summary && (
-                                                                                    <Text style={style.relationSummary} numberOfLines={2}>
-                                                                                        {rel.summary}
-                                                                                    </Text>
-                                                                                )}
-                                                                            </View>
-                                                                        </View>
-                                                                    );
-                                                                })}
-                                                            </View>
-                                                        ) : (
-                                                            <View style={style.noRelationsContainer}>
-                                                                <Text style={style.noRelationsText}>
-                                                                    {intl.formatMessage({id: 'smart_notebook.entity.no_relations', defaultMessage: '暂无关联关系'})}
-                                                                </Text>
-                                                            </View>
-                                                        )}
-                                                    </View>
-                                                )}
-                                            </View>
-                                        );
+                                    onRefresh={() => loadGraph(true)}
+                                    onEndReached={() => {
+                                        if (!graphLoadingMore && graphHasMore) {
+                                            loadGraph(false);
+                                        }
                                     }}
+                                    onEndReachedThreshold={0.3}
+                                    contentContainerStyle={style.listContent}
+                                    renderItem={({item}) => (
+                                        <TouchableOpacity
+                                            style={style.entityCard}
+                                            onPress={() => openEntityDetail(item)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={style.entityHeader}>
+                                                <View style={style.entityContent}>
+                                                    <Text style={style.entityName} numberOfLines={1}>
+                                                        {item.name}
+                                                    </Text>
+                                                    {item.summary ? (
+                                                        <Text style={style.entitySummary} numberOfLines={2}>
+                                                            {item.summary}
+                                                        </Text>
+                                                    ) : null}
+                                                </View>
+                                                <CompassIcon
+                                                    name='chevron-right'
+                                                    size={20}
+                                                    color={changeOpacity(theme.centerChannelColor, 0.3)}
+                                                />
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
+                                    ListFooterComponent={graphLoadingMore ? (
+                                        <View style={{paddingVertical: 16, alignItems: 'center'}}>
+                                            <ActivityIndicator size='small' color={theme.buttonBg}/>
+                                        </View>
+                                    ) : null}
                                     ListEmptyComponent={
                                         <View style={style.emptyContainer}>
                                             <CompassIcon name='share-variant-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>

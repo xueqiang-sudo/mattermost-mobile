@@ -359,10 +359,21 @@ export async function queryGraph(
 export async function getGraphEntities(
     serverUrl: string,
     userId: string,
-    limit = 100,
+    limit = 30,
+    offset = 0,
 ): Promise<{success: boolean; entities: GraphEntity[]; total: number}> {
-    const params = new URLSearchParams({user_id: userId, limit: String(limit)});
+    const params = new URLSearchParams({user_id: userId, limit: String(limit), offset: String(offset)});
     return pluginFetch(serverUrl, `/api/smart-notebook/graph-entities?${params}`, {method: 'get'});
+}
+
+export async function getEntityRelations(
+    serverUrl: string,
+    userId: string,
+    entityUuid: string,
+    entityName: string,
+): Promise<{success: boolean; relations: GraphRelation[]; total: number}> {
+    const params = new URLSearchParams({user_id: userId, entity_uuid: entityUuid, entity_name: entityName});
+    return pluginFetch(serverUrl, `/api/smart-notebook/entity-relations?${params}`, {method: 'get'});
 }
 
 export async function getGraphRelations(

@@ -150,6 +150,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.QUICK_NOTE_DETAIL:
             screen = withServerDatabase(require('@screens/home/apps/smart_notebook/quick_note_detail_screen').default);
             break;
+        case Screens.ENTITY_DETAIL:
+            screen = withServerDatabase(require('@screens/home/apps/smart_notebook/entity_detail_screen').default);
+            break;
         case Screens.ROLE_LIST:
             screen = withServerDatabase(require('@screens/role_management/role_list').default);
             break;
