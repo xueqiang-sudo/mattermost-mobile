@@ -151,6 +151,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     const [graphLoadingMore, setGraphLoadingMore] = useState(false);
     const [graphHasMore, setGraphHasMore] = useState(true);
     const graphOffsetRef = useRef(0);
+    const graphLoadingRef = useRef(false);
     const GRAPH_PAGE_SIZE = 30;
 
     // ---- Init: get userId and channel ----
@@ -307,6 +308,8 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     // ---- Load graph entities (paginated) ----
     const loadGraph = useCallback(async (refresh = false) => {
         if (!userId) return;
+        if (graphLoadingRef.current) return;
+        graphLoadingRef.current = true;
         if (refresh) {
             setGraphLoading(true);
             graphOffsetRef.current = 0;
@@ -330,14 +333,15 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
         } finally {
             setGraphLoading(false);
             setGraphLoadingMore(false);
+            graphLoadingRef.current = false;
         }
     }, [serverUrl, userId]);
 
     useEffect(() => {
-        if (subTab === 'entities' && userId) {
-            loadGraph();
+        if (subTab === 'entities' && userId && graphEntities.length === 0) {
+            loadGraph(true);
         }
-    }, [subTab, userId, loadGraph]);
+    }, [subTab, userId]);
 
     // ---- Navigate to entity detail ----
     const openEntityDetail = useCallback((entity: GraphEntity) => {
@@ -420,6 +424,40 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     }, [style, openQuickNote, renderQnRightActions]);
 
     const keyExtractor = useCallback((item: Post) => item.id, []);
+
+    const entityKeyExtractor = useCallback((item: GraphEntity) => item.uuid, []);
+
+    const renderEntityItem = useCallback(({item}: {item: GraphEntity}) => (
+        <TouchableOpacity
+            style={style.entityCard}
+            onPress={() => openEntityDetail(item)}
+            activeOpacity={0.7}
+        >
+            <View style={style.entityHeader}>
+                <View style={style.entityContent}>
+                    <Text style={style.entityName} numberOfLines={1}>
+                        {item.name}
+                    </Text>
+                    {item.summary ? (
+                        <Text style={style.entitySummary} numberOfLines={2}>
+                            {item.summary}
+                        </Text>
+                    ) : null}
+                </View>
+                <CompassIcon
+                    name='chevron-right'
+                    size={20}
+                    color={changeOpacity(theme.centerChannelColor, 0.3)}
+                />
+            </View>
+        </TouchableOpacity>
+    ), [style, openEntityDetail, theme]);
+
+    const entityListFooter = useMemo(() => graphLoadingMore ? (
+        <View style={{paddingVertical: 16, alignItems: 'center'}}>
+            <ActivityIndicator size='small' color={theme.buttonBg}/>
+        </View>
+    ) : null, [graphLoadingMore, theme]);
 
     // ---- Render: loading / error ----
     if (initializing) {
@@ -541,46 +579,14 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                             ) : (
                                 <FlatList
                                     data={graphEntities}
-                                    keyExtractor={(item) => item.uuid}
-                                    refreshing={false}
+                                    keyExtractor={entityKeyExtractor}
+                                    refreshing={graphLoading}
                                     onRefresh={() => loadGraph(true)}
-                                    onEndReached={() => {
-                                        if (!graphLoadingMore && graphHasMore) {
-                                            loadGraph(false);
-                                        }
-                                    }}
-                                    onEndReachedThreshold={0.3}
+                                    onEndReached={() => loadGraph(false)}
+                                    onEndReachedThreshold={0.1}
                                     contentContainerStyle={style.listContent}
-                                    renderItem={({item}) => (
-                                        <TouchableOpacity
-                                            style={style.entityCard}
-                                            onPress={() => openEntityDetail(item)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <View style={style.entityHeader}>
-                                                <View style={style.entityContent}>
-                                                    <Text style={style.entityName} numberOfLines={1}>
-                                                        {item.name}
-                                                    </Text>
-                                                    {item.summary ? (
-                                                        <Text style={style.entitySummary} numberOfLines={2}>
-                                                            {item.summary}
-                                                        </Text>
-                                                    ) : null}
-                                                </View>
-                                                <CompassIcon
-                                                    name='chevron-right'
-                                                    size={20}
-                                                    color={changeOpacity(theme.centerChannelColor, 0.3)}
-                                                />
-                                            </View>
-                                        </TouchableOpacity>
-                                    )}
-                                    ListFooterComponent={graphLoadingMore ? (
-                                        <View style={{paddingVertical: 16, alignItems: 'center'}}>
-                                            <ActivityIndicator size='small' color={theme.buttonBg}/>
-                                        </View>
-                                    ) : null}
+                                    renderItem={renderEntityItem}
+                                    ListFooterComponent={entityListFooter}
                                     ListEmptyComponent={
                                         <View style={style.emptyContainer}>
                                             <CompassIcon name='share-variant-outline' size={64} color={changeOpacity(theme.centerChannelColor, 0.3)}/>
