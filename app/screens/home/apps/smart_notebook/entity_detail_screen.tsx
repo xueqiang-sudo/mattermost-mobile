@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl';
 import {
     ActivityIndicator,
     FlatList,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -17,12 +18,16 @@ import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
+import DatabaseManager from '@database/manager';
 import {goToScreen} from '@screens/navigation';
+import {getCurrentUserId} from '@queries/servers/system';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import {
-    getEntityRelations,
+    getGraphEntities,
+    getGraphRelations,
+    type GraphEntity,
     type GraphRelation,
 } from './smart_notebook_api';
 
@@ -35,6 +40,13 @@ type Props = {
     userId: string;
 };
 
+type RelationWithTarget = GraphRelation & {
+    targetName: string;
+    targetUuid: string;
+    targetSummary: string;
+    isSource: boolean;
+};
+
 // ---- Component ----
 
 const EntityDetailScreen = ({entityUuid, entityName, entitySummary, userId}: Props) => {
@@ -43,18 +55,50 @@ const EntityDetailScreen = ({entityUuid, entityName, entitySummary, userId}: Pro
     const serverUrl = useServerUrl();
     const style = getStyleSheet(theme);
 
-    const [relations, setRelations] = useState<GraphRelation[]>([]);
+    const [relations, setRelations] = useState<RelationWithTarget[]>([]);
     const [loading, setLoading] = useState(true);
+    const [allEntities, setAllEntities] = useState<GraphEntity[]>([]);
 
-    // Load relations on mount
+    // Load all relations and entities
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             try {
-                const result = await getEntityRelations(serverUrl, userId, entityUuid, entityName);
-                setRelations(result.relations || []);
-            } catch {
-                setRelations([]);
+                const [relResult, entResult] = await Promise.all([
+                    getGraphRelations(serverUrl, userId),
+                    getGraphEntities(serverUrl, userId),
+                ]);
+
+                const allRels = relResult.relations || [];
+                const allEnts = entResult.entities || [];
+                setAllEntities(allEnts);
+
+                // Filter relations involving this entity
+                const filtered: RelationWithTarget[] = [];
+                for (const rel of allRels) {
+                    const isSource = rel.source === entityUuid || rel.source === entityName;
+                    const isTarget = rel.target === entityUuid || rel.target === entityName;
+
+                    if (isSource || isTarget) {
+                        // Find the other entity
+                        const otherName = isSource ? rel.target : rel.source;
+                        const otherEntity = allEnts.find(e =>
+                            e.uuid === otherName || e.name === otherName
+                        );
+
+                        filtered.push({
+                            ...rel,
+                            targetName: otherEntity?.name || otherName,
+                            targetUuid: otherEntity?.uuid || otherName,
+                            targetSummary: otherEntity?.summary || '',
+                            isSource,
+                        });
+                    }
+                }
+
+                setRelations(filtered);
+            } catch (err) {
+                console.error('[EntityDetail] Failed to load relations:', err);
             } finally {
                 setLoading(false);
             }
@@ -63,90 +107,117 @@ const EntityDetailScreen = ({entityUuid, entityName, entitySummary, userId}: Pro
     }, [serverUrl, userId, entityUuid, entityName]);
 
     // Navigate to another entity's detail page
-    const navigateToEntity = useCallback((uuid: string, name: string, summary: string) => {
-        goToScreen(Screens.ENTITY_DETAIL, name, {
-            entityUuid: uuid,
-            entityName: name,
-            entitySummary: summary,
+    const handleRelationPress = useCallback((relation: RelationWithTarget) => {
+        goToScreen(Screens.ENTITY_DETAIL, relation.targetName, {
+            entityUuid: relation.targetUuid,
+            entityName: relation.targetName,
+            entitySummary: relation.targetSummary,
             userId,
         });
     }, [userId]);
 
     // Render relation item
-    const renderRelation = useCallback(({item}: {item: GraphRelation}) => {
-        const isSource = item.source === entityUuid || item.source === entityName;
-        const otherName = isSource ? item.target : item.source;
-
-        return (
-            <TouchableOpacity
-                style={style.relationCard}
-                onPress={() => navigateToEntity('', otherName, '')}
-                activeOpacity={0.7}
-            >
-                <View style={style.relationHeader}>
-                    <CompassIcon
-                        name={isSource ? 'arrow-right' : 'arrow-left'}
-                        size={16}
-                        color={theme.buttonBg}
-                    />
-                    <Text style={style.relationType}>{item.relation_type}</Text>
-                </View>
-                <Text style={style.relationEntityName}>{otherName}</Text>
-                {item.summary ? (
-                    <Text style={style.relationSummary} numberOfLines={2}>
-                        {item.summary}
-                    </Text>
-                ) : null}
-            </TouchableOpacity>
-        );
-    }, [entityUuid, entityName, style, theme, navigateToEntity]);
-
-    return (
-        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
-            {/* Entity summary */}
-            {entitySummary ? (
-                <View style={style.summarySection}>
-                    <Text style={style.sectionTitle}>
-                        {intl.formatMessage({id: 'entity_detail.summary', defaultMessage: '摘要'})}
-                    </Text>
-                    <Text style={style.summaryText}>{entitySummary}</Text>
-                </View>
-            ) : null}
-
-            {/* Relations section */}
-            <View style={style.relationsSection}>
-                <Text style={style.sectionTitle}>
-                    {intl.formatMessage(
-                        {id: 'entity_detail.relations', defaultMessage: '关联关系 ({count})'},
-                        {count: relations.length},
-                    )}
-                </Text>
+    const renderRelation = useCallback(({item}: {item: RelationWithTarget}) => (
+        <TouchableOpacity
+            style={style.relationCard}
+            onPress={() => handleRelationPress(item)}
+            activeOpacity={0.7}
+        >
+            <View style={style.relationHeader}>
+                <CompassIcon
+                    name={item.isSource ? 'arrow-right' : 'arrow-left'}
+                    size={16}
+                    color={theme.buttonBg}
+                />
+                <Text style={style.relationType}>{item.relation_type}</Text>
             </View>
+            <Text style={style.relationEntityName} numberOfLines={1}>
+                {item.targetName}
+            </Text>
+            {item.summary ? (
+                <Text style={style.relationSummary} numberOfLines={2}>
+                    {item.summary}
+                </Text>
+            ) : null}
+        </TouchableOpacity>
+    ), [style, theme, handleRelationPress]);
 
-            {loading ? (
+    if (loading) {
+        return (
+            <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
                 <View style={style.loadingContainer}>
                     <ActivityIndicator size='large' color={theme.buttonBg}/>
                 </View>
-            ) : (
-                <FlatList
-                    data={relations}
-                    keyExtractor={(item, index) => item.uuid || String(index)}
-                    renderItem={renderRelation}
-                    contentContainerStyle={style.listContent}
-                    ListEmptyComponent={
-                        <View style={style.emptyContainer}>
-                            <CompassIcon
-                                name='share-variant-outline'
-                                size={48}
-                                color={changeOpacity(theme.centerChannelColor, 0.3)}
-                            />
-                            <Text style={style.emptyText}>
-                                {intl.formatMessage({id: 'entity_detail.no_relations', defaultMessage: '暂无关联关系'})}
+            </SafeAreaView>
+        );
+    }
+
+    return (
+        <SafeAreaView style={[style.container, {backgroundColor: theme.centerChannelBg}]}>
+            <ScrollView
+                style={style.container}
+                contentContainerStyle={style.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Entity Summary */}
+                {entitySummary ? (
+                    <View style={style.summarySection}>
+                        <Text style={style.sectionTitle}>
+                            {intl.formatMessage({id: 'entity_detail.summary', defaultMessage: '摘要'})}
+                        </Text>
+                        <Text style={style.summaryText}>{entitySummary}</Text>
+                    </View>
+                ) : null}
+
+                {/* Relations Section */}
+                <View style={style.relationsSection}>
+                    <Text style={style.sectionTitle}>
+                        {intl.formatMessage(
+                            {id: 'entity_detail.relations', defaultMessage: '关联关系 ({count})'},
+                            {count: relations.length},
+                        )}
+                    </Text>
+                </View>
+
+                {relations.length > 0 ? (
+                    relations.map((rel, index) => (
+                        <TouchableOpacity
+                            key={rel.uuid || index}
+                            style={style.relationCard}
+                            onPress={() => handleRelationPress(rel)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={style.relationHeader}>
+                                <CompassIcon
+                                    name={rel.isSource ? 'arrow-right' : 'arrow-left'}
+                                    size={16}
+                                    color={theme.buttonBg}
+                                />
+                                <Text style={style.relationType}>{rel.relation_type}</Text>
+                            </View>
+                            <Text style={style.relationEntityName} numberOfLines={1}>
+                                {rel.targetName}
                             </Text>
-                        </View>
-                    }
-                />
-            )}
+                            {rel.summary ? (
+                                <Text style={style.relationSummary} numberOfLines={2}>
+                                    {rel.summary}
+                                </Text>
+                            ) : null}
+                        </TouchableOpacity>
+                    ))
+                ) : (
+                    <View style={style.emptyContainer}>
+                        <CompassIcon
+                            name='share-variant-outline'
+                            size={48}
+                            color={changeOpacity(theme.centerChannelColor, 0.3)}
+                        />
+                        <Text style={style.emptyText}>
+                            {intl.formatMessage({id: 'entity_detail.no_relations', defaultMessage: '暂无关联关系'})}
+                        </Text>
+                    </View>
+                )}
+            </ScrollView>
         </SafeAreaView>
     );
 };
@@ -162,10 +233,12 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    scrollContent: {
+        padding: 16,
+        paddingBottom: 40,
+    },
     summarySection: {
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 8,
+        marginBottom: 16,
     },
     sectionTitle: {
         ...typography('Body', 75, 'SemiBold'),
@@ -178,21 +251,15 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
         lineHeight: 22,
     },
     relationsSection: {
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: 4,
-    },
-    listContent: {
-        paddingHorizontal: 16,
-        paddingBottom: 40,
+        marginBottom: 12,
     },
     relationCard: {
-        backgroundColor: theme.centerChannelBg,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
         borderRadius: 10,
         padding: 14,
         marginBottom: 10,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: changeOpacity(theme.centerChannelColor, 0.1),
+        borderColor: changeOpacity(theme.centerChannelColor, 0.08),
     },
     relationHeader: {
         flexDirection: 'row',
@@ -222,8 +289,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: any) => ({
     emptyText: {
         ...typography('Body', 100),
         color: changeOpacity(theme.centerChannelColor, 0.5),
-        marginTop: 12,
         textAlign: 'center',
+        marginTop: 12,
     },
 }));
 
