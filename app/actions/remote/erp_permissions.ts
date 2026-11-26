@@ -12,16 +12,38 @@ import {getCurrentUserId} from '@queries/servers/system';
 
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
-export type ErpPermissionsResponse = {
-    is_erp_team: boolean;
-    has_erp_account?: boolean;
-    roles?: string[];
-    allowed_doctypes?: string[];
-    data_scope?: string;
+// DocPerm permission levels for a single DocType
+export type DocPermMatrix = {
+    read: boolean;
+    write: boolean;
+    create: boolean;
+    delete: boolean;
+    submit: boolean;
+    cancel: boolean;
 };
 
+// Full permissions matrix response from server
+export type ErpPermissionsResponse = {
+    doctypes: Record<string, DocPermMatrix>;
+    roles: string[];
+};
+
+// DocTypes needed for mobile workspace apps
+const WORKSPACE_DOCTYPES = [
+    'Item',           // hot_products
+    'Quotation',      // approvals
+    'Sales Invoice',  // finance
+    'Sales Order',    // sales
+    'Stock Entry',    // inventory
+    'Customer',       // customers
+    'Supplier',       // suppliers
+    'Work Order',     // work_orders
+    'Project',        // projects
+    'Purchase Order', // purchase_orders
+];
+
 /**
- * Fetch ERP permissions from server
+ * Fetch ERP permissions matrix from server
  */
 export async function fetchErpPermissions(
     serverUrl: string,
@@ -29,8 +51,9 @@ export async function fetchErpPermissions(
 ): Promise<ErpPermissionsResponse | null> {
     try {
         const client = NetworkManager.getClient(serverUrl);
+        const doctypesParam = WORKSPACE_DOCTYPES.join(',');
         const response = await client.doFetch(
-            `/plugins/com.mattermost.frappe-sync/api/erp/permissions?team_id=${teamId}`,
+            `/plugins/com.mattermost.frappe-sync/api/erp/permissions-matrix?team_id=${teamId}&doctypes=${encodeURIComponent(doctypesParam)}`,
             {method: 'GET'},
         );
         return response;
@@ -102,11 +125,8 @@ export async function saveErpPermissionsCache(
             await database.get<ErpPermissionsCacheModel>(MM_TABLES.SERVER.ERP_PERMISSIONS_CACHE).create((record) => {
                 record.userId = userId;
                 record.teamId = teamId;
-                record.isErpTeam = permissions.is_erp_team;
-                record.hasErpAccount = permissions.has_erp_account || false;
+                record.doctypes = permissions.doctypes;
                 record.roles = permissions.roles || [];
-                record.allowedDoctypes = permissions.allowed_doctypes || [];
-                record.dataScope = permissions.data_scope || 'self';
                 record.cachedAt = Date.now();
             });
         });
@@ -162,11 +182,8 @@ export async function getErpPermissions(
             const cached = await getErpPermissionsCache(database, userId, teamId);
             if (cached) {
                 return {
-                    is_erp_team: cached.isErpTeam,
-                    has_erp_account: cached.hasErpAccount,
+                    doctypes: cached.doctypes,
                     roles: cached.roles,
-                    allowed_doctypes: cached.allowedDoctypes,
-                    data_scope: cached.dataScope,
                 };
             }
         }

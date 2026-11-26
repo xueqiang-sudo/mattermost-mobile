@@ -8,15 +8,22 @@ import {MM_TABLES} from '@constants/database';
 
 const {ERP_PERMISSIONS_CACHE} = MM_TABLES.SERVER;
 
+// DocPerm permission levels for a single DocType
+export type DocPermMatrix = {
+    read: boolean;
+    write: boolean;
+    create: boolean;
+    delete: boolean;
+    submit: boolean;
+    cancel: boolean;
+};
+
 export default class ErpPermissionsCacheModel extends Model {
     static table = ERP_PERMISSIONS_CACHE;
 
     @field('user_id') userId!: string;
     @field('team_id') teamId!: string;
-    @field('is_erp_team') isErpTeam!: boolean;
-    @field('has_erp_account') hasErpAccount!: boolean;
+    @json('doctypes', (doctypes) => doctypes || {}) doctypes!: Record<string, DocPermMatrix>;
     @json('roles', (roles) => roles || []) roles!: string[];
-    @json('allowed_doctypes', (doctypes) => doctypes || []) allowedDoctypes!: string[];
-    @field('data_scope') dataScope!: string;
     @field('cached_at') cachedAt!: number;
 }

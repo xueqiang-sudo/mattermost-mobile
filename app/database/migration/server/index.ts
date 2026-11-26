@@ -32,6 +32,23 @@ const {PLAYBOOK_RUN, PLAYBOOK_CHECKLIST, PLAYBOOK_CHECKLIST_ITEM, PLAYBOOK_RUN_A
 
 export default schemaMigrations({migrations: [
     {
+        toVersion: 22,
+        steps: [
+            // Drop and recreate ERP_PERMISSIONS_CACHE with new schema for DocPerm matrix
+            unsafeExecuteSql(`DROP TABLE IF EXISTS ${ERP_PERMISSIONS_CACHE};`),
+            createTable({
+                name: ERP_PERMISSIONS_CACHE,
+                columns: [
+                    {name: 'user_id', type: 'string', isIndexed: true},
+                    {name: 'team_id', type: 'string', isIndexed: true},
+                    {name: 'doctypes', type: 'string'},  // JSON: Record<string, DocPermMatrix>
+                    {name: 'roles', type: 'string'},     // JSON: string[]
+                    {name: 'cached_at', type: 'number'},
+                ],
+            }),
+        ],
+    },
+    {
         toVersion: 21,
         steps: [
             createTable({

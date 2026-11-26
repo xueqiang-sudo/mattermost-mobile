@@ -12,11 +12,8 @@ export default tableSchema({
     columns: [
         {name: 'user_id', type: 'string', isIndexed: true},
         {name: 'team_id', type: 'string', isIndexed: true},
-        {name: 'is_erp_team', type: 'boolean'},
-        {name: 'has_erp_account', type: 'boolean'},
-        {name: 'roles', type: 'string'},
-        {name: 'allowed_doctypes', type: 'string'},
-        {name: 'data_scope', type: 'string'},
+        {name: 'doctypes', type: 'string'},  // JSON: Record<string, DocPermMatrix>
+        {name: 'roles', type: 'string'},     // JSON: string[]
         {name: 'cached_at', type: 'number'},
     ],
 });

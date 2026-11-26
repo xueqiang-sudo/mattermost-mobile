@@ -44,39 +44,18 @@ type WorkspaceCard = {
     analyticsDoctypes?: string[];
 };
 
-// Role-based access control for analytics apps
-const APP_ROLE_ACCESS: Record<string, string[]> = {
-    // 热销榜：所有 ERP 用户可访问（无角色限制）
-    hot_products: [],
-
-    // 审批清单：所有 ERP 用户可访问（无角色限制）
-    approvals: [],
-
-    // 流水账：总经理、系统管理员、财务经理（会计经理）
-    finance: [
-        'General Manager',      // 总经理
-        'System Manager',       // 系统管理员
-        'Accounts Manager',     // 财务经理/会计经理
-    ],
-
-    // 销售统计：总经理、系统管理员、副总经理、销售经理、财务经理
-    sales: [
-        'General Manager',          // 总经理
-        'System Manager',           // 系统管理员
-        'Deputy General Manager',   // 副总经理
-        'Sales Manager',            // 销售经理
-        'Accounts Manager',         // 财务经理/会计经理
-    ],
-
-    // 库存分析：总经理、系统管理员、副总经理、财务经理、销售经理、中台经理（内勤经理）
-    inventory: [
-        'General Manager',          // 总经理
-        'System Manager',           // 系统管理员
-        'Deputy General Manager',   // 副总经理
-        'Accounts Manager',         // 财务经理/会计经理
-        'Sales Manager',            // 销售经理
-        'Internal Manager',         // 中台经理/内勤经理
-    ],
+// Map workspace card keys to their primary DocType for permission checking
+const CARD_DOCTYPE_MAP: Record<string, string> = {
+    hot_products: 'Item',
+    approvals: 'Quotation',
+    finance: 'Sales Invoice',
+    sales: 'Sales Order',
+    inventory: 'Stock Entry',
+    customers: 'Customer',
+    suppliers: 'Supplier',
+    work_orders: 'Work Order',
+    projects: 'Project',
+    purchase_orders: 'Purchase Order',
 };
 
 const CARDS: WorkspaceCard[] = [
@@ -597,18 +576,17 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
     }, [serverUrl, intl, theme]);
 
     // ---- Helper: Check if button is enabled ----
-    // 对齐 webapp sidebar_apps_section.tsx 的权限逻辑：
-    // - 分析类应用（在 APP_ROLE_ACCESS 中）只检查角色，不检查 doctype
-    // - CRUD 模块（有 doctype 但不在 APP_ROLE_ACCESS 中）检查 allowed_doctypes
-    //   但如果 API 没返回 allowed_doctypes 则放行（服务端兜底）
+    // 使用 ERP DocPerm 权限矩阵控制按钮可见性：
+    // - 有 read 权限 → 显示按钮
+    // - 无 read 权限 → 隐藏按钮（灰色）
     const isButtonEnabled = useCallback((card: WorkspaceCard): boolean => {
         // If not ERP team, all buttons disabled
         if (!isErpTeam) {
             return false;
         }
 
-        // AI Assistant and Approvals are always available for ERP users
-        if (card.key === 'ai_assistant' || card.key === 'approvals') {
+        // AI Assistant is always available for ERP users
+        if (card.key === 'ai_assistant') {
             return true;
         }
 
@@ -617,37 +595,24 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
             return true;
         }
 
-        // If user has no ERP account, disable all ERP features
-        if (!erpPermissions.has_erp_account) {
+        // If user has no roles, disable all ERP features
+        if (!erpPermissions.roles || erpPermissions.roles.length === 0) {
             return false;
         }
 
-        // Analytics apps: role-only check (matches webapp)
-        const allowedRoles = APP_ROLE_ACCESS[card.key];
-        if (allowedRoles !== undefined) {
-            // Empty array = no role restriction, all ERP users can access
-            if (allowedRoles.length === 0) {
+        // Check DocPerm matrix for this card's DocType
+        const doctype = CARD_DOCTYPE_MAP[card.key] || card.doctype;
+        if (doctype) {
+            const perms = erpPermissions.doctypes[doctype];
+            if (!perms) {
+                // No DocPerm defined → allow (fail-open, server enforces)
                 return true;
             }
-
-            // Check if user has any of the allowed roles (case-insensitive)
-            const userRoles = erpPermissions.roles || [];
-            return userRoles.some(userRole =>
-                allowedRoles.some(allowedRole =>
-                    userRole.toLowerCase() === allowedRole.toLowerCase()
-                )
-            );
+            return perms.read === true;
         }
 
-        // CRUD modules: check doctype permission
-        // If API didn't return allowed_doctypes, allow (server enforces)
-        if (card.doctype) {
-            const allowedDoctypes = erpPermissions.allowed_doctypes;
-            if (!allowedDoctypes || allowedDoctypes.length === 0) {
-                return true;
-            }
-            return allowedDoctypes.includes(card.doctype);
-        }
+        // No DocType mapped → allow
+        return true;
 
         return true;
     }, [isErpTeam, erpPermissions]);
