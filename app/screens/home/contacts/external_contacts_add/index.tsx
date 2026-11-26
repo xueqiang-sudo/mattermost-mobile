@@ -2,8 +2,6 @@
 // See LICENSE.txt for license information.
 
 import Clipboard from '@react-native-clipboard/clipboard';
-import {useNavigation, useRoute} from '@react-navigation/native';
-import type {RouteProp} from '@react-navigation/native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {
@@ -180,8 +178,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-type ContactsExternalAddScreenRouteProp = RouteProp<ContactsStackParamList, typeof import('@constants').Screens.CONTACTS_EXTERNAL_ADD>;
-
 type ExternalAddProps = {
     ownerId?: string;
     companyId?: string;
@@ -191,13 +187,11 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
     const theme = useTheme();
     const intl = useIntl();
     const serverUrl = useServerUrl();
-    const navigation = useNavigation();
-    const route = useRoute<ContactsExternalAddScreenRouteProp>();
     const styles = getStyleSheet(theme);
 
-    // Support both React Navigation (route.params) and RNN modal (direct props)
-    const ownerId = route.params?.ownerId || props.ownerId || '';
-    const companyId = route.params?.companyId || props.companyId || '';
+    // RNN modal passes props directly (not via React Navigation route.params)
+    const ownerId = props.ownerId || '';
+    const companyId = props.companyId || '';
     const kind = MMEmployeeContactTypes.External;
 
     const [phone, setPhone] = useState('');
@@ -212,12 +206,8 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
     const [pendingInvitePhone, setPendingInvitePhone] = useState('');
 
     const handleGoBack = useCallback(() => {
-        try {
-            handleGoBack();
-        } catch {
-            popTopScreen();
-        }
-    }, [navigation]);
+        popTopScreen();
+    }, []);
 
     const inviteUrl = `${serverUrl}/invite?invited_by=${ownerId}`;
 
@@ -282,7 +272,7 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
         } else {
             handleGoBack();
         }
-    }, [ownerId, searchResult, serverUrl, kind, intl, navigation]));
+    }, [ownerId, searchResult, serverUrl, kind, intl]));
 
     const handlePhoneChange = useCallback((text: string) => {
         setPhone(text);
@@ -311,7 +301,7 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.headerBack}
-                    onPress={() => navigation.goBack()}
+                    onPress={handleGoBack}
                     hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                     testID='external_contacts_add.back'
                 >
