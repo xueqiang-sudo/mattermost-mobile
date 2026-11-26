@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
@@ -405,8 +405,8 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         loadApprovals();
     }, [serverUrl, currentTeamId]);
 
-    // ---- Load ERP permissions ----
-    useEffect(() => {
+    // ---- Load ERP permissions (on focus, uses cache if fresh) ----
+    useFocusEffect(useCallback(() => {
         const loadPermissions = async () => {
             debugLog('[WorkspaceScreen] loadPermissions: isErpTeam=', isErpTeam, ' currentTeamId=', currentTeamId);
             if (!isErpTeam) {
@@ -416,14 +416,11 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
             }
 
             try {
-                debugLog('[WorkspaceScreen] Calling GET /plugins/com.mattermost.frappe-sync/api/erp/permissions');
+                debugLog('[WorkspaceScreen] Calling getErpPermissions (cache-aware)');
                 const permissions = await getErpPermissions(serverUrl);
-                debugLog('[WorkspaceScreen] ERP permissions response:', JSON.stringify({
-                    has_erp_account: permissions?.has_erp_account,
+                debugLog('[WorkspaceScreen] ERP permissions loaded:', JSON.stringify({
+                    doctypes_count: permissions?.doctypes ? Object.keys(permissions.doctypes).length : 0,
                     roles: permissions?.roles,
-                    allowed_doctypes_count: permissions?.allowed_doctypes?.length ?? 0,
-                    allowed_doctypes: permissions?.allowed_doctypes,
-                    data_scope: permissions?.data_scope,
                 }));
                 setErpPermissions(permissions);
             } catch (error) {
@@ -432,7 +429,7 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
             }
         };
         loadPermissions();
-    }, [serverUrl, isErpTeam, currentTeamId]);
+    }, [serverUrl, isErpTeam, currentTeamId]));
 
     // ---- Handlers ----
     const handleSmartNotebook = useCallback(async () => {
