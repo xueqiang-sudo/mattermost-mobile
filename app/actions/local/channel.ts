@@ -47,7 +47,7 @@ export async function switchToChannel(serverUrl: string, channelId: string, team
                         return {error: `team with id ${teamId} not found`};
                     }
                 }
-                const toTeamId = channel.teamId || teamId || system.currentTeamId;
+                const toTeamId = teamId || channel.teamId || system.currentTeamId;
 
                 if (isTabletDevice && system.currentChannelId !== channelId) {
                     // On tablet, the channel is being rendered, by setting the channel to empty first we speed up

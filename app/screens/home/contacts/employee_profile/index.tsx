@@ -671,9 +671,10 @@ const ContactsEmployeeProfile = ({
         const currentTeamId = await getCurrentTeamId(database);
         // Bot → botgm_ group (server creates the channel with the `botgm_`
         // prefix and enforces 1-on-1 membership); human → regular GM.
+        // 不传递 currentTeamId 给 makeGroupChannel，让 GM 频道的 TeamId 保持为空，确保跨团队的唯一性
         const result = resolved.isBot
             ? await makeBotGroupChannel(serverUrl, resolved.id, currentTeamId)
-            : await makeGroupChannel(serverUrl, [resolved.id], true, undefined, currentTeamId);
+            : await makeGroupChannel(serverUrl, [resolved.id], true);
         setSending(false);
         if (result.error) {
             Alert.alert(

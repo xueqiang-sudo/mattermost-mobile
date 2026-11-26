@@ -351,7 +351,8 @@ const AppsScreen = ({currentUser, currentTeam, rnnHomeComponentId}: Props) => {
                             } catch (err) {
                                 // silently handle error
                             }
-                            await switchToChannelById(serverUrl, channel.id);
+                            // 显式传递 currentTeamId，确保不切换团队
+                            await switchToChannelById(serverUrl, channel.id, currentTeamId);
                         }
                     } catch (err) {
                         // silently handle error

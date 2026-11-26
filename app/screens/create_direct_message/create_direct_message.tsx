@@ -431,14 +431,15 @@ export default function CreateDirectMessage({
     }, [intl, serverUrl, currentTeamId]);
 
     // Create group channel (switch=false: close screen first, then switch manually to avoid nav race)
+    // 不传递 currentTeamId，让 GM 频道的 TeamId 保持为空，确保跨团队的唯一性
     const createGroupChannel = useCallback(async (ids: string[], groupCategory?: string): Promise<{ok: boolean; channelId?: string}> => {
-        const result = await makeGroupChannel(serverUrl, ids, false, groupCategory, currentTeamId);
+        const result = await makeGroupChannel(serverUrl, ids, false, groupCategory);
         if (result.error) {
             alertErrorWithFallback(intl, result.error, messages.gm);
             return {ok: false};
         }
         return {ok: true, channelId: (result.data as any)?.id};
-    }, [intl, serverUrl, currentTeamId]);
+    }, [intl, serverUrl]);
 
     // Create bot group channel (Bot GM, switch=false to avoid nav race)
     const createBotGroupChannel = useCallback(async (botUserId: string, teamId: string): Promise<{ok: boolean; channelId?: string}> => {

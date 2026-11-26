@@ -80,7 +80,8 @@ const UserProfileOptions = ({location, type, userId, username}: Props) => {
             // Bot → create a botgm_ group via the server's dedicated endpoint
             await makeBotGroupChannel(serverUrl, userId, currentTeamId);
         } else {
-            await makeGroupChannel(serverUrl, [userId], true, undefined, currentTeamId);
+            // 不传递 currentTeamId，让 GM 频道的 TeamId 保持为空，确保跨团队的唯一性
+            await makeGroupChannel(serverUrl, [userId], true);
         }
     }, [userId, serverUrl, isBot]);
 
