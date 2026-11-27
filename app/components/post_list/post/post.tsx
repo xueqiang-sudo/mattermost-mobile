@@ -425,10 +425,9 @@ const Post = ({
                 iconName: 'send',
                 onPress: closeAndRun(async () => {
                     const fileIds = await post.files.fetchIds();
-                    goToScreen(
+                    showModal(
                         Screens.FORWARD_MESSAGE,
                         intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'}),
-                        `close-${Screens.FORWARD_MESSAGE}`,
                         {
                             componentId: Screens.FORWARD_MESSAGE,
                             postId: post.id,
@@ -436,7 +435,11 @@ const Post = ({
                             message: textMessage,
                             fileIds,
                         },
-                        {useBackIcon: true},
+                        {
+                            topBar: {
+                                visible: false,
+                            },
+                        },
                     );
                 }),
             });

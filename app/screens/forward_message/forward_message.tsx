@@ -130,6 +130,11 @@ const ForwardMessage = ({
                 return false;
             }
 
+            // Only show channels from the current team (including DM/GM with empty team_id)
+            if (channel.teamId && channel.teamId !== team?.id) {
+                return false;
+            }
+
             // Filter by search query
             if (query) {
                 const name = channel.displayName?.toLowerCase() || '';
@@ -139,10 +144,10 @@ const ForwardMessage = ({
 
             return true;
         });
-    }, [channels, channelId, searchQuery]);
+    }, [channels, channelId, searchQuery, team?.id]);
 
     const handleClose = useCallback(() => {
-        popTopScreen(componentId);
+        dismissModal({componentId});
     }, [componentId]);
 
     const handleSelectChannel = useCallback((channel: ChannelModel) => {
@@ -176,6 +181,7 @@ const ForwardMessage = ({
                 fileIds,
                 channelId,
                 postId,
+                team: team?.displayName || 'null',
             });
 
             // Step 1: Collect file IDs from message (inline markers) and traditional file_ids
@@ -361,10 +367,7 @@ const ForwardMessage = ({
                         color={theme.centerChannelColor}
                     />
                 </Pressable>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                    {team?.displayName ||
-                        intl.formatMessage({id: 'forward.title', defaultMessage: 'Forward Message'})}
-                </Text>
+                <View style={{flex: 1}} />
                 <Pressable
                     style={styles.headerButton}
                     onPress={handleForward}
