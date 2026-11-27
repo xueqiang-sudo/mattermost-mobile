@@ -8,6 +8,7 @@
 import NetworkManager from '@managers/network_manager';
 import DatabaseManager from '@database/manager';
 import {getCurrentTeamId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 
 const PROXY_BASE = '/plugins/com.mattermost.frappe-sync/api/erp/proxy';
 
@@ -25,7 +26,8 @@ async function erpFetch(serverUrl: string, path: string, options: RequestInit = 
         return await client.doFetch(url, options);
     } catch (error: any) {
         const status = error?.status_code || error?.statusCode || error?.response?.status;
-        if (status === 401 || status === 403) {
+        debugLog('[erpFetch] error: status=', status, ' path=', path, ' msg=', error?.message?.substring(0, 200));
+        if (status === 401 || status === 403 || status === 417) {
             throw new Error('ERP_ACCESS_DENIED');
         }
         throw error;
