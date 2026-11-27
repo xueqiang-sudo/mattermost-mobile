@@ -235,6 +235,8 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
         }
     }, [notFound, ownerId, serverUrl, phone, pendingInvitePhone]);
 
+    const canSave = Boolean(searchResult && !searchResult.alreadyAdded && !saving);
+
     const handleSave = usePreventDoubleTap(useCallback(async () => {
         if (!ownerId || !searchResult || searchResult.alreadyAdded) {
             return;
@@ -305,7 +307,6 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
     }, [inviteUrl, intl]);
 
     const canSearch = phone.trim().length > 0 && !searching && !saving;
-    const canSave = searchResult && !searchResult.alreadyAdded && !saving;
 
     return (
         <SafeAreaView
