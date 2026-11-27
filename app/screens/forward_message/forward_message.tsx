@@ -11,6 +11,7 @@ import CompassIcon from '@components/compass_icon';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import NetworkManager from '@managers/network_manager';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
@@ -168,6 +169,15 @@ const ForwardMessage = ({
         setIsForwarding(true);
 
         try {
+            // Debug log
+            debugLog('[Forward] Starting forward with:', {
+                selectedChannelIds,
+                message: message?.substring(0, 50),
+                fileIds,
+                channelId,
+                postId,
+            });
+
             // Step 1: Collect file IDs from message (inline markers) and traditional file_ids
             const messageSource = message || '';
             const inlineFileIds: string[] = [];
@@ -187,13 +197,21 @@ const ForwardMessage = ({
 
             const allOriginalFileIds = [...inlineFileIds, ...traditionalFileIds];
 
+            debugLog('[Forward] File IDs:', {
+                inlineFileIds,
+                traditionalFileIds,
+                allOriginalFileIds,
+            });
+
             // Step 2: Copy files on server (like webapp)
             const oldToNewIdMap: Record<string, string> = {};
 
             if (allOriginalFileIds.length > 0) {
                 try {
                     const client = NetworkManager.getClient(serverUrl);
+                    debugLog('[Forward] Copying files:', allOriginalFileIds);
                     const copyResult = await client.copyFiles(allOriginalFileIds);
+                    debugLog('[Forward] Copy result:', copyResult);
                     const newIds = copyResult.file_ids;
 
                     // Map old IDs to new IDs
@@ -203,7 +221,9 @@ const ForwardMessage = ({
                             oldToNewIdMap[oldId] = newId;
                         }
                     });
-                } catch (copyError) {
+                    debugLog('[Forward] File ID mapping:', oldToNewIdMap);
+                } catch (copyError: any) {
+                    debugLog('[Forward] File copy failed:', copyError?.message || String(copyError));
                     // File copy failed - abort forwarding
                     throw copyError;
                 }
@@ -235,10 +255,14 @@ const ForwardMessage = ({
 
             forwardMessage = forwardMessage.trim();
 
+            debugLog('[Forward] Forward message:', forwardMessage.substring(0, 100));
+
             // Get new file IDs for the post
             const newFileIds = allOriginalFileIds
                 .map((oldId) => oldToNewIdMap[oldId])
                 .filter(Boolean);
+
+            debugLog('[Forward] New file IDs:', newFileIds);
 
             // Step 4: Create the forwarded post for each selected channel
             for (const targetChannelId of selectedChannelIds) {
@@ -255,15 +279,22 @@ const ForwardMessage = ({
                     },
                 };
 
-                await createPost(serverUrl, post);
+                debugLog('[Forward] Creating post in channel:', targetChannelId, post);
+                const result = await createPost(serverUrl, post);
+                debugLog('[Forward] Post created result:', result);
+                if (result.error) {
+                    debugLog('[Forward] Create post error:', result.error);
+                    throw result.error;
+                }
             }
 
             // Close the modal
             handleClose();
-        } catch (error) {
+        } catch (error: any) {
+            debugLog('[Forward] Error:', error?.message || String(error));
             Alert.alert(
                 intl.formatMessage({id: 'forward.error', defaultMessage: 'Forward Failed'}),
-                intl.formatMessage({id: 'forward.error_message', defaultMessage: 'Failed to forward the message. Please try again.'}),
+                error?.message || intl.formatMessage({id: 'forward.error_message', defaultMessage: 'Failed to forward the message. Please try again.'}),
             );
         } finally {
             setIsForwarding(false);
