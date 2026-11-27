@@ -44,6 +44,13 @@ type WorkspaceCard = {
     analyticsDoctypes?: string[];
 };
 
+// MCP Tool role restrictions: some cards use MCP tools that require specific roles
+// If a card's key is here, the user must have at least one of these roles to access it
+const CARD_ROLE_RESTRICTIONS: Record<string, string[]> = {
+    finance: ['General Manager', 'System Manager', 'Accountant'],
+    sales: ['General Manager', 'System Manager', 'Sales Manager'],
+};
+
 // Map workspace card keys to their primary DocType for permission checking
 const CARD_DOCTYPE_MAP: Record<string, string> = {
     hot_products: 'Item',
@@ -602,6 +609,16 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         // If user has no roles, disable all ERP features
         if (!erpPermissions.roles || erpPermissions.roles.length === 0) {
             return false;
+        }
+
+        // Check MCP Tool role restrictions for cards that use MCP tools
+        const requiredRoles = CARD_ROLE_RESTRICTIONS[card.key];
+        if (requiredRoles) {
+            const hasRole = erpPermissions.roles.some((role) => requiredRoles.includes(role));
+            if (!hasRole) {
+                debugLog('[Workspace] isButtonEnabled: ', card.key, ' role restricted. Required:', requiredRoles, ' User roles:', erpPermissions.roles);
+                return false;
+            }
         }
 
         // Check DocPerm matrix for this card's DocType
