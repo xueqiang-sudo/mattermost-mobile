@@ -22,6 +22,7 @@ import {getNthLastChannelFromTeam, getMyTeamById, getTeamByName, queryMyTeams, r
 import {getIsCRTEnabled} from '@queries/servers/thread';
 import {getCurrentUser} from '@queries/servers/user';
 import {dismissAllModalsAndPopToRoot} from '@screens/navigation';
+import {debugLog} from '@store/debug_log';
 import EphemeralStore from '@store/ephemeral_store';
 import {setTeamLoading} from '@store/team_load_store';
 import {generateChannelNameFromDisplayName, getDirectChannelName, isDMorGM} from '@utils/channel';
@@ -1064,7 +1065,24 @@ export async function createGroupChannel(serverUrl: string, userIds: string[], g
             return {error: 'Cannot get the current user'};
         }
 
+        // Debug log: 群组创建请求参数
+        debugLog('[GM创建] 客户端请求参数:', {
+            userIds: [...userIds].sort(),
+            teamId: teamId || '(空)',
+            groupCategory: groupCategory || '(空)',
+            currentUserId: currentUser.id,
+        });
+
         const created = await client.createGroupChannel(userIds, teamId, groupCategory);
+
+        // Debug log: 服务器返回结果
+        debugLog('[GM创建] 服务器返回:', {
+            channelId: created?.id,
+            channelName: created?.name,
+            teamId: created?.team_id || '(空)',
+            totalMsgCount: created?.total_msg_count,
+            isExisting: (created?.total_msg_count || 0) > 0,
+        });
         const isExistingGM = created.total_msg_count > 0;
 
         const displayNamePreferences = await queryDisplayNamePreferences(database, Preferences.NAME_NAME_FORMAT).fetch();

@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {debugLog} from '@store/debug_log';
 import {buildQueryString} from '@utils/helpers';
 
 import {PER_PAGE_DEFAULT} from './constants';
@@ -111,6 +112,13 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
     };
 
     createGroupChannel = async (userIds: string[], teamId?: string, groupCategory?: string) => {
+        // Debug log: API请求参数
+        debugLog('[GM创建-Client] API请求参数:', {
+            userIds: userIds,
+            teamId: teamId || '(undefined)',
+            groupCategory: groupCategory || '(undefined)',
+        });
+
         if (teamId || groupCategory) {
             const payload: Record<string, unknown> = {user_ids: userIds};
             if (teamId) {
@@ -119,11 +127,13 @@ const ClientChannels = <TBase extends Constructor<ClientBase>>(superclass: TBase
             if (groupCategory) {
                 payload.group_category = groupCategory;
             }
+            debugLog('[GM创建-Client] 发送payload(对象格式):', payload);
             return this.doFetch(
                 `${this.getChannelsRoute()}/group`,
                 {method: 'post', body: payload},
             );
         }
+        debugLog('[GM创建-Client] 发送body(数组格式):', userIds);
         return this.doFetch(
             `${this.getChannelsRoute()}/group`,
             {method: 'post', body: userIds},
