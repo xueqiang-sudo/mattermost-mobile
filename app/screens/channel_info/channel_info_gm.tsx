@@ -47,6 +47,7 @@ type Props = {
 }
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
+const MAX_VISIBLE_MEMBERS = 15;
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     content: {
@@ -162,6 +163,10 @@ const ChannelInfoGM = ({
         const title = intl.formatMessage({id: 'gm_settings.remove_title', defaultMessage: 'Remove Members'});
         goToScreen(Screens.REMOVE_MEMBERS, title, {channelId});
     }, [channelId, intl]);
+
+    const handleViewMoreMembers = useCallback(() => {
+        goToScreen(Screens.CHANNEL_MEMBERS_LIST, intl.formatMessage({id: 'channel_info.view_members', defaultMessage: 'View Members'}), {channelId, componentId});
+    }, [channelId, componentId, intl]);
 
     const handleSearchHistory = useCallback(async () => {
         const title = intl.formatMessage({id: 'gm_settings.search_chat_history', defaultMessage: 'Search Chat History'});
@@ -368,9 +373,11 @@ const ChannelInfoGM = ({
                             showAddButton={!isBotGM}
                             showRemoveButton={isChannelCreator && !isBotGM}
                             showSearch={true}
+                            maxVisible={MAX_VISIBLE_MEMBERS}
                             onAddPress={handleAddPeople}
                             onRemovePress={handleRemovePeople}
                             onMemberPress={handleMemberPress}
+                            onViewMoreMembers={handleViewMoreMembers}
                             testID='channel_info_gm.member_grid'
                         />
                     </View>

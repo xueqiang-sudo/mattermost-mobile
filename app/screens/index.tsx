@@ -204,6 +204,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CHANNEL_ADD_MEMBERS:
             screen = withServerDatabase(require('@screens/channel_add_members').default);
             break;
+        case Screens.CHANNEL_MEMBERS_LIST:
+            screen = withServerDatabase(require('@screens/channel_info/shared/channel_members_list').default);
+            break;
         case Screens.DRAFT_SCHEDULED_POST_OPTIONS:
             screen = withServerDatabase(require('@screens/draft_scheduled_post_options').default);
             break;

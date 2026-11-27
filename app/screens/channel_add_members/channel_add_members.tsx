@@ -345,22 +345,37 @@ export default function ChannelAddMembers({
         return s;
     }, [selectedIds, lockedIds]);
 
-    // Filter candidates by search term
+    // Sort bots first within a list
+    const sortBotsFirst = useCallback((list: CandidateProfile[]) => {
+        return list.slice().sort((a, b) => {
+            const isBotA = a.is_bot ? 1 : 0;
+            const isBotB = b.is_bot ? 1 : 0;
+            return isBotB - isBotA;
+        });
+    }, []);
+
+    // Filter candidates by search term, sort bots first
     const filteredCandidates = useMemo(() => {
+        let enterprise: CandidateProfile[];
+        let external: CandidateProfile[];
         if (!searchTerm.trim()) {
-            return candidates;
+            enterprise = candidates.enterprise;
+            external = candidates.external;
+        } else {
+            const term = searchTerm.toLowerCase();
+            const filterFn = (p: CandidateProfile) => {
+                const name = displayUsername(p, teammateNameDisplay).toLowerCase();
+                const username = (p.username || '').toLowerCase();
+                return name.includes(term) || username.includes(term);
+            };
+            enterprise = candidates.enterprise.filter(filterFn);
+            external = candidates.external.filter(filterFn);
         }
-        const term = searchTerm.toLowerCase();
-        const filterFn = (p: CandidateProfile) => {
-            const name = displayUsername(p, teammateNameDisplay).toLowerCase();
-            const username = (p.username || '').toLowerCase();
-            return name.includes(term) || username.includes(term);
-        };
         return {
-            enterprise: candidates.enterprise.filter(filterFn),
-            external: candidates.external.filter(filterFn),
+            enterprise: sortBotsFirst(enterprise),
+            external: sortBotsFirst(external),
         };
-    }, [candidates, searchTerm, teammateNameDisplay]);
+    }, [candidates, searchTerm, teammateNameDisplay, sortBotsFirst]);
 
     const handleClose = useCallback(() => {
         popTopScreen(componentId);

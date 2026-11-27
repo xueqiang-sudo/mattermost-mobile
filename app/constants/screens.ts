@@ -15,6 +15,7 @@ export const CALL_PARTICIPANTS = 'CallParticipants';
 export const CALL_HOST_CONTROLS = 'CallHostControls';
 export const CHANNEL = 'Channel';
 export const CHANNEL_ADD_MEMBERS = 'ChannelAddMembers';
+export const CHANNEL_MEMBERS_LIST = 'ChannelMembersList';
 export const CHANNEL_BANNER = 'ChannelBanner';
 export const CHANNEL_BOOKMARK = 'ChannelBookmarkAddOrEdit';
 export const CHANNEL_FILES = 'ChannelFiles';
@@ -227,6 +228,7 @@ export default {
     CHANNEL_BOOKMARK,
     CHANNEL_FILES,
     CHANNEL_INFO,
+    CHANNEL_MEMBERS_LIST,
     CHANNEL_NOTIFICATION_PREFERENCES,
     CODE,
     CONVERT_GM_TO_CHANNEL,

@@ -106,6 +106,10 @@ const ChannelInfoPublicPrivate = ({
         toggleMuteChannel(serverUrl, channelId);
     }, [channelId, serverUrl]);
 
+    const handleViewMoreMembers = useCallback(() => {
+        goToScreen(Screens.CHANNEL_MEMBERS_LIST, intl.formatMessage({id: 'channel_info.view_members', defaultMessage: 'View Members'}), {channelId, componentId});
+    }, [channelId, componentId, intl]);
+
     const handleToggleFavorite = useCallback(() => {
         toggleFavoriteChannel(serverUrl, channelId);
     }, [channelId, serverUrl]);
@@ -243,6 +247,7 @@ const ChannelInfoPublicPrivate = ({
                             showSearch={true}
                             maxVisible={MAX_VISIBLE_MEMBERS}
                             onMemberPress={handleMemberPress}
+                            onViewMoreMembers={handleViewMoreMembers}
                             testID='channel_info_public_private.member_grid'
                         />
                     </View>

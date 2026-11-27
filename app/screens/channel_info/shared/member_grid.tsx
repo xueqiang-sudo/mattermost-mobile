@@ -144,6 +144,7 @@ type Props = {
     onAddPress?: () => void;
     onRemovePress?: () => void;
     onMemberPress?: (userId: string) => void;
+    onViewMoreMembers?: () => void;
     maxVisible?: number; // for public/private channels: show max N + "+N more"
     testID?: string;
 }
@@ -177,15 +178,17 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    moreCount: {
+    viewMoreButton: {
+        width: '100%',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        width: 68,
-        marginBottom: 8,
+        marginTop: 4,
     },
-    moreCountText: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-        ...typography('Body', 200, 'SemiBold'),
+    viewMoreText: {
+        color: theme.linkColor,
+        ...typography('Body', 200, 'Regular'),
     },
 }));
 
@@ -200,6 +203,7 @@ const MemberGridInner = ({
     onAddPress,
     onRemovePress,
     onMemberPress,
+    onViewMoreMembers,
     maxVisible,
     testID,
 }: Props) => {
@@ -216,19 +220,31 @@ const MemberGridInner = ({
     }, [users]);
 
     // Filter members by search term (matching webapp logic: displayUsername + username)
+    // Bots always appear first
     const filteredIds = useMemo(() => {
+        let ids: string[];
         if (!searchTerm.trim()) {
-            return memberIds;
+            ids = memberIds;
+        } else {
+            const term = searchTerm.toLowerCase();
+            ids = memberIds.filter((id) => {
+                const user = userMap.get(id);
+                if (!user) {
+                    return false;
+                }
+                const dName = displayUsername(user).toLowerCase();
+                const uname = (user.username || '').toLowerCase();
+                return dName.includes(term) || uname.includes(term);
+            });
         }
-        const term = searchTerm.toLowerCase();
-        return memberIds.filter((id) => {
-            const user = userMap.get(id);
-            if (!user) {
-                return false;
-            }
-            const dName = displayUsername(user).toLowerCase();
-            const uname = (user.username || '').toLowerCase();
-            return dName.includes(term) || uname.includes(term);
+
+        // Sort: bots first
+        return ids.slice().sort((a, b) => {
+            const userA = userMap.get(a);
+            const userB = userMap.get(b);
+            const isBotA = userA?.isBot ? 1 : 0;
+            const isBotB = userB?.isBot ? 1 : 0;
+            return isBotB - isBotA;
         });
     }, [memberIds, searchTerm, userMap]);
 
@@ -250,13 +266,6 @@ const MemberGridInner = ({
 
     const ListFooterComponent = useMemo(() => {
         const items: React.ReactNode[] = [];
-        if (extraCount > 0) {
-            items.push(
-                <View key='more' style={styles.moreCount}>
-                    <Text style={styles.moreCountText}>{`+${extraCount}`}</Text>
-                </View>,
-            );
-        }
         if (showAddButton) {
             items.push(
                 <ActionButton
@@ -278,7 +287,7 @@ const MemberGridInner = ({
             );
         }
         return items.length > 0 ? <>{items}</> : null;
-    }, [extraCount, styles, showAddButton, showRemoveButton, intl, onAddPress, onRemovePress]);
+    }, [styles, showAddButton, showRemoveButton, intl, onAddPress, onRemovePress]);
 
     return (
         <View style={styles.container} testID={testID || 'channel_info.shared.member_grid'}>
@@ -303,6 +312,16 @@ const MemberGridInner = ({
                 ))}
                 {ListFooterComponent}
             </View>
+            {extraCount > 0 && (
+                <TouchableOpacity
+                    style={styles.viewMoreButton}
+                    onPress={onViewMoreMembers}
+                >
+                    <Text style={styles.viewMoreText}>
+                        {intl.formatMessage({id: 'channel_info.view_more_members', defaultMessage: '查看更多群成员'})}
+                    </Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 };
@@ -319,6 +338,7 @@ type OuterProps = {
     onAddPress?: () => void;
     onRemovePress?: () => void;
     onMemberPress?: (userId: string) => void;
+    onViewMoreMembers?: () => void;
     maxVisible?: number;
     testID?: string;
 }
