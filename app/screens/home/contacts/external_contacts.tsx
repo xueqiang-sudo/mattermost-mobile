@@ -3,7 +3,7 @@
 
 import {useIsFocused, useNavigation} from '@react-navigation/native';
 import {useDatabase} from '@nozbe/watermelondb/react';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react';
 import {Freeze} from 'react-freeze';
 import {useIntl} from 'react-intl';
 import {
@@ -508,12 +508,34 @@ const ExternalContactsScreen = ({currentUser, currentTeam}: Props) => {
     const handleAdd = usePreventDoubleTap(
         useCallback(() => {
             if (!ownerId || !teamId) return;
-            navigation.navigate(Screens.CONTACTS_EXTERNAL_ADD, {
-                ownerId,
-                companyId: teamId,
-            });
-        }, [ownerId, teamId, navigation]),
+            const closeBtnId = `close-${Screens.CONTACTS_EXTERNAL_ADD}`;
+            showModalWithBackButton(
+                Screens.CONTACTS_EXTERNAL_ADD,
+                intl.formatMessage({id: 'contacts.external.add', defaultMessage: 'Add External Contact'}),
+                closeBtnId,
+                {
+                    ownerId,
+                    companyId: teamId,
+                    closeButtonId: closeBtnId,
+                },
+            );
+        }, [ownerId, teamId, intl]),
     );
+
+    // Header right "+" button
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity
+                    onPress={handleAdd}
+                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                    testID='external_contacts.add_button'
+                >
+                    <CompassIcon name='plus' size={24} color={theme.centerChannelColor}/>
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, handleAdd, theme.centerChannelColor]);
 
     const animated = useAnimatedStyle(() => ({
         opacity: withTiming(1, {duration: 150}),

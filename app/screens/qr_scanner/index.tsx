@@ -17,7 +17,7 @@ import CompassIcon from '@components/compass_icon';
 import Loading from '@components/loading';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
-import {dismissModal, showModalWithBackButton} from '@screens/navigation';
+import {dismissModal, goToScreen, popTopScreen, showModalWithBackButton} from '@screens/navigation';
 import {logInfo} from '@utils/log';
 import {makeStyleSheetFromTheme} from '@utils/theme';
 import {tryOpenURL} from '@utils/url';

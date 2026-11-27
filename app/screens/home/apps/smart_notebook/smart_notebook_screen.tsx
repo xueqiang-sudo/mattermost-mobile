@@ -150,6 +150,7 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphLoadingMore, setGraphLoadingMore] = useState(false);
     const [graphHasMore, setGraphHasMore] = useState(true);
+    const graphHasMoreRef = useRef(true);
     const graphOffsetRef = useRef(0);
     const graphLoadingRef = useRef(false);
     const GRAPH_PAGE_SIZE = 30;
@@ -309,10 +310,12 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
     const loadGraph = useCallback(async (refresh = false) => {
         if (!userId) return;
         if (graphLoadingRef.current) return;
+        if (!refresh && !graphHasMoreRef.current) return;
         graphLoadingRef.current = true;
         if (refresh) {
             setGraphLoading(true);
             graphOffsetRef.current = 0;
+            graphHasMoreRef.current = true;
             setGraphHasMore(true);
         } else {
             setGraphLoadingMore(true);
@@ -327,7 +330,9 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                 setGraphEntities(prev => [...prev, ...newEntities]);
             }
             graphOffsetRef.current = offset + newEntities.length;
-            setGraphHasMore(newEntities.length >= GRAPH_PAGE_SIZE);
+            const hasMore = newEntities.length >= GRAPH_PAGE_SIZE;
+            graphHasMoreRef.current = hasMore;
+            setGraphHasMore(hasMore);
         } catch {
             // silently handle graph loading errors
         } finally {

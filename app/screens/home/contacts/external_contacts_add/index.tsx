@@ -16,6 +16,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import {Navigation} from 'react-native-navigation';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {
@@ -30,7 +31,7 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import NetworkManager from '@managers/network_manager';
 import {usePreventDoubleTap} from '@hooks/utils';
-import {popTopScreen} from '@screens/navigation';
+import {dismissModal, popTopScreen} from '@screens/navigation';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {getLastPictureUpdate} from '@utils/user';
@@ -43,33 +44,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     flex: {
         flex: 1,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 4,
-        backgroundColor: theme.sidebarBg,
-    },
-    headerBack: {
-        padding: 4,
-    },
-    headerTitle: {
-        ...typography('Heading', 300, 'SemiBold'),
-        color: theme.sidebarText,
-        textAlign: 'center',
-        flex: 1,
-    },
-    headerRightBtn: {
-        paddingHorizontal: 4,
-        paddingVertical: 4,
-    },
     headerRightBtnText: {
         ...typography('Body', 100, 'SemiBold'),
         color: theme.sidebarText,
-    },
-    headerRightBtnDisabled: {
-        opacity: 0.32,
     },
     searchSection: {
         paddingHorizontal: 16,
@@ -181,6 +158,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
 type ExternalAddProps = {
     ownerId?: string;
     companyId?: string;
+    closeButtonId?: string;
 };
 
 const ContactsExternalAddScreen = (props: ExternalAddProps) => {
@@ -192,6 +170,7 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
     // RNN modal passes props directly (not via React Navigation route.params)
     const ownerId = props.ownerId || '';
     const companyId = props.companyId || '';
+    const closeButtonId = props.closeButtonId;
     const kind = MMEmployeeContactTypes.External;
 
     const [phone, setPhone] = useState('');
@@ -269,10 +248,45 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
         setSaving(false);
         if (result.error) {
             setError(intl.formatMessage({id: 'contacts.external.add_failed', defaultMessage: 'Failed to add contact'}));
+        } else if (closeButtonId) {
+            dismissModal({componentId: closeButtonId});
         } else {
             handleGoBack();
         }
-    }, [ownerId, searchResult, serverUrl, kind, intl]));
+    }, [ownerId, searchResult, serverUrl, kind, intl, closeButtonId]));
+
+    // RNN topBar right button (添加)
+    useEffect(() => {
+        if (!closeButtonId) {
+            return;
+        }
+
+        const saveButtonId = `save-${closeButtonId}`;
+
+        const listener = Navigation.events().registerNavigationButtonPressedListener(
+            ({buttonId}) => {
+                if (buttonId === saveButtonId) {
+                    handleSave();
+                }
+            },
+        );
+
+        Navigation.mergeOptions(closeButtonId, {
+            topBar: {
+                rightButtons: [{
+                    id: saveButtonId,
+                    text: saving
+                        ? intl.formatMessage({id: 'contacts.external.add.adding', defaultMessage: '添加中...'})
+                        : intl.formatMessage({id: 'contacts.external.add.add_btn', defaultMessage: '添加'}),
+                    enabled: canSave && !saving,
+                    color: styles.headerRightBtnText.color,
+                    disabledColor: 'transparent',
+                }],
+            },
+        });
+
+        return () => listener.remove();
+    }, [closeButtonId, canSave, saving, handleSave, intl, styles]);
 
     const handlePhoneChange = useCallback((text: string) => {
         setPhone(text);
@@ -298,36 +312,6 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
             edges={edges}
             style={[styles.flex, {backgroundColor: theme.sidebarBg}]}
         >
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.headerBack}
-                    onPress={handleGoBack}
-                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                    testID='external_contacts_add.back'
-                >
-                    <CompassIcon
-                        name='arrow-left'
-                        size={24}
-                        color={theme.sidebarText}
-                    />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>
-                    {intl.formatMessage({id: 'contacts.external.add', defaultMessage: '添加外部联系人'})}
-                </Text>
-                <TouchableOpacity
-                    style={[styles.headerRightBtn, !canSave && styles.headerRightBtnDisabled]}
-                    onPress={handleSave}
-                    disabled={!canSave || saving}
-                    testID='external_contacts_add.add_button'
-                >
-                    <Text style={styles.headerRightBtnText}>
-                        {saving
-                            ? intl.formatMessage({id: 'contacts.external.add.adding', defaultMessage: '添加中...'})
-                            : intl.formatMessage({id: 'contacts.external.add.add_btn', defaultMessage: '添加'})
-                        }
-                    </Text>
-                </TouchableOpacity>
-            </View>
             <KeyboardAvoidingView
                 style={styles.content}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
