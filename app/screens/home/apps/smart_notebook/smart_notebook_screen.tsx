@@ -330,7 +330,10 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                 setGraphEntities(prev => [...prev, ...newEntities]);
             }
             graphOffsetRef.current = offset + newEntities.length;
-            const hasMore = newEntities.length >= GRAPH_PAGE_SIZE;
+            // Use API total for accurate pagination; fallback to length check
+            const hasMore = typeof result.total === 'number'
+                ? graphOffsetRef.current < result.total
+                : newEntities.length >= GRAPH_PAGE_SIZE;
             graphHasMoreRef.current = hasMore;
             setGraphHasMore(hasMore);
         } catch {
