@@ -324,15 +324,6 @@ const Body = ({
     const FILE_MARKER_RE = /!\{file:[a-z0-9_-]+\}\s*/g;
     let displayMessage = (post.message || post.messageSource).replace(FILE_MARKER_RE, '').trim();
 
-    // 语音转文字：成功时显示转写文本（已由插件写入 message），
-    // 未转写完成或失败时显示提示
-    if (post.type === PostTypes.CUSTOM_VOICE_ASR && !displayMessage) {
-        const transcribed = post.props?.voice_transcribed;
-        if (!transcribed) {
-            displayMessage = '语音转换失败';
-        }
-    }
-
     // Strip video platform URLs that are rendered as VideoLink cards
     // This prevents showing the raw URL in the message text when a card is displayed
     const embeds = post.metadata?.embeds;

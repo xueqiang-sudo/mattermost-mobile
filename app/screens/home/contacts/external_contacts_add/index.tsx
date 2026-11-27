@@ -279,14 +279,14 @@ const ContactsExternalAddScreen = (props: ExternalAddProps) => {
                         ? intl.formatMessage({id: 'contacts.external.add.adding', defaultMessage: '添加中...'})
                         : intl.formatMessage({id: 'contacts.external.add.add_btn', defaultMessage: '添加'}),
                     enabled: canSave && !saving,
-                    color: styles.headerRightBtnText.color,
+                    color: theme.sidebarText,
                     disabledColor: 'transparent',
                 }],
             },
         });
 
         return () => listener.remove();
-    }, [closeButtonId, canSave, saving, handleSave, intl, styles]);
+    }, [closeButtonId, canSave, saving, handleSave, intl, theme.sidebarText]);
 
     const handlePhoneChange = useCallback((text: string) => {
         setPhone(text);

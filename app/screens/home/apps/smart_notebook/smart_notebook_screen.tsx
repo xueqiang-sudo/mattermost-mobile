@@ -330,10 +330,18 @@ const SmartNotebookScreen = ({channelId: propChannelId}: Props) => {
                 setGraphEntities(prev => [...prev, ...newEntities]);
             }
             graphOffsetRef.current = offset + newEntities.length;
-            // Use API total for accurate pagination; fallback to length check
-            const hasMore = typeof result.total === 'number'
-                ? graphOffsetRef.current < result.total
-                : newEntities.length >= GRAPH_PAGE_SIZE;
+            // Determine if there's more data to load
+            let hasMore: boolean;
+            if (newEntities.length === 0) {
+                // No data returned, definitely no more
+                hasMore = false;
+            } else if (typeof result.total === 'number') {
+                // Use API total for accurate pagination
+                hasMore = graphOffsetRef.current < result.total;
+            } else {
+                // Fallback: if we got less than a full page, no more data
+                hasMore = newEntities.length >= GRAPH_PAGE_SIZE;
+            }
             graphHasMoreRef.current = hasMore;
             setGraphHasMore(hasMore);
         } catch {

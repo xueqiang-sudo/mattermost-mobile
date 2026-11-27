@@ -105,6 +105,10 @@ const mediaPreviewMessages = defineMessages({
         id: 'home.last_post_preview.conversation_note',
         defaultMessage: '[Note] {text}',
     },
+    voiceMessage: {
+        id: 'home.last_post_preview.voice_message',
+        defaultMessage: '[Voice]',
+    },
 });
 
 type FileInfo = {
@@ -146,10 +150,9 @@ export function getHomeLastPostPreviewText(
     postType: string | undefined,
     channelType: ChannelType,
 ): string {
-    // 语音转文字：显示转写文本，未完成或失败时显示提示
+    // 语音转文字：显示 [语音] 标记（插件创建新帖子存放转写文本，原始帖子仅作标记）
     if (postType === Post.POST_TYPES.CUSTOM_VOICE_ASR) {
-        const voiceMessage = typeof rawMessageOrInput === 'object' ? rawMessageOrInput.message : rawMessageOrInput;
-        return voiceMessage?.trim() || '语音转换失败';
+        return intl.formatMessage(mediaPreviewMessages.voiceMessage);
     }
 
     if (postType === Post.POST_TYPES.CHANGE_CHANNEL_PRIVACY) {

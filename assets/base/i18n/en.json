@@ -294,6 +294,7 @@
   "home.last_post_preview.mixed_all_with_text": "[{photoCount} photos, {videoCount} videos, {fileCount} files] {text}",
   "home.last_post_preview.announcement": "[Announcement] {text}",
   "home.last_post_preview.conversation_note": "[Note] {text}",
+  "home.last_post_preview.voice_message": "[Voice]",
   "channel_loader.someone": "Someone",
   "channel_modal.create_private_notice.caption": "After you create it, invite the right people—keep decisions, updates, and files in one thread.",
   "channel_modal.create_private_notice.title": "Create a chat for this topic",

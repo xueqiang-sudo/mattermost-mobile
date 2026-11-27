@@ -1128,6 +1128,7 @@
   "home.last_post_preview.video_with_text": "[影片] {text}",
   "home.last_post_preview.videos": "[{count}個影片]",
   "home.last_post_preview.videos_with_text": "[{count}個影片] {text}",
+  "home.last_post_preview.voice_message": "[語音]",
   "integration_selector.multiselect.submit": "完成",
   "interactive_dialog.submit": "發送",
   "intro.add_members": "添加成員",
