@@ -1067,10 +1067,12 @@ export async function createGroupChannel(serverUrl: string, userIds: string[], g
 
         // Debug log: 群组创建请求参数
         debugLog('[GM创建] 客户端请求参数:', {
-            userIds: [...userIds].sort(),
+            userIds: userIds,
+            userIds_sorted: [...userIds].sort(),
             teamId: teamId || '(空)',
             groupCategory: groupCategory || '(空)',
             currentUserId: currentUser.id,
+            userIdsLength: userIds.length,
         });
 
         const created = await client.createGroupChannel(userIds, teamId, groupCategory);
