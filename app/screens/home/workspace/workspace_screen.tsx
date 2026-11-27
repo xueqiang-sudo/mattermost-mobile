@@ -422,6 +422,13 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
                     doctypes_count: permissions?.doctypes ? Object.keys(permissions.doctypes).length : 0,
                     roles: permissions?.roles,
                 }));
+                // Log detailed per-doctype permissions for debugging
+                if (permissions?.doctypes) {
+                    for (const [dt, perm] of Object.entries(permissions.doctypes)) {
+                        debugLog('[WorkspaceScreen] DocPerm:', dt, ' → read=', (perm as any).read,
+                            ' write=', (perm as any).write, ' create=', (perm as any).create);
+                    }
+                }
                 setErpPermissions(permissions);
             } catch (error) {
                 debugLog('[WorkspaceScreen] Failed to load ERP permissions:', error);
@@ -587,9 +594,9 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
             return true;
         }
 
-        // If no permissions loaded yet, assume enabled (will check on click)
+        // If no permissions loaded yet, disable all buttons until permissions arrive
         if (!erpPermissions) {
-            return true;
+            return false;
         }
 
         // If user has no roles, disable all ERP features
@@ -602,15 +609,16 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         if (doctype) {
             const perms = erpPermissions.doctypes[doctype];
             if (!perms) {
-                // No DocPerm defined → allow (fail-open, server enforces)
-                return true;
+                // DocType not in matrix → disabled (matrix should include all workspace doctypes)
+                debugLog('[Workspace] isButtonEnabled: ', card.key, ' doctype=', doctype, ' NOT in matrix → disabled');
+                return false;
             }
-            return perms.read === true;
+            const enabled = perms.read === true;
+            debugLog('[Workspace] isButtonEnabled: ', card.key, ' doctype=', doctype, ' read=', perms.read, ' → ', enabled);
+            return enabled;
         }
 
-        // No DocType mapped → allow
-        return true;
-
+        // No DocType mapped (e.g. smart notebook, AI) → allow
         return true;
     }, [isErpTeam, erpPermissions]);
 
@@ -649,13 +657,15 @@ const WorkspaceScreen = ({currentTeam}: Props) => {
         const label = intl.formatMessage({id: card.labelId, defaultMessage: card.defaultLabel});
         const showBadge = card.key === 'approvals' && approvalCount > 0;
         const enabled = isButtonEnabled(card);
+        const isDisabled = !isErpTeam || !enabled;
 
         return (
             <TouchableOpacity
                 key={card.key}
-                style={[styles.card, (!isErpTeam || !enabled) && styles.cardDisabled]}
+                style={[styles.card, isDisabled && styles.cardDisabled]}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
+                disabled={isDisabled}
                 testID={`workspace.card.${card.key}`}
             >
                 <View style={[styles.cardIconContainer, {backgroundColor: changeOpacity(theme.buttonBg, 0.12)}]}>

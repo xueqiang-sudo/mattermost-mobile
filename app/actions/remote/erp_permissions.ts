@@ -9,6 +9,7 @@ import ErpPermissionsCacheModel from '@database/models/server/erp_permissions_ca
 import NetworkManager from '@managers/network_manager';
 import {getCurrentTeamId} from '@queries/servers/system';
 import {getCurrentUserId} from '@queries/servers/system';
+import {debugLog} from '@store/debug_log';
 
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
@@ -30,16 +31,21 @@ export type ErpPermissionsResponse = {
 
 // DocTypes needed for mobile workspace apps
 const WORKSPACE_DOCTYPES = [
-    'Item',           // hot_products
-    'Quotation',      // approvals
-    'Sales Invoice',  // finance
-    'Sales Order',    // sales
-    'Stock Entry',    // inventory
-    'Customer',       // customers
-    'Supplier',       // suppliers
-    'Work Order',     // work_orders
-    'Project',        // projects
-    'Purchase Order', // purchase_orders
+    'Item',                  // hot_products, stock, inventory
+    'Quotation',             // approvals
+    'Sales Invoice',         // finance, sales
+    'Sales Order',           // sales, sales_orders
+    'Stock Entry',           // warehouse_inout
+    'Customer',              // customers
+    'Supplier',              // suppliers
+    'Work Order',            // work_orders
+    'Project',               // projects
+    'Purchase Order',        // purchase_orders
+    'Quality Inspection',    // quality_inspection
+    'GL Entry',              // finance (流水账)
+    'Journal Entry',         // finance (流水账)
+    'Subcontracting Order',  // subcontracting
+    'Bin',                   // inventory
 ];
 
 /**
@@ -50,14 +56,21 @@ export async function fetchErpPermissions(
     teamId: string,
 ): Promise<ErpPermissionsResponse | null> {
     try {
+        debugLog('[fetchErpPermissions] requesting permissions-matrix, teamId=', teamId);
         const client = NetworkManager.getClient(serverUrl);
         const doctypesParam = WORKSPACE_DOCTYPES.join(',');
-        const response = await client.doFetch(
+        const response: ErpPermissionsResponse = await client.doFetch(
             `/plugins/com.mattermost.frappe-sync/api/erp/permissions-matrix?team_id=${teamId}&doctypes=${encodeURIComponent(doctypesParam)}`,
             {method: 'GET'},
-        );
+        ) as ErpPermissionsResponse;
+        debugLog('[fetchErpPermissions] response received:', JSON.stringify({
+            roles: response?.roles,
+            doctypes_count: response?.doctypes ? Object.keys(response.doctypes).length : 0,
+            doctypes: response?.doctypes,
+        }));
         return response;
-    } catch (error) {
+    } catch (error: any) {
+        debugLog('[fetchErpPermissions] FAILED:', error?.message || error, ' status=', error?.status_code || error?.statusCode);
         console.warn('[fetchErpPermissions] Failed to fetch ERP permissions:', error);
         return null;
     }
@@ -173,7 +186,10 @@ export async function getErpPermissions(
         const userId = await getCurrentUserId(database);
         const teamId = await getCurrentTeamId(database);
 
+        debugLog('[getErpPermissions] start: userId=', userId, ' teamId=', teamId, ' forceRefresh=', forceRefresh);
+
         if (!userId || !teamId) {
+            debugLog('[getErpPermissions] missing userId or teamId, returning null');
             return null;
         }
 
@@ -181,22 +197,30 @@ export async function getErpPermissions(
         if (!forceRefresh) {
             const cached = await getErpPermissionsCache(database, userId, teamId);
             if (cached) {
+                debugLog('[getErpPermissions] cache HIT, roles=', cached.roles,
+                    ' doctypes_count=', Object.keys(cached.doctypes || {}).length);
                 return {
                     doctypes: cached.doctypes,
                     roles: cached.roles,
                 };
             }
+            debugLog('[getErpPermissions] cache MISS, fetching from server');
         }
 
         // Fetch from server
         const permissions = await fetchErpPermissions(serverUrl, teamId);
         if (permissions) {
+            debugLog('[getErpPermissions] server response: roles=', permissions.roles,
+                ' doctypes=', JSON.stringify(permissions.doctypes));
             // Save to cache
             await saveErpPermissionsCache(database, userId, teamId, permissions);
+        } else {
+            debugLog('[getErpPermissions] server returned null/empty permissions');
         }
 
         return permissions;
-    } catch (error) {
+    } catch (error: any) {
+        debugLog('[getErpPermissions] FAILED:', error?.message || error);
         console.warn('[getErpPermissions] Failed to get ERP permissions:', error);
         return null;
     }
