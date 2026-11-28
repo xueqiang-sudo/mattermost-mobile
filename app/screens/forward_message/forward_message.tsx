@@ -2,22 +2,26 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
+import {Alert, Pressable, SectionList, StyleSheet, Text, TextInput, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useIntl} from 'react-intl';
 
 import {createPost} from '@actions/remote/post';
+import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
+import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {dismissModal} from '@screens/navigation';
 import {debugLog} from '@store/debug_log';
 import NetworkManager from '@managers/network_manager';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {getUserIdFromChannelName} from '@utils/user';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type TeamModel from '@typings/database/models/servers/team';
+import type UserModel from '@typings/database/models/servers/user';
 
 type ForwardMessageProps = {
     componentId: AvailableScreens;
@@ -27,7 +31,15 @@ type ForwardMessageProps = {
     fileIds?: string[];
     channels?: ChannelModel[];
     currentChannelId?: string;
+    currentUserId?: string;
+    currentUser?: UserModel | null;
     team?: TeamModel | null;
+};
+
+type ChannelSection = {
+    key: string;
+    title: string;
+    data: ChannelModel[];
 };
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -42,13 +54,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingVertical: 12,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: changeOpacity(theme.centerChannelColor, 0.16),
-    },
-    headerTitle: {
-        flex: 1,
-        fontSize: 17,
-        fontWeight: '600',
-        color: theme.centerChannelColor,
-        textAlign: 'center',
     },
     headerButton: {
         padding: 8,
@@ -67,23 +72,55 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 15,
         color: theme.centerChannelColor,
     },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: changeOpacity(theme.centerChannelColor, 0.04),
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: changeOpacity(theme.centerChannelColor, 0.72),
+        marginLeft: 8,
+    },
+    sectionCount: {
+        fontSize: 12,
+        color: changeOpacity(theme.centerChannelColor, 0.56),
+        marginLeft: 4,
+    },
     channelItem: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: changeOpacity(theme.centerChannelColor, 0.08),
+        paddingVertical: 10,
     },
     channelItemSelected: {
         backgroundColor: changeOpacity(theme.buttonBg, 0.08),
     },
-    channelInfo: {
-        flex: 1,
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        marginRight: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: theme.buttonBg,
+        borderColor: theme.buttonBg,
+    },
+    checkboxUnchecked: {
+        borderColor: changeOpacity(theme.centerChannelColor, 0.32),
+    },
+    iconContainer: {
+        marginRight: 12,
     },
     channelName: {
+        flex: 1,
         fontSize: 16,
-        fontWeight: '500',
         color: theme.centerChannelColor,
     },
     emptyState: {
@@ -107,6 +144,8 @@ const ForwardMessage = ({
     fileIds,
     channels,
     currentChannelId,
+    currentUserId,
+    currentUser,
     team,
 }: ForwardMessageProps) => {
     const intl = useIntl();
@@ -117,34 +156,121 @@ const ForwardMessage = ({
     const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isForwarding, setIsForwarding] = useState(false);
+    const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-    const filteredChannels = useMemo(() => {
-        if (!channels) {
+    // Get display name for a channel based on type
+    const getChannelDisplayName = useCallback((channel: ChannelModel): string => {
+        const channelType = channel.type;
+
+        // Public channel (O): show team name
+        if (channelType === General.OPEN_CHANNEL) {
+            return team?.displayName || channel.displayName || channel.name;
+        }
+
+        // Private channel (P): show channel display name
+        if (channelType === General.PRIVATE_CHANNEL) {
+            return channel.displayName || channel.name;
+        }
+
+        // DM (D): show other user's name, or "you" if self
+        if (channelType === General.DM_CHANNEL && currentUserId) {
+            const otherUserId = getUserIdFromChannelName(currentUserId, channel.name);
+            if (otherUserId === currentUserId) {
+                return `${currentUser?.displayName || currentUser?.username || 'You'} (you)`;
+            }
+            return channel.displayName || channel.name;
+        }
+
+        // GM (G): show member names excluding self
+        if (channelType === General.GM_CHANNEL && currentUser) {
+            const displayName = channel.displayName || '';
+            const members = displayName.split(',').map((m) => m.trim()).filter(Boolean);
+
+            // Get current user's possible names to filter out
+            const userNames = new Set<string>();
+            if (currentUser.displayName) userNames.add(currentUser.displayName.toLowerCase());
+            if (currentUser.username) userNames.add(currentUser.username.toLowerCase());
+            if (currentUser.firstName) userNames.add(currentUser.firstName.toLowerCase());
+            if (currentUser.nickname) userNames.add(currentUser.nickname.toLowerCase());
+
+            const filtered = members.filter((m) => !userNames.has(m.toLowerCase()));
+            if (filtered.length > 0) {
+                return filtered.join(', ');
+            }
+        }
+
+        return channel.displayName || channel.name;
+    }, [team, currentUser, currentUserId]);
+
+    // Filter and group channels into sections
+    const sections = useMemo<ChannelSection[]>(() => {
+        if (!channels || channels.length === 0) {
             return [];
         }
 
         const query = searchQuery.toLowerCase().trim();
-        return channels.filter((channel) => {
+        const internal: ChannelModel[] = [];
+        const external: ChannelModel[] = [];
+
+        for (const channel of channels) {
             // Exclude the source channel
             if (channel.id === channelId) {
-                return false;
-            }
-
-            // Only show channels from the current team (including DM/GM with empty team_id)
-            if (channel.teamId && channel.teamId !== team?.id) {
-                return false;
+                continue;
             }
 
             // Filter by search query
             if (query) {
-                const name = channel.displayName?.toLowerCase() || '';
+                const displayName = getChannelDisplayName(channel).toLowerCase();
                 const channelName = channel.name?.toLowerCase() || '';
-                return name.includes(query) || channelName.includes(query);
+                if (!displayName.includes(query) && !channelName.includes(query)) {
+                    continue;
+                }
             }
 
-            return true;
-        });
-    }, [channels, channelId, searchQuery, team?.id]);
+            // Classify as internal or external
+            // Public channels are always internal
+            if (channel.type === General.OPEN_CHANNEL) {
+                internal.push(channel);
+                continue;
+            }
+
+            // DM: internal if other user is in team or is self
+            if (channel.type === General.DM_CHANNEL && currentUserId) {
+                const otherUserId = getUserIdFromChannelName(currentUserId, channel.name);
+                if (!otherUserId || otherUserId === currentUserId) {
+                    internal.push(channel);
+                } else {
+                    // For now, treat all DMs as internal (simplified)
+                    internal.push(channel);
+                }
+                continue;
+            }
+
+            // GM/Private: check if all members are in team
+            // For now, treat all as internal (simplified)
+            internal.push(channel);
+        }
+
+        const result: ChannelSection[] = [];
+
+        if (internal.length > 0) {
+            result.push({
+                key: 'internal',
+                title: intl.formatMessage({id: 'forward.section.internal', defaultMessage: '内部群'}),
+                data: internal,
+            });
+        }
+
+        if (external.length > 0) {
+            result.push({
+                key: 'external',
+                title: intl.formatMessage({id: 'forward.section.external', defaultMessage: '外部群'}),
+                data: external,
+            });
+        }
+
+        return result;
+    }, [channels, channelId, searchQuery, currentUserId, getChannelDisplayName, intl]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -153,12 +279,22 @@ const ForwardMessage = ({
     const handleSelectChannel = useCallback((channel: ChannelModel) => {
         setSelectedChannelIds((prev) => {
             if (prev.includes(channel.id)) {
-                // Remove from selection
                 return prev.filter((id) => id !== channel.id);
             } else {
-                // Add to selection
                 return [...prev, channel.id];
             }
+        });
+    }, []);
+
+    const handleToggleSection = useCallback((sectionKey: string) => {
+        setCollapsedSections((prev) => {
+            const next = new Set(prev);
+            if (next.has(sectionKey)) {
+                next.delete(sectionKey);
+            } else {
+                next.add(sectionKey);
+            }
+            return next;
         });
     }, []);
 
@@ -174,7 +310,6 @@ const ForwardMessage = ({
         setIsForwarding(true);
 
         try {
-            // Debug log
             debugLog('[Forward] Starting forward with:', {
                 selectedChannelIds,
                 message: message?.substring(0, 50),
@@ -190,13 +325,11 @@ const ForwardMessage = ({
             const inlineRegex = /!\{file:([a-z0-9_-]+)\}/g;
             let inlineMatch;
             while ((inlineMatch = inlineRegex.exec(messageSource)) !== null) {
-                // Skip pending_xxx markers (files being uploaded)
                 if (!inlineMatch[1].startsWith('pending_')) {
                     inlineFileIds.push(inlineMatch[1]);
                 }
             }
 
-            // Collect traditional file_ids that are not in inline markers
             const traditionalFileIds = (fileIds || []).filter(
                 (id) => !inlineFileIds.includes(id),
             );
@@ -209,7 +342,7 @@ const ForwardMessage = ({
                 allOriginalFileIds,
             });
 
-            // Step 2: Copy files on server (like webapp)
+            // Step 2: Copy files on server
             const oldToNewIdMap: Record<string, string> = {};
 
             if (allOriginalFileIds.length > 0) {
@@ -220,7 +353,6 @@ const ForwardMessage = ({
                     debugLog('[Forward] Copy result:', copyResult);
                     const newIds = copyResult.file_ids;
 
-                    // Map old IDs to new IDs
                     allOriginalFileIds.forEach((oldId, index) => {
                         const newId = newIds[index];
                         if (newId) {
@@ -230,7 +362,6 @@ const ForwardMessage = ({
                     debugLog('[Forward] File ID mapping:', oldToNewIdMap);
                 } catch (copyError: any) {
                     debugLog('[Forward] File copy failed:', copyError?.message || String(copyError));
-                    // File copy failed - abort forwarding
                     throw copyError;
                 }
             }
@@ -238,7 +369,6 @@ const ForwardMessage = ({
             // Step 3: Rebuild message with new file IDs
             let forwardMessage = messageSource;
 
-            // Replace inline markers: !{file:oldId} → !{file:newId}
             forwardMessage = forwardMessage.replace(
                 /!\{file:([a-z0-9_-]+)\}/g,
                 (fullMatch, oldId) => {
@@ -247,7 +377,6 @@ const ForwardMessage = ({
                 },
             );
 
-            // Append traditional file_ids as new inline markers
             const appendedMarkers = traditionalFileIds
                 .filter((oldId) => oldToNewIdMap[oldId])
                 .map((oldId) => `!{file:${oldToNewIdMap[oldId]}}`)
@@ -263,7 +392,6 @@ const ForwardMessage = ({
 
             debugLog('[Forward] Forward message:', forwardMessage.substring(0, 100));
 
-            // Get new file IDs for the post
             const newFileIds = allOriginalFileIds
                 .map((oldId) => oldToNewIdMap[oldId])
                 .filter(Boolean);
@@ -275,7 +403,7 @@ const ForwardMessage = ({
                 const post = {
                     channel_id: targetChannelId,
                     message: forwardMessage,
-                    file_ids: newFileIds,  // Use new copied file IDs
+                    file_ids: newFileIds,
                     root_id: '',
                     props: {
                         forwarded_from: {
@@ -294,7 +422,6 @@ const ForwardMessage = ({
                 }
             }
 
-            // Close the modal
             handleClose();
         } catch (error: any) {
             debugLog('[Forward] Error:', error?.message || String(error));
@@ -305,46 +432,72 @@ const ForwardMessage = ({
         } finally {
             setIsForwarding(false);
         }
-    }, [selectedChannelIds, message, fileIds, postId, channelId, serverUrl, intl, handleClose]);
+    }, [selectedChannelIds, message, fileIds, postId, channelId, serverUrl, intl, handleClose, team]);
+
+    const renderSectionHeader = useCallback(({section}: {section: ChannelSection}) => {
+        const isCollapsed = collapsedSections.has(section.key);
+        return (
+            <Pressable
+                style={styles.sectionHeader}
+                onPress={() => handleToggleSection(section.key)}
+            >
+                <CompassIcon
+                    name={isCollapsed ? 'chevron-right' : 'chevron-down'}
+                    size={20}
+                    color={changeOpacity(theme.centerChannelColor, 0.56)}
+                />
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionCount}>({section.data.length})</Text>
+            </Pressable>
+        );
+    }, [collapsedSections, handleToggleSection, styles, theme]);
 
     const renderChannelItem = useCallback(({item: channel}: {item: ChannelModel}) => {
         const isSelected = selectedChannelIds.includes(channel.id);
+        const displayName = getChannelDisplayName(channel);
 
         return (
             <Pressable
                 style={[styles.channelItem, isSelected && styles.channelItemSelected]}
                 onPress={() => handleSelectChannel(channel)}
             >
-                <View style={{
-                    marginRight: 12,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
-                    backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}>
-                    <CompassIcon
-                        name='account-multiple-outline'
-                        size={24}
-                        color={changeOpacity(theme.centerChannelColor, 0.56)}
+                {/* Circular checkbox */}
+                <View style={[
+                    styles.checkbox,
+                    isSelected ? styles.checkboxChecked : styles.checkboxUnchecked,
+                ]}>
+                    {isSelected && (
+                        <CompassIcon
+                            name='check'
+                            size={16}
+                            color={theme.buttonColor}
+                        />
+                    )}
+                </View>
+
+                {/* Channel icon */}
+                <View style={styles.iconContainer}>
+                    <ChannelIcon
+                        channelId={channel.id}
+                        name={channel.name}
+                        type={channel.type}
+                        size={40}
+                        hasDraft={false}
+                        isActive={false}
+                        isUnread={false}
+                        isArchived={false}
+                        membersCount={0}
+                        shared={channel.shared}
                     />
                 </View>
-                <View style={styles.channelInfo}>
-                    <Text style={styles.channelName} numberOfLines={1}>
-                        {channel.displayName || channel.name}
-                    </Text>
-                </View>
-                {isSelected && (
-                    <CompassIcon
-                        name='check'
-                        size={24}
-                        color={theme.buttonBg}
-                    />
-                )}
+
+                {/* Channel name */}
+                <Text style={styles.channelName} numberOfLines={1}>
+                    {displayName}
+                </Text>
             </Pressable>
         );
-    }, [selectedChannelIds, handleSelectChannel, styles, theme]);
+    }, [selectedChannelIds, handleSelectChannel, getChannelDisplayName, styles, theme]);
 
     const renderEmptyState = useCallback(() => (
         <View style={styles.emptyState}>
@@ -356,6 +509,11 @@ const ForwardMessage = ({
             </Text>
         </View>
     ), [searchQuery, styles, intl]);
+
+    // Filter sections based on collapsed state
+    const visibleSections = useMemo(() => {
+        return sections.filter((section) => !collapsedSections.has(section.key));
+    }, [sections, collapsedSections]);
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -389,7 +547,7 @@ const ForwardMessage = ({
             <View style={styles.searchContainer}>
                 <TextInput
                     style={styles.searchInput}
-                    placeholder={intl.formatMessage({id: 'forward.search_placeholder', defaultMessage: 'Search groups...'})}
+                    placeholder={intl.formatMessage({id: 'forward.search_placeholder', defaultMessage: '搜索群组...'})}
                     placeholderTextColor={changeOpacity(theme.centerChannelColor, 0.56)}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -398,11 +556,13 @@ const ForwardMessage = ({
                 />
             </View>
 
-            <FlatList
-                data={filteredChannels}
+            <SectionList
+                sections={visibleSections}
                 renderItem={renderChannelItem}
+                renderSectionHeader={renderSectionHeader}
                 keyExtractor={(item) => item.id}
                 ListEmptyComponent={renderEmptyState}
+                stickySectionHeadersEnabled={true}
             />
         </SafeAreaView>
     );

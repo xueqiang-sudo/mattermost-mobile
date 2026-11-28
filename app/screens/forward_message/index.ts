@@ -5,9 +5,10 @@ import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
-import {observeCurrentChannelId, observeCurrentTeamId} from '@queries/servers/system';
+import {observeCurrentChannelId, observeCurrentTeamId, observeCurrentUserId} from '@queries/servers/system';
 import {queryAllChannelsForTeam} from '@queries/servers/channel';
 import {observeTeam} from '@queries/servers/team';
+import {observeCurrentUser} from '@queries/servers/user';
 
 import ForwardMessage from './forward_message';
 
@@ -16,6 +17,8 @@ import type {WithDatabaseArgs} from '@typings/database/database';
 const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
     const currentChannelId = observeCurrentChannelId(database);
     const currentTeamId = observeCurrentTeamId(database);
+    const currentUserId = observeCurrentUserId(database);
+    const currentUser = observeCurrentUser(database);
 
     // 【范围限制】只显示当前团队的频道（含公开/私密团队频道 + 本团队的 DM/GM/共享频道），
     // 对齐 webapp 转发选人面板：不跨团队展示频道。
@@ -32,6 +35,8 @@ const enhanced = withObservables([], ({database}: WithDatabaseArgs) => {
 
     return {
         currentChannelId,
+        currentUserId,
+        currentUser,
         channels,
         team,
     };
