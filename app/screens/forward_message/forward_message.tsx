@@ -19,11 +19,18 @@ import {debugLog} from '@store/debug_log';
 import NetworkManager from '@managers/network_manager';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {getUserIdFromChannelName} from '@utils/user';
+import {classifyChannel} from '@utils/channel_classification';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type ChannelModel from '@typings/database/models/servers/channel';
 import type TeamModel from '@typings/database/models/servers/team';
 import type UserModel from '@typings/database/models/servers/user';
+
+type CustomCategoryInfo = {
+    id: string;
+    displayName: string;
+    channelIds: string[];
+};
 
 type ForwardMessageProps = {
     componentId: AvailableScreens;
@@ -36,6 +43,10 @@ type ForwardMessageProps = {
     currentUserId?: string;
     currentUser?: UserModel | null;
     team?: TeamModel | null;
+    teamMemberIds?: ReadonlySet<string>;
+    botUserIds?: ReadonlySet<string>;
+    customCategories?: CustomCategoryInfo[];
+    serverUrl?: string;
 };
 
 type ChannelSection = {
@@ -149,6 +160,9 @@ const ForwardMessage = ({
     currentUserId,
     currentUser,
     team,
+    teamMemberIds,
+    botUserIds,
+    customCategories,
 }: ForwardMessageProps) => {
     const intl = useIntl();
     const theme = useTheme();
@@ -228,6 +242,24 @@ const ForwardMessage = ({
         const query = searchQuery.toLowerCase().trim();
         const internal: ChannelModel[] = [];
         const external: ChannelModel[] = [];
+        const customCategoryChannels = new Map<string, {title: string; channels: ChannelModel[]}>();
+
+        // Initialize custom category maps
+        if (customCategories) {
+            for (const cat of customCategories) {
+                customCategoryChannels.set(cat.id, {title: cat.displayName, channels: []});
+            }
+        }
+
+        // Create a set of channel IDs in custom categories for quick lookup
+        const customCategoryChannelIds = new Set<string>();
+        if (customCategories) {
+            for (const cat of customCategories) {
+                for (const chId of cat.channelIds) {
+                    customCategoryChannelIds.add(chId);
+                }
+            }
+        }
 
         for (const channel of channels) {
             // Exclude the source channel
@@ -244,32 +276,38 @@ const ForwardMessage = ({
                 }
             }
 
-            // Classify as internal or external
-            // Public channels are always internal
-            if (channel.type === General.OPEN_CHANNEL) {
-                internal.push(channel);
-                continue;
-            }
-
-            // DM: internal if other user is in team or is self
-            if (channel.type === General.DM_CHANNEL && currentUserId) {
-                const otherUserId = getUserIdFromChannelName(currentUserId, channel.name);
-                if (!otherUserId || otherUserId === currentUserId) {
-                    internal.push(channel);
-                } else {
-                    // For now, treat all DMs as internal (simplified)
-                    internal.push(channel);
+            // Check if channel belongs to a custom category
+            if (customCategoryChannelIds.has(channel.id)) {
+                for (const cat of customCategories || []) {
+                    if (cat.channelIds.includes(channel.id)) {
+                        const catData = customCategoryChannels.get(cat.id);
+                        if (catData) {
+                            catData.channels.push(channel);
+                        }
+                    }
                 }
                 continue;
             }
 
-            // GM/Private: check if all members are in team
-            // For now, treat all as internal (simplified)
-            internal.push(channel);
+            // Use classifyChannel for proper internal/external classification
+            const classification = classifyChannel(
+                channel,
+                currentUserId || '',
+                teamMemberIds || new Set<string>(),
+                new Map(), // gmMemberIds - not needed for this context
+                botUserIds || new Set<string>(),
+            );
+
+            if (classification === 'internal') {
+                internal.push(channel);
+            } else {
+                external.push(channel);
+            }
         }
 
         const result: ChannelSection[] = [];
 
+        // Add internal section first
         if (internal.length > 0) {
             result.push({
                 key: 'internal',
@@ -278,6 +316,18 @@ const ForwardMessage = ({
             });
         }
 
+        // Add custom category sections
+        for (const [catId, catData] of customCategoryChannels) {
+            if (catData.channels.length > 0) {
+                result.push({
+                    key: `custom_${catId}`,
+                    title: catData.title,
+                    data: catData.channels,
+                });
+            }
+        }
+
+        // Add external section last
         if (external.length > 0) {
             result.push({
                 key: 'external',
@@ -287,7 +337,7 @@ const ForwardMessage = ({
         }
 
         return result;
-    }, [channels, channelId, searchQuery, currentUserId, getChannelDisplayName, intl]);
+    }, [channels, channelId, searchQuery, currentUserId, teamMemberIds, botUserIds, customCategories, getChannelDisplayName, intl]);
 
     const handleClose = useCallback(() => {
         dismissModal({componentId});
@@ -502,7 +552,6 @@ const ForwardMessage = ({
                 {/* Channel icon */}
                 <View style={styles.iconContainer}>
                     <ChannelIcon
-                        channelId={channel.id}
                         name={channel.name}
                         type={channel.type}
                         size={40}
