@@ -1,14 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {Alert, Pressable, SectionList, StyleSheet, Text, TextInput, View} from 'react-native';
+import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useIntl} from 'react-intl';
 
 import {createPost} from '@actions/remote/post';
 import ChannelIcon from '@components/channel_icon';
 import CompassIcon from '@components/compass_icon';
+import Toast from '@components/toast';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
@@ -157,6 +159,21 @@ const ForwardMessage = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [isForwarding, setIsForwarding] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+    const [showToast, setShowToast] = useState<boolean | undefined>();
+    const mounted = useRef(false);
+
+    React.useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
+
+    const toastAnimatedStyle = useAnimatedStyle(() => ({
+        position: 'absolute',
+        bottom: 80,
+        opacity: withTiming(showToast ? 1 : 0, {duration: 300}),
+    }));
 
     // Get display name for a channel based on type
     const getChannelDisplayName = useCallback((channel: ChannelModel): string => {
@@ -422,7 +439,14 @@ const ForwardMessage = ({
                 }
             }
 
-            handleClose();
+            // Show success toast then close
+            setShowToast(true);
+            setTimeout(() => {
+                if (mounted.current) {
+                    setShowToast(false);
+                    handleClose();
+                }
+            }, 1500);
         } catch (error: any) {
             debugLog('[Forward] Error:', error?.message || String(error));
             Alert.alert(
@@ -564,6 +588,15 @@ const ForwardMessage = ({
                 ListEmptyComponent={renderEmptyState}
                 stickySectionHeadersEnabled={true}
             />
+
+            {showToast !== undefined && (
+                <Toast
+                    animatedStyle={toastAnimatedStyle}
+                    style={{backgroundColor: '#3DB887'}}
+                    message={intl.formatMessage({id: 'forward.success', defaultMessage: '转发成功'})}
+                    iconName='check-circle-outline'
+                />
+            )}
         </SafeAreaView>
     );
 };

@@ -7,7 +7,7 @@ import {useIntl} from 'react-intl';
 import {Alert, DeviceEventEmitter, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
-import {makeBotGroupChannel, makeGroupChannel} from '@actions/remote/channel';
+import {makeBotGroupChannel, makeGroupChannel, switchToChannelById} from '@actions/remote/channel';
 import {removeEmployeeContact, updateEmployeeContact} from '@actions/remote/employee_contact_new';
 import {fetchTeamById, getTeamMembersByIds, removeUserFromTeam} from '@actions/remote/team';
 import Button from '@components/button';
@@ -672,9 +672,10 @@ const ContactsEmployeeProfile = ({
         // Bot → botgm_ group (server creates the channel with the `botgm_`
         // prefix and enforces 1-on-1 membership); human → regular GM.
         // 不传递 currentTeamId 给 makeGroupChannel，让 GM 频道的 TeamId 保持为空，确保跨团队的唯一性
+        // 使用 shouldSwitchToChannel=false 避免团队切换，然后手动切换到频道
         const result = resolved.isBot
-            ? await makeBotGroupChannel(serverUrl, resolved.id, currentTeamId)
-            : await makeGroupChannel(serverUrl, [resolved.id], true);
+            ? await makeBotGroupChannel(serverUrl, resolved.id, currentTeamId, false)
+            : await makeGroupChannel(serverUrl, [resolved.id], false);
         setSending(false);
         if (result.error) {
             Alert.alert(
@@ -686,7 +687,15 @@ const ContactsEmployeeProfile = ({
             );
             return;
         }
+        // 先关闭当前页面，再切换到新创建的频道
         handleClose();
+        // 使用 setTimeout 确保页面关闭后再切换频道，避免导航冲突
+        // 传递 currentTeamId 以保持当前团队不变
+        if (result.data?.id) {
+            setTimeout(() => {
+                switchToChannelById(serverUrl, result.data.id, currentTeamId);
+            }, 100);
+        }
     }, [serverUrl, sending, isSelf, resolveMattermostUser, intl, handleClose]));
 
     const canSendMessage = !isSelf && Boolean(employee?.email || employee?.id);
